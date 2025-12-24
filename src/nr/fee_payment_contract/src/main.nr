@@ -80,7 +80,7 @@ pub contract FeePayment {
         self.storage.fee_juice_balance.at(self.msg_sender().unwrap()).sub(max_gas_cost).deliver(
             MessageDelivery.CONSTRAINED_ONCHAIN,
         );
-        
+
         // Prepare the partial note for the refund.
         let to = self.context.msg_sender().unwrap();
         let partial_note = UintNote::partial(
@@ -126,7 +126,12 @@ pub contract FeePayment {
 
     #[external("public")]
     #[only_self]
-    fn _validate_gas_cost_and_refund(max_gas_cost: u128, da_gas_limit: u32, l2_gas_limit: u32, partial_note: PartialUintNote) {
+    fn _validate_gas_cost_and_refund(
+        max_gas_cost: u128,
+        da_gas_limit: u32,
+        l2_gas_limit: u32,
+        partial_note: PartialUintNote,
+    ) {
         let base_fee_per_da_gas = self.context.base_fee_per_da_gas();
         let base_fee_per_l2_gas = self.context.base_fee_per_l2_gas();
 
