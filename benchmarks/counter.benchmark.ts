@@ -3,6 +3,7 @@ import { AztecAddress } from "@aztec/aztec.js/addresses";
 import { createAztecNodeClient, waitForNode } from "@aztec/aztec.js/node";
 import type { FeePaymentMethod } from "@aztec/aztec.js/fee";
 import { getFeeJuiceBalance } from "@aztec/aztec.js/utils";
+import { Fr } from "@aztec/aztec.js/fields";
 import {
   registerInitialLocalNetworkAccountsInWallet,
   TestWallet,
@@ -11,15 +12,36 @@ import {
   Benchmark,
   type BenchmarkContext,
 } from "@defi-wonderland/aztec-benchmark";
+import { Gas, GasFees } from "@aztec/stdlib/gas";
+import {
+  DEFAULT_DA_GAS_LIMIT,
+  DEFAULT_L2_GAS_LIMIT,
+  DEFAULT_TEARDOWN_DA_GAS_LIMIT,
+  DEFAULT_TEARDOWN_L2_GAS_LIMIT,
+  GAS_ESTIMATION_DA_GAS_LIMIT,
+  GAS_ESTIMATION_L2_GAS_LIMIT,
+} from "@aztec/constants";
 
 import { CounterContract } from "../src/artifacts/Counter.js";
 import { FeePaymentContract } from "../src/artifacts/FeePayment.js";
+import { TokenContract } from "@aztec/noir-contracts.js/Token";
 import {
   MeteredSponsoredFeePaymentMethod,
   MeteredExactSponsoredFeePaymentMethod,
+  MeteredTokenSponsoredFeePaymentMethod,
+  MeteredExactTokenSponsoredFeePaymentMethod,
   SponsoredFeePaymentMethod,
 } from "../src/ts/sponsored_fee_payment.js";
 import { fundL2AddressWithFeeJuiceFromL1 } from "../src/ts/fee_juice_funding.js";
+
+const REASONABLE_GAS_LIMITS = Gas.from({
+  daGas: DEFAULT_DA_GAS_LIMIT,
+  l2Gas: DEFAULT_L2_GAS_LIMIT,
+});
+const REASONABLE_TEARDOWN_GAS_LIMITS = Gas.from({
+  daGas: DEFAULT_TEARDOWN_DA_GAS_LIMIT,
+  l2Gas: DEFAULT_TEARDOWN_L2_GAS_LIMIT,
+});
 
 /**
  * Wraps a ContractFunctionInteraction so the benchmark runner's profiler (which calls
@@ -72,15 +94,146 @@ class FeeWrappedInteraction {
   }
 }
 
+/**
+ * Wraps a ContractFunctionInteraction and injects:
+ * - a custom FeePaymentMethod, AND
+ * - authWitnesses (for token-sponsored fee payment), AND
+ * - fee.gasSettings (so authwit amount matches the contract's max gas cost math).
+ */
+class FeeAndAuthWrappedInteraction {
+  private nonceCounter = 1n;
+
+  constructor(
+    private readonly inner: any,
+    private readonly wallet: TestWallet,
+    private readonly caller: AztecAddress,
+    private readonly feePayer: AztecAddress,
+    private readonly token: TokenContract,
+    private readonly getPaymentMethod: (nonce: Fr) => FeePaymentMethod,
+    private readonly buildTokenTransferAction: (args: {
+      from: AztecAddress;
+      to: AztecAddress;
+      amount: bigint;
+      nonce: Fr;
+    }) => any,
+    private readonly gasSettings: {
+      gasLimits: Gas;
+      teardownGasLimits: Gas;
+      maxFeesPerGas: GasFees;
+    },
+  ) {}
+
+  private nextNonce(): Fr {
+    // Deterministic, cheap nonce generation for repeated benchmark iterations.
+    const nonce = new Fr(this.nonceCounter);
+    this.nonceCounter += 1n;
+    return nonce;
+  }
+
+  private async buildOptions(userOptions: any = {}) {
+    const nonce = this.nextNonce();
+    // IMPORTANT: For token-sponsored fee payment, the authwit must match the *exact* call
+    // the FeePayment contract will make (including the nonce embedded in the fee method args).
+    // Therefore we must generate both the payment method and the authwit from the same nonce
+    // and not allow callers to override the payment method.
+    const paymentMethod = this.getPaymentMethod(nonce);
+
+    const txFrom: AztecAddress = userOptions?.from ?? this.caller;
+
+    // IMPORTANT: The token `amount` we authorize must match the FeePayment contract's
+    // `max_gas_cost` computation, which depends on the tx's gas settings.
+    // The benchmark framework may supply its own fee options; to keep authwits stable,
+    // we always force the known-good gas settings we built during setup.
+    const gasSettings = this.gasSettings;
+
+    // When `estimateGas: true`, the wallet will run the tx with fixed, "unreasonably high"
+    // gas limits (GAS_ESTIMATION_* constants). The FeePayment contract reads those limits
+    // from the tx settings, so we must size the authwit to those limits during estimation,
+    // otherwise Token.transfer_to_public will reject with "Unknown auth witness".
+    const isEstimatingGas = Boolean(userOptions?.fee?.estimateGas);
+    const gasLimitsForCost = isEstimatingGas
+      ? {
+          daGas: GAS_ESTIMATION_DA_GAS_LIMIT,
+          l2Gas: GAS_ESTIMATION_L2_GAS_LIMIT,
+        }
+      : gasSettings.gasLimits;
+
+    const maxGasCost =
+      BigInt(gasSettings.maxFeesPerGas.feePerDaGas) *
+        BigInt(gasLimitsForCost.daGas) +
+      BigInt(gasSettings.maxFeesPerGas.feePerL2Gas) *
+        BigInt(gasLimitsForCost.l2Gas);
+
+    const tokenTransferAction = this.buildTokenTransferAction({
+      from: txFrom,
+      to: this.feePayer,
+      amount: maxGasCost,
+      nonce,
+    });
+
+    const intent = { caller: this.feePayer, action: tokenTransferAction };
+    const witness = await this.wallet.createAuthWit(txFrom, intent);
+
+    return {
+      ...userOptions,
+      from: txFrom,
+      // Override any benchmark-framework-provided authwits (they may not be full AuthWitness objects),
+      // and ensure the exact witness needed for the token call is present.
+      authWitnesses: [witness],
+      // Profiling should focus on circuit costs, not tx validity checks (which can be expensive and flaky).
+      // The benchmark framework doesn't set this, so we do it here to keep token-sponsored profiling stable.
+      ...(userOptions?.profileMode
+        ? { skipTxValidation: true, skipFeeEnforcement: true }
+        : {}),
+      fee: {
+        ...(userOptions?.fee ?? {}),
+        paymentMethod,
+        gasSettings,
+      },
+    };
+  }
+
+  async request(options: any = {}) {
+    return this.inner.request(await this.buildOptions(options));
+  }
+
+  async simulate(options: any = {}) {
+    return this.inner.simulate(await this.buildOptions(options));
+  }
+
+  async profile(options: any = {}) {
+    return this.inner.profile(await this.buildOptions(options));
+  }
+
+  send(options: any = {}) {
+    // The benchmark framework expects `send(...).wait()` without awaiting `send()`.
+    // Since we need async work (authwit creation) to build options, we return a small
+    // wrapper that provides a `wait()` method matching the expected shape.
+    return {
+      wait: async () => {
+        const tx = await this.inner.send(await this.buildOptions(options));
+        return tx.wait();
+      },
+    };
+  }
+}
+
 // Extend the BenchmarkContext from the new package
 interface CounterBenchmarkContext extends BenchmarkContext {
   wallet: Wallet;
   deployer: AztecAddress;
   accounts: AztecAddress[];
   counterContract: CounterContract;
+  feePayerAddress: AztecAddress;
+  tokenContract: TokenContract;
   feePaymentMethod?: FeePaymentMethod;
   meteredFeePaymentMethod?: FeePaymentMethod;
   meteredExactFeePaymentMethod?: FeePaymentMethod;
+  tokenMeteredGasSettings: {
+    gasLimits: Gas;
+    teardownGasLimits: Gas;
+    maxFeesPerGas: GasFees;
+  };
 }
 
 // Use export default class extending Benchmark
@@ -93,7 +246,11 @@ export default class CounterContractBenchmark extends Benchmark {
     const aztecNode = createAztecNodeClient("http://localhost:8080");
     await waitForNode(aztecNode);
 
-    const wallet: TestWallet = await TestWallet.create(aztecNode);
+    // Keep the benchmark focused on simulation/profiling and avoid prover-related heavy paths
+    // that can trip ACVM execution limits for complex transactions.
+    const wallet: TestWallet = await TestWallet.create(aztecNode, {
+      proverEnabled: false,
+    });
     const accounts: AztecAddress[] =
       await registerInitialLocalNetworkAccountsInWallet(wallet);
 
@@ -105,6 +262,16 @@ export default class CounterContractBenchmark extends Benchmark {
       .deployed();
 
     const counterContract = await CounterContract.deploy(wallet, deployer)
+      .send({ from: deployer })
+      .deployed();
+
+    const tokenContract = await TokenContract.deploy(
+      wallet,
+      deployer,
+      "FeeToken",
+      "FEE",
+      18n,
+    )
       .send({ from: deployer })
       .deployed();
 
@@ -145,6 +312,17 @@ export default class CounterContractBenchmark extends Benchmark {
       .send({ from: deployer })
       .wait();
 
+    // Mint private token balance so token-sponsored fee payment can pull max gas cost repeatedly.
+    await tokenContract
+      .withWallet(wallet)
+      .methods.mint_to_private(deployer, 1_000_000_000_000_000_000_000_000n)
+      .send({ from: deployer })
+      .wait();
+    await tokenContract
+      .withWallet(wallet)
+      .methods.sync_private_state()
+      .simulate({ from: deployer });
+
     const feePaymentMethod = new SponsoredFeePaymentMethod(
       feePayerContract.address,
     );
@@ -154,14 +332,29 @@ export default class CounterContractBenchmark extends Benchmark {
     const meteredExactFeePaymentMethod =
       new MeteredExactSponsoredFeePaymentMethod(feePayerContract.address);
 
+    // For token-sponsored fee payment we must provide gas settings (so maxGasCost is known for authwit).
+    const baseFees: any = await (aztecNode as any).getCurrentBaseFees();
+    const maxFeesPerGas = new GasFees(
+      BigInt(baseFees.feePerDaGas) * 3n,
+      BigInt(baseFees.feePerL2Gas) * 3n,
+    );
+    const tokenMeteredGasSettings = {
+      gasLimits: REASONABLE_GAS_LIMITS,
+      teardownGasLimits: REASONABLE_TEARDOWN_GAS_LIMITS,
+      maxFeesPerGas,
+    };
+
     return {
       wallet,
       deployer,
       accounts,
       counterContract,
+      feePayerAddress: feePayerContract.address,
+      tokenContract,
       feePaymentMethod,
       meteredFeePaymentMethod,
       meteredExactFeePaymentMethod,
+      tokenMeteredGasSettings,
     };
   }
 
@@ -175,9 +368,12 @@ export default class CounterContractBenchmark extends Benchmark {
       counterContract,
       wallet,
       deployer,
+      feePayerAddress,
       feePaymentMethod,
       meteredFeePaymentMethod,
       meteredExactFeePaymentMethod,
+      tokenContract,
+      tokenMeteredGasSettings,
     } = context;
 
     // Return a NamedBenchmarkedInteraction so reports are keyed by the *user function* name ("increment"),
@@ -219,6 +415,59 @@ export default class CounterContractBenchmark extends Benchmark {
           action: new FeeWrappedInteraction(
             counterContract.withWallet(wallet).methods.increment(),
             meteredExactFeePaymentMethod,
+          ),
+        },
+      },
+      {
+        name: "increment_metered_token",
+        interaction: {
+          caller: deployer,
+          action: new FeeAndAuthWrappedInteraction(
+            counterContract.withWallet(wallet).methods.increment(),
+            wallet as TestWallet,
+            deployer,
+            feePayerAddress,
+            tokenContract,
+            (nonce) =>
+              new MeteredTokenSponsoredFeePaymentMethod(
+                feePayerAddress,
+                tokenContract.address,
+                nonce,
+              ),
+            ({ from, to, amount, nonce }) =>
+              tokenContract
+                .withWallet(wallet)
+                .methods.transfer_to_public(from, to, amount, nonce),
+            tokenMeteredGasSettings,
+          ),
+        },
+      },
+      {
+        name: "increment_metered_token_exact",
+        interaction: {
+          caller: deployer,
+          action: new FeeAndAuthWrappedInteraction(
+            counterContract.withWallet(wallet).methods.increment(),
+            wallet as TestWallet,
+            deployer,
+            feePayerAddress,
+            tokenContract,
+            (nonce) =>
+              new MeteredExactTokenSponsoredFeePaymentMethod(
+                feePayerAddress,
+                tokenContract.address,
+                nonce,
+              ),
+            ({ from, to, amount, nonce }) =>
+              tokenContract
+                .withWallet(wallet)
+                .methods.transfer_to_public_and_prepare_private_balance_increase(
+                  from,
+                  to,
+                  amount,
+                  nonce,
+                ),
+            tokenMeteredGasSettings,
           ),
         },
       },
