@@ -43,10 +43,16 @@ pub contract FeePayment {
             + max_fee_per_l2_gas * (l2_gas_limit as u128);
 
         // This logic is at setup phase, so if it reverts, the tx will be invalid (not included in the block).
-        self.enqueue_self._validate_gas_cost(max_gas_cost, da_gas_limit, l2_gas_limit);
         self.storage.fee_juice_balance.at(self.msg_sender().unwrap()).sub(max_gas_cost).deliver(
             MessageDelivery.CONSTRAINED_ONCHAIN,
         );
+
+        // This logic is at teardown phase, so if it reverts, the tx will be invalid (not included in the block).
+        self.set_as_teardown(FeePayment::at(self.address)._validate_gas_cost(
+            max_gas_cost,
+            da_gas_limit,
+            l2_gas_limit,
+        ));
 
         // Set the FPC as the fee payer of the tx.
         self.context.set_as_fee_payer();
