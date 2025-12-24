@@ -16,6 +16,7 @@ import { CounterContract } from "../src/artifacts/Counter.js";
 import { FeePaymentContract } from "../src/artifacts/FeePayment.js";
 import {
   MeteredSponsoredFeePaymentMethod,
+  MeteredExactSponsoredFeePaymentMethod,
   SponsoredFeePaymentMethod,
 } from "../src/ts/sponsored_fee_payment.js";
 import { fundL2AddressWithFeeJuiceFromL1 } from "../src/ts/fee_juice_funding.js";
@@ -79,6 +80,7 @@ interface CounterBenchmarkContext extends BenchmarkContext {
   counterContract: CounterContract;
   feePaymentMethod?: FeePaymentMethod;
   meteredFeePaymentMethod?: FeePaymentMethod;
+  meteredExactFeePaymentMethod?: FeePaymentMethod;
 }
 
 // Use export default class extending Benchmark
@@ -139,10 +141,7 @@ export default class CounterContractBenchmark extends Benchmark {
     // Mint internal balance so `sponsor_metered()` does not underflow.
     await feePayerContract
       .withWallet(wallet)
-      .methods.mint_fee_juice(
-        feePayerContract.address,
-        10_000_000_000_000_000_000n,
-      )
+      .methods.mint_fee_juice(deployer, 10_000_000_000_000_000_000n)
       .send({ from: deployer })
       .wait();
 
@@ -152,6 +151,8 @@ export default class CounterContractBenchmark extends Benchmark {
     const meteredFeePaymentMethod = new MeteredSponsoredFeePaymentMethod(
       feePayerContract.address,
     );
+    const meteredExactFeePaymentMethod =
+      new MeteredExactSponsoredFeePaymentMethod(feePayerContract.address);
 
     return {
       wallet,
@@ -160,6 +161,7 @@ export default class CounterContractBenchmark extends Benchmark {
       counterContract,
       feePaymentMethod,
       meteredFeePaymentMethod,
+      meteredExactFeePaymentMethod,
     };
   }
 
@@ -175,6 +177,7 @@ export default class CounterContractBenchmark extends Benchmark {
       deployer,
       feePaymentMethod,
       meteredFeePaymentMethod,
+      meteredExactFeePaymentMethod,
     } = context;
 
     // Return a NamedBenchmarkedInteraction so reports are keyed by the *user function* name ("increment"),
@@ -206,6 +209,16 @@ export default class CounterContractBenchmark extends Benchmark {
           action: new FeeWrappedInteraction(
             counterContract.withWallet(wallet).methods.increment(),
             meteredFeePaymentMethod,
+          ),
+        },
+      },
+      {
+        name: "increment_metered_exact",
+        interaction: {
+          caller: deployer,
+          action: new FeeWrappedInteraction(
+            counterContract.withWallet(wallet).methods.increment(),
+            meteredExactFeePaymentMethod,
           ),
         },
       },

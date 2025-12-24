@@ -8,9 +8,10 @@ pub contract FeePayment {
         macros::{functions::{external, nophasecheck, only_self}, storage::storage},
         messages::message_delivery::MessageDelivery,
         protocol_types::address::AztecAddress,
-        state_vars::Owned,
+        state_vars::{Owned, state_variable::StateVariable},
     };
     use dep::balance_set::BalanceSet;
+    use dep::uint_note::uint_note::{PartialUintNote, UintNote};
 
     #[storage]
     struct Storage<Context> {
@@ -61,6 +62,50 @@ pub contract FeePayment {
     }
 
     #[external("private")]
+    #[nophasecheck]
+    fn sponsor_metered_exact() {
+        // Get the gas limits from the transaction settings.
+        let l2_gas_limit = self.context.gas_settings().gas_limits.l2_gas;
+        let da_gas_limit = self.context.gas_settings().gas_limits.da_gas;
+
+        // Get the max fee per gas from the transaction settings.
+        let max_fee_per_da_gas = self.context.gas_settings().max_fees_per_gas.fee_per_da_gas;
+        let max_fee_per_l2_gas = self.context.gas_settings().max_fees_per_gas.fee_per_l2_gas;
+
+        // Calculate the max gas cost (max fees are already validated in the transaction settings).
+        let max_gas_cost = max_fee_per_da_gas * (da_gas_limit as u128)
+            + max_fee_per_l2_gas * (l2_gas_limit as u128);
+
+        // This logic is at setup phase, so if it reverts, the tx will be invalid (not included in the block).
+        self.storage.fee_juice_balance.at(self.msg_sender().unwrap()).sub(max_gas_cost).deliver(
+            MessageDelivery.CONSTRAINED_ONCHAIN,
+        );
+        
+        // Prepare the partial note for the refund.
+        let to = self.context.msg_sender().unwrap();
+        let partial_note = UintNote::partial(
+            to,
+            self.storage.fee_juice_balance.get_storage_slot(),
+            self.context,
+            to,
+            self.address,
+        );
+
+        // This logic is at teardown phase, so if it reverts, the tx will be invalid (not included in the block).
+        self.set_as_teardown(FeePayment::at(self.address)._validate_gas_cost_and_refund(
+            max_gas_cost,
+            da_gas_limit,
+            l2_gas_limit,
+            partial_note,
+        ));
+
+        // Set the FPC as the fee payer of the tx.
+        self.context.set_as_fee_payer();
+        // End the setup phase
+        self.context.end_setup();
+    }
+
+    #[external("private")]
     fn mint_fee_juice(account: AztecAddress, amount: u128) {
         self.storage.fee_juice_balance.at(account).add(amount).deliver(
             MessageDelivery.CONSTRAINED_ONCHAIN,
@@ -77,6 +122,21 @@ pub contract FeePayment {
         let l2_gas_cost = base_fee_per_l2_gas * (l2_gas_limit as u128);
 
         assert(da_gas_cost + l2_gas_cost <= max_gas_cost, "Gas cost exceeds limit");
+    }
+
+    #[external("public")]
+    #[only_self]
+    fn _validate_gas_cost_and_refund(max_gas_cost: u128, da_gas_limit: u32, l2_gas_limit: u32, partial_note: PartialUintNote) {
+        let base_fee_per_da_gas = self.context.base_fee_per_da_gas();
+        let base_fee_per_l2_gas = self.context.base_fee_per_l2_gas();
+
+        let da_gas_cost = base_fee_per_da_gas * (da_gas_limit as u128);
+        let l2_gas_cost = base_fee_per_l2_gas * (l2_gas_limit as u128);
+
+        assert(da_gas_cost + l2_gas_cost <= max_gas_cost, "Gas cost exceeds limit");
+
+        let refund_amount = max_gas_cost - (da_gas_cost + l2_gas_cost);
+        partial_note.complete(self.context, self.address, refund_amount);
     }
 
     #[external("utility")]

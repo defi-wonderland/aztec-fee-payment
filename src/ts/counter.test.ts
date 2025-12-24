@@ -7,10 +7,12 @@ import {
 import { createAztecNodeClient, AztecNode } from "@aztec/aztec.js/node";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { getFeeJuiceBalance } from "@aztec/aztec.js/utils";
+import { Gas, GasFees } from "@aztec/stdlib/gas";
 
 import { deployCounter, deployFeePaymentContract } from "./utils.js";
 import {
   MeteredSponsoredFeePaymentMethod,
+  MeteredExactSponsoredFeePaymentMethod,
   SponsoredFeePaymentMethod,
 } from "./sponsored_fee_payment.js";
 import { fundL2AddressWithFeeJuiceFromL1 } from "./fee_juice_funding.js";
@@ -24,6 +26,7 @@ describe("Counter Contract", () => {
   let aztecNode: AztecNode;
   let sponsoredFeePaymentMethod: SponsoredFeePaymentMethod;
   let meteredSponsoredFeePaymentMethod: MeteredSponsoredFeePaymentMethod;
+  let meteredExactSponsoredFeePaymentMethod: MeteredExactSponsoredFeePaymentMethod;
   let sponsoredFpcAddress: AztecAddress;
   let feePaymentContract: FeePaymentContract;
 
@@ -52,6 +55,8 @@ describe("Counter Contract", () => {
     meteredSponsoredFeePaymentMethod = new MeteredSponsoredFeePaymentMethod(
       sponsoredFpcAddress,
     );
+    meteredExactSponsoredFeePaymentMethod =
+      new MeteredExactSponsoredFeePaymentMethod(sponsoredFpcAddress);
 
     // Fund fee payer with FeeJuice from L1, then claim it on L2.
     const { balance: sponsoredFpcFeeJuiceBalance } =
@@ -205,5 +210,77 @@ describe("Counter Contract", () => {
 
     expect(after).toBeLessThan(before);
     expect(afterInternalBalance).toBeLessThan(beforeInternalBalance);
+  });
+
+  it("sponsor_metered_exact: refunds surplus so internal balance only decreases by baseFee*gasLimits", async () => {
+    // Mint a large internal balance so sponsor_metered_exact can reserve max_gas_cost.
+    await feePaymentContract.methods
+      .mint_fee_juice(alice, MINTED_FEE_JUICE_AMOUNT)
+      .send({ from: alice })
+      .wait();
+
+    const beforeInternalBalance = await feePaymentContract.methods
+      .get_fee_juice_balance(alice)
+      .simulate({ from: alice });
+
+    // Make max fees higher than base fees so there is always a surplus to refund.
+    const baseFees: any = await (aztecNode as any).getCurrentBaseFees();
+    const maxFeesPerGas = new GasFees(
+      BigInt(baseFees.feePerDaGas) * 3n,
+      BigInt(baseFees.feePerL2Gas) * 3n,
+    );
+
+    // Ask the wallet to estimate gas for this interaction (with our max fees),
+    // then reuse the estimated limits for the real tx. This keeps the test stable
+    // across protocol versions while still letting us assert the exact refund math.
+    const simulation: any = await counter.methods.increment().simulate({
+      from: alice,
+      includeMetadata: true,
+      fee: {
+        paymentMethod: meteredExactSponsoredFeePaymentMethod,
+        estimateGas: true,
+        gasSettings: { maxFeesPerGas },
+      },
+    });
+
+    const gasLimits: Gas = (simulation.estimatedGas.gasLimits as Gas).mul(1.2);
+    const teardownGasLimits: Gas = (
+      simulation.estimatedGas.teardownGasLimits as Gas
+    ).mul(1.2);
+
+    const receipt = await counter.methods
+      .increment()
+      .send({
+        from: alice,
+        fee: {
+          paymentMethod: meteredExactSponsoredFeePaymentMethod,
+          gasSettings: {
+            gasLimits,
+            teardownGasLimits,
+            maxFeesPerGas,
+          },
+        },
+      })
+      .wait();
+
+    expect(receipt.status).toBe(TxStatus.SUCCESS);
+    expect(receipt.blockNumber).toBeDefined();
+
+    // Use the mined block's base fees (not "current" fees) to avoid flakiness if fees shift between blocks.
+    const block = await aztecNode.getBlock(receipt.blockNumber!);
+    expect(block).toBeDefined();
+    const minedBaseFees: any = (block as any).header.globalVariables.gasFees;
+
+    const expectedBaseGasCost =
+      BigInt(minedBaseFees.feePerDaGas) * BigInt(gasLimits.daGas) +
+      BigInt(minedBaseFees.feePerL2Gas) * BigInt(gasLimits.l2Gas);
+
+    const afterInternalBalance = await feePaymentContract.methods
+      .get_fee_juice_balance(alice)
+      .simulate({ from: alice });
+
+    expect(afterInternalBalance).toBe(
+      beforeInternalBalance - expectedBaseGasCost,
+    );
   });
 });
