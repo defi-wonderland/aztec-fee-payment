@@ -1,32 +1,30 @@
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
-import {
-  registerInitialLocalNetworkAccountsInWallet,
-  TestWallet,
-} from "@aztec/test-wallet/server";
-import { createAztecNodeClient, AztecNode } from "@aztec/aztec.js/node";
+import { TestWallet } from "@aztec/test-wallet/server";
+import type { AztecNode } from "@aztec/aztec.js/node";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { getFeeJuiceBalance } from "@aztec/aztec.js/utils";
-import { Gas, GasFees } from "@aztec/stdlib/gas";
+import { Gas } from "@aztec/stdlib/gas";
 import { Fr } from "@aztec/aztec.js/fields";
 import { TxStatus } from "@aztec/aztec.js/tx";
-import {
-  DEFAULT_TEARDOWN_DA_GAS_LIMIT,
-  DEFAULT_TEARDOWN_L2_GAS_LIMIT,
-  DEFAULT_DA_GAS_LIMIT,
-  DEFAULT_L2_GAS_LIMIT,
-} from "@aztec/constants";
 
-import { deployCounter, deployFeePaymentContract } from "./utils.js";
-import { fundL2AddressWithFeeJuiceFromL1 } from "./fee_juice_funding.js";
+import { deployCounter } from "./utils.js";
 
 import { CounterContract } from "../artifacts/Counter.js";
 import { FeePaymentContract } from "../artifacts/FeePayment.js";
 import { TokenContract } from "@aztec/noir-contracts.js/Token";
 import {
-  SponsoredFeePaymentMethod,
-  MeteredTokenSponsoredFeePaymentMethod,
-  MeteredExactTokenSponsoredFeePaymentMethod,
-} from "./sponsored_fee_payment.js";
+  LOCAL_AZTEC_NODE_URL,
+  REASONABLE_GAS_LIMITS,
+  REASONABLE_TEARDOWN_GAS_LIMITS,
+  createLocalNetworkContext,
+  deployAndFundFeePayer,
+  maxFeesPerGasFromBaseFees,
+  maxGasCostFor,
+} from "./aztec_harness.js";
+import {
+  buildTokenSponsoredFeePaymentMethod,
+  createTokenSponsorshipAuthWitness,
+} from "./token_sponsorship.js";
 
 describe("FeePayment token sponsorship", () => {
   let wallet: TestWallet;
@@ -36,54 +34,30 @@ describe("FeePayment token sponsorship", () => {
   let counter: CounterContract;
   let feePaymentContract: FeePaymentContract;
   let token: TokenContract;
-
-  let sponsoredFeePaymentMethod: SponsoredFeePaymentMethod;
-
-  const REASONABLE_TEARDOWN_GAS_LIMITS = Gas.from({
-    daGas: DEFAULT_TEARDOWN_DA_GAS_LIMIT,
-    l2Gas: DEFAULT_TEARDOWN_L2_GAS_LIMIT,
-  });
-  const REASONABLE_GAS_LIMITS = Gas.from({
-    daGas: DEFAULT_DA_GAS_LIMIT,
-    l2Gas: DEFAULT_L2_GAS_LIMIT,
-  });
   const INITIAL_PRIVATE_TOKEN_BALANCE = 10_000_000_000_000_000_000n;
 
   beforeAll(async () => {
-    aztecNode = await createAztecNodeClient("http://localhost:8080", {});
-    wallet = await TestWallet.create(
-      aztecNode,
-      {
-        dataDirectory: "pxe-test",
-        proverEnabled: false,
-      },
-      {},
-    );
+    const ctx = await createLocalNetworkContext({
+      nodeUrl: LOCAL_AZTEC_NODE_URL,
+      wallet: { dataDirectory: "pxe-test", proverEnabled: false },
+    });
+    aztecNode = ctx.aztecNode;
+    wallet = ctx.wallet;
+    alice = ctx.deployer;
 
-    // Local network starts with predeployed funded accounts; register them in PXE for private execution.
-    [alice] = await registerInitialLocalNetworkAccountsInWallet(wallet);
-
-    // Deploy our local fee payment contract and use it to sponsor tx fees.
-    feePaymentContract = await deployFeePaymentContract(wallet);
-    sponsoredFeePaymentMethod = new SponsoredFeePaymentMethod(
-      feePaymentContract.address,
-    );
-
-    // Fund fee payer with FeeJuice from L1, then claim it on L2.
-    const { balance } = await fundL2AddressWithFeeJuiceFromL1(
-      aztecNode,
-      wallet,
-      feePaymentContract.address,
-      {
+    const { feePaymentContract: deployedFeePayer, feeJuiceBalance } =
+      await deployAndFundFeePayer({
+        aztecNode,
+        wallet,
         claimTxSender: alice,
         produceL2Block: async () => {
           // Produce L2 blocks by sending any tx (deployer has default fee funds).
           await deployCounter(wallet, alice);
         },
         loggerName: "test:fee-token",
-      },
-    );
-    expect(balance).toBeGreaterThan(0n);
+      });
+    expect(feeJuiceBalance).toBeGreaterThan(0n);
+    feePaymentContract = deployedFeePayer;
   });
 
   beforeEach(async () => {
@@ -102,38 +76,29 @@ describe("FeePayment token sponsorship", () => {
 
   it("sponsor_metered_token: charges max_gas_cost in tokens (private -> FeePayment public) using authwit", async () => {
     const baseFees: any = await aztecNode.getCurrentBaseFees();
-    const maxFeesPerGas = new GasFees(
-      BigInt(baseFees.feePerDaGas) * 3n,
-      BigInt(baseFees.feePerL2Gas) * 3n,
-    );
+    const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
 
     const gasLimits: Gas = REASONABLE_GAS_LIMITS;
     const teardownGasLimits: Gas = REASONABLE_TEARDOWN_GAS_LIMITS;
 
-    const maxGasCost =
-      BigInt(maxFeesPerGas.feePerDaGas) * BigInt(gasLimits.daGas) +
-      BigInt(maxFeesPerGas.feePerL2Gas) * BigInt(gasLimits.l2Gas);
+    const maxGasCost = maxGasCostFor(maxFeesPerGas, gasLimits);
 
     const nonce = Fr.random();
-    const paymentMethod = new MeteredTokenSponsoredFeePaymentMethod(
-      feePaymentContract.address,
-      token.address,
+    const paymentMethod = buildTokenSponsoredFeePaymentMethod({
+      kind: "metered",
+      feePayer: feePaymentContract.address,
+      tokenAddress: token.address,
       nonce,
-    );
-
-    const tokenTransferAction = token
-      .withWallet(wallet)
-      .methods.transfer_to_public(
-        alice,
-        feePaymentContract.address,
-        maxGasCost,
-        nonce,
-      );
-    const intent = {
-      caller: feePaymentContract.address,
-      action: tokenTransferAction,
-    };
-    const witness = await wallet.createAuthWit(alice, intent);
+    });
+    const witness = await createTokenSponsorshipAuthWitness({
+      kind: "metered",
+      wallet,
+      token,
+      from: alice,
+      feePayer: feePaymentContract.address,
+      amount: maxGasCost,
+      nonce,
+    });
 
     const before = await getFeeJuiceBalance(
       feePaymentContract.address,
@@ -186,38 +151,29 @@ describe("FeePayment token sponsorship", () => {
 
   it("sponsor_metered_token_exact: refunds surplus so net token cost equals baseFee*gasLimits", async () => {
     const baseFees: any = await aztecNode.getCurrentBaseFees();
-    const maxFeesPerGas = new GasFees(
-      BigInt(baseFees.feePerDaGas) * 3n,
-      BigInt(baseFees.feePerL2Gas) * 3n,
-    );
+    const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
 
     const gasLimits: Gas = REASONABLE_GAS_LIMITS;
     const teardownGasLimits: Gas = REASONABLE_TEARDOWN_GAS_LIMITS;
 
-    const maxGasCost =
-      BigInt(maxFeesPerGas.feePerDaGas) * BigInt(gasLimits.daGas) +
-      BigInt(maxFeesPerGas.feePerL2Gas) * BigInt(gasLimits.l2Gas);
+    const maxGasCost = maxGasCostFor(maxFeesPerGas, gasLimits);
 
     const nonce = Fr.random();
-    const paymentMethod = new MeteredExactTokenSponsoredFeePaymentMethod(
-      feePaymentContract.address,
-      token.address,
+    const paymentMethod = buildTokenSponsoredFeePaymentMethod({
+      kind: "metered_exact",
+      feePayer: feePaymentContract.address,
+      tokenAddress: token.address,
       nonce,
-    );
-
-    const tokenTransferAction = token
-      .withWallet(wallet)
-      .methods.transfer_to_public_and_prepare_private_balance_increase(
-        alice,
-        feePaymentContract.address,
-        maxGasCost,
-        nonce,
-      );
-    const intent = {
-      caller: feePaymentContract.address,
-      action: tokenTransferAction,
-    };
-    const witness = await wallet.createAuthWit(alice, intent);
+    });
+    const witness = await createTokenSponsorshipAuthWitness({
+      kind: "metered_exact",
+      wallet,
+      token,
+      from: alice,
+      feePayer: feePaymentContract.address,
+      amount: maxGasCost,
+      nonce,
+    });
 
     const before = await getFeeJuiceBalance(
       feePaymentContract.address,
@@ -284,38 +240,29 @@ describe("FeePayment token sponsorship", () => {
 
   it("sponsor_metered_token: tx reverts but fee payer token balance still increases", async () => {
     const baseFees: any = await aztecNode.getCurrentBaseFees();
-    const maxFeesPerGas = new GasFees(
-      BigInt(baseFees.feePerDaGas) * 3n,
-      BigInt(baseFees.feePerL2Gas) * 3n,
-    );
+    const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
 
     const gasLimits: Gas = REASONABLE_GAS_LIMITS;
     const teardownGasLimits: Gas = REASONABLE_TEARDOWN_GAS_LIMITS;
 
-    const maxGasCost =
-      BigInt(maxFeesPerGas.feePerDaGas) * BigInt(gasLimits.daGas) +
-      BigInt(maxFeesPerGas.feePerL2Gas) * BigInt(gasLimits.l2Gas);
+    const maxGasCost = maxGasCostFor(maxFeesPerGas, gasLimits);
 
     const nonce = Fr.random();
-    const paymentMethod = new MeteredTokenSponsoredFeePaymentMethod(
-      feePaymentContract.address,
-      token.address,
+    const paymentMethod = buildTokenSponsoredFeePaymentMethod({
+      kind: "metered",
+      feePayer: feePaymentContract.address,
+      tokenAddress: token.address,
       nonce,
-    );
-
-    const tokenTransferAction = token
-      .withWallet(wallet)
-      .methods.transfer_to_public(
-        alice,
-        feePaymentContract.address,
-        maxGasCost,
-        nonce,
-      );
-    const intent = {
-      caller: feePaymentContract.address,
-      action: tokenTransferAction,
-    };
-    const witness = await wallet.createAuthWit(alice, intent);
+    });
+    const witness = await createTokenSponsorshipAuthWitness({
+      kind: "metered",
+      wallet,
+      token,
+      from: alice,
+      feePayer: feePaymentContract.address,
+      amount: maxGasCost,
+      nonce,
+    });
 
     const fpcPublicBefore = await token.methods
       .balance_of_public(feePaymentContract.address)
@@ -359,38 +306,29 @@ describe("FeePayment token sponsorship", () => {
 
   it("sponsor_metered_token_exact: tx reverts but fee payer token balance still increases", async () => {
     const baseFees: any = await aztecNode.getCurrentBaseFees();
-    const maxFeesPerGas = new GasFees(
-      BigInt(baseFees.feePerDaGas) * 3n,
-      BigInt(baseFees.feePerL2Gas) * 3n,
-    );
+    const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
 
     const gasLimits: Gas = REASONABLE_GAS_LIMITS;
     const teardownGasLimits: Gas = REASONABLE_TEARDOWN_GAS_LIMITS;
 
-    const maxGasCost =
-      BigInt(maxFeesPerGas.feePerDaGas) * BigInt(gasLimits.daGas) +
-      BigInt(maxFeesPerGas.feePerL2Gas) * BigInt(gasLimits.l2Gas);
+    const maxGasCost = maxGasCostFor(maxFeesPerGas, gasLimits);
 
     const nonce = Fr.random();
-    const paymentMethod = new MeteredExactTokenSponsoredFeePaymentMethod(
-      feePaymentContract.address,
-      token.address,
+    const paymentMethod = buildTokenSponsoredFeePaymentMethod({
+      kind: "metered_exact",
+      feePayer: feePaymentContract.address,
+      tokenAddress: token.address,
       nonce,
-    );
-
-    const tokenTransferAction = token
-      .withWallet(wallet)
-      .methods.transfer_to_public_and_prepare_private_balance_increase(
-        alice,
-        feePaymentContract.address,
-        maxGasCost,
-        nonce,
-      );
-    const intent = {
-      caller: feePaymentContract.address,
-      action: tokenTransferAction,
-    };
-    const witness = await wallet.createAuthWit(alice, intent);
+    });
+    const witness = await createTokenSponsorshipAuthWitness({
+      kind: "metered_exact",
+      wallet,
+      token,
+      from: alice,
+      feePayer: feePaymentContract.address,
+      amount: maxGasCost,
+      nonce,
+    });
 
     const fpcPublicBefore = await token.methods
       .balance_of_public(feePaymentContract.address)

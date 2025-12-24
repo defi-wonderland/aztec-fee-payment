@@ -1,23 +1,24 @@
 import { CounterContract } from "../artifacts/Counter.js";
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
-import {
-  registerInitialLocalNetworkAccountsInWallet,
-  TestWallet,
-} from "@aztec/test-wallet/server";
-import { createAztecNodeClient, AztecNode } from "@aztec/aztec.js/node";
+import { TestWallet } from "@aztec/test-wallet/server";
+import type { AztecNode } from "@aztec/aztec.js/node";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { getFeeJuiceBalance } from "@aztec/aztec.js/utils";
 import { Gas, GasFees } from "@aztec/stdlib/gas";
 
-import { deployCounter, deployFeePaymentContract } from "./utils.js";
+import { deployCounter } from "./utils.js";
 import {
   MeteredSponsoredFeePaymentMethod,
   MeteredExactSponsoredFeePaymentMethod,
   SponsoredFeePaymentMethod,
 } from "./sponsored_fee_payment.js";
-import { fundL2AddressWithFeeJuiceFromL1 } from "./fee_juice_funding.js";
 import { FeePaymentContract } from "../artifacts/FeePayment.js";
 import { TxStatus } from "@aztec/aztec.js/tx";
+import {
+  createLocalNetworkContext,
+  deployAndFundFeePayer,
+  LOCAL_AZTEC_NODE_URL,
+} from "./aztec_harness.js";
 
 describe("Counter Contract", () => {
   let wallet: TestWallet;
@@ -33,21 +34,30 @@ describe("Counter Contract", () => {
   const MINTED_FEE_JUICE_AMOUNT = 100_000_000_000_000_000_000n;
 
   beforeAll(async () => {
-    aztecNode = await createAztecNodeClient("http://localhost:8080", {});
-    wallet = await TestWallet.create(
-      aztecNode,
-      {
-        dataDirectory: "pxe-test",
-        proverEnabled: false,
-      },
-      {},
-    );
+    const ctx = await createLocalNetworkContext({
+      nodeUrl: LOCAL_AZTEC_NODE_URL,
+      wallet: { dataDirectory: "pxe-test", proverEnabled: false },
+    });
+    aztecNode = ctx.aztecNode;
+    wallet = ctx.wallet;
+    alice = ctx.deployer;
 
-    // Local network starts with predeployed funded accounts; register them in PXE for private execution.
-    [alice] = await registerInitialLocalNetworkAccountsInWallet(wallet);
+    const { feePaymentContract: deployedFeePayer, feeJuiceBalance } =
+      await deployAndFundFeePayer({
+        aztecNode,
+        wallet,
+        claimTxSender: alice,
+        produceL2Block: async () => {
+          // Produce L2 blocks by sending a tx (deployer has default fee funds).
+          await deployCounter(wallet, alice);
+        },
+        loggerName: "test:fee",
+      });
+
+    expect(feeJuiceBalance).toBeGreaterThan(0n);
 
     // Deploy our local fee payment contract and use it to sponsor tx fees.
-    feePaymentContract = await deployFeePaymentContract(wallet);
+    feePaymentContract = deployedFeePayer;
     sponsoredFpcAddress = feePaymentContract.address;
     sponsoredFeePaymentMethod = new SponsoredFeePaymentMethod(
       sponsoredFpcAddress,
@@ -57,24 +67,6 @@ describe("Counter Contract", () => {
     );
     meteredExactSponsoredFeePaymentMethod =
       new MeteredExactSponsoredFeePaymentMethod(sponsoredFpcAddress);
-
-    // Fund fee payer with FeeJuice from L1, then claim it on L2.
-    const { balance: sponsoredFpcFeeJuiceBalance } =
-      await fundL2AddressWithFeeJuiceFromL1(
-        aztecNode,
-        wallet,
-        sponsoredFpcAddress,
-        {
-          claimTxSender: alice,
-          produceL2Block: async () => {
-            // Produce L2 blocks by sending a tx (deployer has default fee funds).
-            await deployCounter(wallet, alice);
-          },
-          loggerName: "test:fee",
-        },
-      );
-
-    expect(sponsoredFpcFeeJuiceBalance).toBeGreaterThan(0n);
   });
 
   beforeEach(async () => {

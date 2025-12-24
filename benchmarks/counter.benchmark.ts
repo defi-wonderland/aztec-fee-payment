@@ -1,23 +1,15 @@
 import { type Wallet } from "@aztec/aztec.js/wallet";
 import { AztecAddress } from "@aztec/aztec.js/addresses";
-import { createAztecNodeClient, waitForNode } from "@aztec/aztec.js/node";
 import type { FeePaymentMethod } from "@aztec/aztec.js/fee";
 import { getFeeJuiceBalance } from "@aztec/aztec.js/utils";
 import { Fr } from "@aztec/aztec.js/fields";
-import {
-  registerInitialLocalNetworkAccountsInWallet,
-  TestWallet,
-} from "@aztec/test-wallet/server";
+import { TestWallet } from "@aztec/test-wallet/server";
 import {
   Benchmark,
   type BenchmarkContext,
 } from "@defi-wonderland/aztec-benchmark";
 import { Gas, GasFees } from "@aztec/stdlib/gas";
 import {
-  DEFAULT_DA_GAS_LIMIT,
-  DEFAULT_L2_GAS_LIMIT,
-  DEFAULT_TEARDOWN_DA_GAS_LIMIT,
-  DEFAULT_TEARDOWN_L2_GAS_LIMIT,
   GAS_ESTIMATION_DA_GAS_LIMIT,
   GAS_ESTIMATION_L2_GAS_LIMIT,
 } from "@aztec/constants";
@@ -32,16 +24,15 @@ import {
   MeteredExactTokenSponsoredFeePaymentMethod,
   SponsoredFeePaymentMethod,
 } from "../src/ts/sponsored_fee_payment.js";
-import { fundL2AddressWithFeeJuiceFromL1 } from "../src/ts/fee_juice_funding.js";
-
-const REASONABLE_GAS_LIMITS = Gas.from({
-  daGas: DEFAULT_DA_GAS_LIMIT,
-  l2Gas: DEFAULT_L2_GAS_LIMIT,
-});
-const REASONABLE_TEARDOWN_GAS_LIMITS = Gas.from({
-  daGas: DEFAULT_TEARDOWN_DA_GAS_LIMIT,
-  l2Gas: DEFAULT_TEARDOWN_L2_GAS_LIMIT,
-});
+import {
+  createLocalNetworkContext,
+  deployAndFundFeePayer,
+  LOCAL_AZTEC_NODE_URL,
+  maxFeesPerGasFromBaseFees,
+  REASONABLE_GAS_LIMITS,
+  REASONABLE_TEARDOWN_GAS_LIMITS,
+} from "../src/ts/aztec_harness.js";
+import { buildTokenSponsorshipTransferAction } from "../src/ts/token_sponsorship.js";
 
 /**
  * Wraps a ContractFunctionInteraction so the benchmark runner's profiler (which calls
@@ -243,23 +234,12 @@ export default class CounterContractBenchmark extends Benchmark {
    * Creates PXE client, gets accounts, and deploys the contract.
    */
   async setup(): Promise<CounterBenchmarkContext> {
-    const aztecNode = createAztecNodeClient("http://localhost:8080");
-    await waitForNode(aztecNode);
-
-    // Keep the benchmark focused on simulation/profiling and avoid prover-related heavy paths
-    // that can trip ACVM execution limits for complex transactions.
-    const wallet: TestWallet = await TestWallet.create(aztecNode, {
-      proverEnabled: false,
-    });
-    const accounts: AztecAddress[] =
-      await registerInitialLocalNetworkAccountsInWallet(wallet);
-
-    const [deployer] = accounts;
-
-    // Deploy fee payment contract that will sponsor tx fees.
-    const feePayerContract = await FeePaymentContract.deploy(wallet)
-      .send({ from: deployer })
-      .deployed();
+    const { aztecNode, wallet, accounts, deployer } =
+      await createLocalNetworkContext({
+        nodeUrl: LOCAL_AZTEC_NODE_URL,
+        // Keep the benchmark focused on simulation/profiling and avoid prover-related heavy paths.
+        wallet: { proverEnabled: false },
+      });
 
     const counterContract = await CounterContract.deploy(wallet, deployer)
       .send({ from: deployer })
@@ -275,30 +255,24 @@ export default class CounterContractBenchmark extends Benchmark {
       .send({ from: deployer })
       .deployed();
 
-    // Fund the fee payer contract with FeeJuice from L1 and claim on L2.
-    // (Required because benchmark runner sends txs internally without us getting to pass send() options.)
-    await fundL2AddressWithFeeJuiceFromL1(
+    // Deploy + fund fee payer with FeeJuice from L1, then claim on L2.
+    // (Required because the benchmark runner sends txs internally without us getting to pass send() options.)
+    const {
+      feePaymentContract: feePayerContract,
+      feeJuiceBalance: feePayerBalance,
+    } = await deployAndFundFeePayer({
       aztecNode,
       wallet,
-      feePayerContract.address,
-      {
-        claimTxSender: deployer,
-        produceL2Block: async () => {
-          // Produce L2 blocks by sending a tx (deployer has default fee funds).
-          await counterContract
-            .withWallet(wallet)
-            .methods.increment()
-            .send({ from: deployer })
-            .wait();
-        },
-        loggerName: "benchmark:fee",
+      claimTxSender: deployer,
+      produceL2Block: async () => {
+        await counterContract
+          .withWallet(wallet)
+          .methods.increment()
+          .send({ from: deployer })
+          .wait();
       },
-    );
-
-    const feePayerBalance = await getFeeJuiceBalance(
-      feePayerContract.address,
-      aztecNode,
-    );
+      loggerName: "benchmark:fee",
+    });
     if (feePayerBalance <= 0n) {
       throw new Error(
         `Fee payer contract did not receive FeeJuice balance after claim (balance=${feePayerBalance})`,
@@ -334,10 +308,7 @@ export default class CounterContractBenchmark extends Benchmark {
 
     // For token-sponsored fee payment we must provide gas settings (so maxGasCost is known for authwit).
     const baseFees: any = await (aztecNode as any).getCurrentBaseFees();
-    const maxFeesPerGas = new GasFees(
-      BigInt(baseFees.feePerDaGas) * 3n,
-      BigInt(baseFees.feePerL2Gas) * 3n,
-    );
+    const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
     const tokenMeteredGasSettings = {
       gasLimits: REASONABLE_GAS_LIMITS,
       teardownGasLimits: REASONABLE_TEARDOWN_GAS_LIMITS,
@@ -435,9 +406,15 @@ export default class CounterContractBenchmark extends Benchmark {
                 nonce,
               ),
             ({ from, to, amount, nonce }) =>
-              tokenContract
-                .withWallet(wallet)
-                .methods.transfer_to_public(from, to, amount, nonce),
+              buildTokenSponsorshipTransferAction({
+                kind: "metered",
+                token: tokenContract,
+                wallet: wallet as TestWallet,
+                from,
+                to,
+                amount,
+                nonce,
+              }),
             tokenMeteredGasSettings,
           ),
         },
@@ -459,14 +436,15 @@ export default class CounterContractBenchmark extends Benchmark {
                 nonce,
               ),
             ({ from, to, amount, nonce }) =>
-              tokenContract
-                .withWallet(wallet)
-                .methods.transfer_to_public_and_prepare_private_balance_increase(
-                  from,
-                  to,
-                  amount,
-                  nonce,
-                ),
+              buildTokenSponsorshipTransferAction({
+                kind: "metered_exact",
+                token: tokenContract,
+                wallet: wallet as TestWallet,
+                from,
+                to,
+                amount,
+                nonce,
+              }),
             tokenMeteredGasSettings,
           ),
         },
