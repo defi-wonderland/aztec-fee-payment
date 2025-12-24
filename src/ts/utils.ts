@@ -3,6 +3,10 @@ import {
   CounterContract,
   CounterContractArtifact,
 } from "../artifacts/Counter.js";
+import {
+  FeePaymentContract,
+  FeePaymentContractArtifact,
+} from "../artifacts/FeePayment.js";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { Contract } from "@aztec/aztec.js/contracts";
 
@@ -28,4 +32,23 @@ export async function deployCounter(
   });
   const contract = await tx.deployed();
   return contract as CounterContract;
+}
+
+/**
+ * Deploys the FeePaymentContract contract.
+ * @param deployer - The wallet to deploy the contract with.
+ * @returns A deployed contract instance.
+ */
+export async function deployFeePaymentContract(
+  deployer: Wallet,
+): Promise<FeePaymentContract> {
+  const deployerAddress = (await deployer.getAccounts())[0]!.item;
+  const deployMethod = await Contract.deploy(
+    deployer,
+    FeePaymentContractArtifact,
+    [],
+  );
+  const tx = await deployMethod.send({ from: deployerAddress });
+  const contract = await tx.deployed();
+  return contract as FeePaymentContract;
 }

@@ -228,25 +228,31 @@ class SandboxManager extends EventEmitter {
    * Spawn the Aztec sandbox process
    */
   spawnSandboxProcess(): ChildProcess {
-    // Prefer `--sandbox` if supported by the installed Aztec CLI; otherwise fall back to `--local-network`.
-    // This keeps compatibility across Aztec CLI versions.
-    let modeFlag: "--sandbox" | "--local-network" = "--sandbox";
-    try {
-      const help = execSync("aztec start --help", {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-      if (!help.includes("--sandbox")) {
-        modeFlag = "--local-network";
-      }
-    } catch {
-      // If help fails for any reason, fall back to local-network since it's supported in current releases.
-      modeFlag = "--local-network";
-    }
+    // This repo uses the Aztec local network mode.
+    const modeFlag: "--local-network" = "--local-network";
 
-    return spawn("aztec", ["start", modeFlag, "--port", String(this.port)], {
-      stdio: "pipe",
-    });
+    // Speed up local/dev syncing to make L1->L2 message availability close to instant:
+    // - archiver polls L2 blocks/logs frequently
+    // - sequencer polls tx pool frequently and doesn't enforce slot timetable (builds blocks ASAP when txs exist)
+    // - p2p checks for new L2 blocks frequently
+    const fastSyncArgs = [
+      "--archiver.archiverPollingIntervalMS",
+      "50",
+      "--sequencer.transactionPollingIntervalMS",
+      "50",
+      "--sequencer.enforceTimeTable",
+      "false",
+      "--p2p.blockCheckIntervalMS",
+      "50",
+    ];
+
+    return spawn(
+      "aztec",
+      ["start", modeFlag, "--port", String(this.port), ...fastSyncArgs],
+      {
+        stdio: "pipe",
+      },
+    );
   }
 
   /**

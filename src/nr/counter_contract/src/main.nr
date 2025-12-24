@@ -39,6 +39,18 @@ pub contract Counter {
         self.enqueue_self.increment_internal();
     }
 
+    #[external("private")]
+    fn revert_private() {
+        let version = self.context.version();
+        assert(version == 0, "Reverted");
+    }
+
+    #[external("public")]
+    fn revert_public() {
+        let version = self.context.version();
+        assert(version == 0, "Reverted");
+    }
+
     /// @dev Retrieves the counter value
     /// @return The current counter value
     #[external("public")]
