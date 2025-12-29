@@ -25,6 +25,7 @@ import {
   buildTokenSponsoredFeePaymentMethod,
   createTokenSponsorshipAuthWitness,
 } from "./token_sponsorship.js";
+import { TeardownRevertTokenSponsoredFeePaymentMethod } from "./sponsored_fee_payment.js";
 
 describe("FeePayment token sponsorship", () => {
   let wallet: TestWallet;
@@ -100,7 +101,7 @@ describe("FeePayment token sponsorship", () => {
       nonce,
     });
 
-    const before = await getFeeJuiceBalance(
+    const sponsorBalanceBefore = await getFeeJuiceBalance(
       feePaymentContract.address,
       aztecNode,
     );
@@ -131,7 +132,7 @@ describe("FeePayment token sponsorship", () => {
 
     await token.methods.sync_private_state().simulate({ from: alice });
 
-    const after = await getFeeJuiceBalance(
+    const sponsorBalanceAfter = await getFeeJuiceBalance(
       feePaymentContract.address,
       aztecNode,
     );
@@ -144,7 +145,7 @@ describe("FeePayment token sponsorship", () => {
 
     // `sponsor_metered_token` reserves the max gas cost by transferring tokens from Alice's
     // private balance to the sponsor's public balance.
-    expect(after).toBeLessThan(before);
+    expect(sponsorBalanceAfter).toBeLessThan(sponsorBalanceBefore);
     expect(fpcPublicAfter).toBeGreaterThan(fpcPublicBefore);
     expect(alicePrivateBefore - alicePrivateAfter).toBe(maxGasCost);
   }, 300_000);
@@ -175,7 +176,7 @@ describe("FeePayment token sponsorship", () => {
       nonce,
     });
 
-    const before = await getFeeJuiceBalance(
+    const sponsorBalanceBefore = await getFeeJuiceBalance(
       feePaymentContract.address,
       aztecNode,
     );
@@ -222,7 +223,7 @@ describe("FeePayment token sponsorship", () => {
 
     await token.methods.sync_private_state().simulate({ from: alice });
 
-    const after = await getFeeJuiceBalance(
+    const sponsorBalanceAfter = await getFeeJuiceBalance(
       feePaymentContract.address,
       aztecNode,
     );
@@ -233,7 +234,7 @@ describe("FeePayment token sponsorship", () => {
       .balance_of_private(alice)
       .simulate({ from: alice });
 
-    expect(after).toBeLessThan(before);
+    expect(sponsorBalanceAfter).toBeLessThan(sponsorBalanceBefore);
     expect(fpcPublicAfter - fpcPublicBefore).toBe(expectedBaseGasCost);
     expect(alicePrivateBefore - alicePrivateAfter).toBe(expectedBaseGasCost);
   }, 300_000);
@@ -371,5 +372,82 @@ describe("FeePayment token sponsorship", () => {
     expect(sponsorDelta).toBeGreaterThan(0n);
     expect(sponsorDelta).toBeLessThanOrEqual(maxGasCost);
     expect(aliceDelta).toBe(sponsorDelta);
+  }, 300_000);
+
+  it("teardown_revert_token: tx is mined with TEARDOWN_REVERTED, charges fees, and does not apply app logic", async () => {
+    const baseFees: any = await aztecNode.getCurrentBaseFees();
+    const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
+
+    const gasLimits: Gas = REASONABLE_GAS_LIMITS;
+    const teardownGasLimits: Gas = REASONABLE_TEARDOWN_GAS_LIMITS;
+
+    const maxGasCost = maxGasCostFor(maxFeesPerGas, gasLimits);
+
+    // --- Teardown failure: setup succeeds (authwit present), but teardown callback reverts.
+    // This produces a mined tx with status `TEARDOWN_REVERTED` (distinct from setup failure and app-logic revert).
+    const nonce = Fr.random();
+    const paymentMethod = new TeardownRevertTokenSponsoredFeePaymentMethod(
+      feePaymentContract.address,
+      token.address,
+      nonce,
+    );
+    const witness = await createTokenSponsorshipAuthWitness({
+      kind: "metered",
+      wallet,
+      token,
+      from: alice,
+      feePayer: feePaymentContract.address,
+      amount: maxGasCost,
+      nonce,
+    });
+
+    const sponsorFeeJuiceBefore = await getFeeJuiceBalance(
+      feePaymentContract.address,
+      aztecNode,
+    );
+    const fpcPublicBefore = await token.methods
+      .balance_of_public(feePaymentContract.address)
+      .simulate({ from: alice });
+    const alicePrivateBefore = await token.methods
+      .balance_of_private(alice)
+      .simulate({ from: alice });
+
+    const receipt = await counter.methods
+      .increment()
+      .send({
+        from: alice,
+        authWitnesses: [witness],
+        fee: {
+          paymentMethod,
+          gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+        },
+      })
+      .wait({ dontThrowOnRevert: true });
+
+    expect(receipt.status).toBe(TxStatus.TEARDOWN_REVERTED);
+    expect(receipt.blockNumber).toBeDefined();
+
+    await token.methods.sync_private_state().simulate({ from: alice });
+
+    const sponsorFeeJuiceAfter = await getFeeJuiceBalance(
+      feePaymentContract.address,
+      aztecNode,
+    );
+    const fpcPublicAfter = await token.methods
+      .balance_of_public(feePaymentContract.address)
+      .simulate({ from: alice });
+    const alicePrivateAfter = await token.methods
+      .balance_of_private(alice)
+      .simulate({ from: alice });
+
+    // Even though teardown reverted, the tx is still mined:
+    // - protocol fees are charged (FeeJuice decreases)
+    // - setup effects persist (reserved max gas cost in tokens was transferred)
+    expect(sponsorFeeJuiceAfter).toBeLessThan(sponsorFeeJuiceBefore);
+    expect(fpcPublicAfter - fpcPublicBefore).toBe(maxGasCost);
+    expect(alicePrivateBefore - alicePrivateAfter).toBe(maxGasCost);
+    expect(await counter.methods.get_counter().simulate({ from: alice })).toBe(
+      0n,
+    );
   }, 300_000);
 });

@@ -7,7 +7,7 @@ pub contract FeePayment {
     use dep::aztec::{
         macros::{functions::{external, nophasecheck, only_self}, storage::storage},
         messages::message_delivery::MessageDelivery,
-        protocol_types::{address::AztecAddress, traits::ToField},
+        protocol_types::address::AztecAddress,
         state_vars::{Owned, state_variable::StateVariable},
     };
     use dep::balance_set::BalanceSet;
@@ -23,6 +23,20 @@ pub contract FeePayment {
     #[external("private")]
     #[nophasecheck]
     fn sponsor_unconditionally() {
+        // Set the FPC as the fee payer of the tx.
+        self.context.set_as_fee_payer();
+        // End the setup phase
+        self.context.end_setup();
+    }
+
+    /// Sponsors the transaction unconditionally, but **always fails in teardown**.
+    /// This is useful for testing teardown failure semantics without involving tokens.
+    #[external("private")]
+    #[nophasecheck]
+    fn sponsor_unconditionally_teardown_revert() {
+        // Teardown phase: intentionally revert.
+        self.set_as_teardown(FeePayment::at(self.address)._teardown_always_revert());
+
         // Set the FPC as the fee payer of the tx.
         self.context.set_as_fee_payer();
         // End the setup phase
@@ -181,6 +195,40 @@ pub contract FeePayment {
         self.context.end_setup();
     }
 
+    /// Sponsors the transaction by reserving max gas cost in tokens (same as `sponsor_metered_token`),
+    /// but **always fails in teardown**. This is useful for testing teardown failure semantics.
+    #[external("private")]
+    #[nophasecheck]
+    fn sponsor_metered_token_teardown_revert(token_address: AztecAddress, nonce: Field) {
+        // Get the gas limits from the transaction settings.
+        let l2_gas_limit = self.context.gas_settings().gas_limits.l2_gas;
+        let da_gas_limit = self.context.gas_settings().gas_limits.da_gas;
+
+        // Get the max fee per gas from the transaction settings.
+        let max_fee_per_da_gas = self.context.gas_settings().max_fees_per_gas.fee_per_da_gas;
+        let max_fee_per_l2_gas = self.context.gas_settings().max_fees_per_gas.fee_per_l2_gas;
+
+        // Calculate the max gas cost (max fees are already validated in the transaction settings).
+        let max_gas_cost = max_fee_per_da_gas * (da_gas_limit as u128)
+            + max_fee_per_l2_gas * (l2_gas_limit as u128);
+
+        // Setup phase: reserve max gas cost by transferring tokens from the tx sender to this contract.
+        self.call(Token::at(token_address).transfer_to_public(
+            self.msg_sender().unwrap(),
+            self.address,
+            max_gas_cost,
+            nonce,
+        ));
+
+        // Teardown phase: intentionally revert. If this reverts, the tx should be invalid (not included in the block).
+        self.set_as_teardown(FeePayment::at(self.address)._teardown_always_revert());
+
+        // Set the FPC as the fee payer of the tx.
+        self.context.set_as_fee_payer();
+        // End the setup phase
+        self.context.end_setup();
+    }
+
     #[external("private")]
     fn mint_fee_juice(account: AztecAddress, amount: u128) {
         self.storage.fee_juice_balance.at(account).add(amount).deliver(
@@ -242,6 +290,12 @@ pub contract FeePayment {
             refund_amount,
             refund_commitment,
         ));
+    }
+
+    #[external("public")]
+    #[only_self]
+    fn _teardown_always_revert() {
+        assert(false, "Intentional teardown revert");
     }
 
     #[external("utility")]

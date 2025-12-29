@@ -11,6 +11,7 @@ import {
   MeteredSponsoredFeePaymentMethod,
   MeteredExactSponsoredFeePaymentMethod,
   SponsoredFeePaymentMethod,
+  TeardownRevertSponsoredFeePaymentMethod,
 } from "./sponsored_fee_payment.js";
 import { FeePaymentContract } from "../artifacts/FeePayment.js";
 import { TxStatus } from "@aztec/aztec.js/tx";
@@ -116,7 +117,10 @@ describe("Counter Contract", () => {
 
   it("sponsor_metered: underflow in internal balance reverts and does NOT reduce FeeJuice", async () => {
     // NOTE: We intentionally do NOT call `mint_fee_juice` here.
-    const before = await getFeeJuiceBalance(sponsoredFpcAddress, aztecNode);
+    const sponsorBalanceBefore = await getFeeJuiceBalance(
+      sponsoredFpcAddress,
+      aztecNode,
+    );
     const beforeInternalBalance = await feePaymentContract.methods
       .get_fee_juice_balance(alice)
       .simulate({ from: alice });
@@ -131,12 +135,15 @@ describe("Counter Contract", () => {
         .wait({ dontThrowOnRevert: true }),
     ).rejects.toThrow();
 
-    const after = await getFeeJuiceBalance(sponsoredFpcAddress, aztecNode);
+    const sponsorBalanceAfter = await getFeeJuiceBalance(
+      sponsoredFpcAddress,
+      aztecNode,
+    );
     const afterInternalBalance = await feePaymentContract.methods
       .get_fee_juice_balance(alice)
       .simulate({ from: alice });
 
-    expect(after).toBe(before);
+    expect(sponsorBalanceAfter).toBe(sponsorBalanceBefore);
     expect(afterInternalBalance).toBe(beforeInternalBalance);
   });
 
@@ -147,7 +154,10 @@ describe("Counter Contract", () => {
       .send({ from: alice })
       .wait();
 
-    const before = await getFeeJuiceBalance(sponsoredFpcAddress, aztecNode);
+    const sponsorBalanceBefore = await getFeeJuiceBalance(
+      sponsoredFpcAddress,
+      aztecNode,
+    );
     const beforeInternalBalance = await feePaymentContract.methods
       .get_fee_juice_balance(alice)
       .simulate({ from: alice });
@@ -164,12 +174,15 @@ describe("Counter Contract", () => {
     ).rejects.toThrow();
 
     // Not includable => no fee charged.
-    const after = await getFeeJuiceBalance(sponsoredFpcAddress, aztecNode);
+    const sponsorBalanceAfter = await getFeeJuiceBalance(
+      sponsoredFpcAddress,
+      aztecNode,
+    );
     const afterInternalBalance = await feePaymentContract.methods
       .get_fee_juice_balance(alice)
       .simulate({ from: alice });
 
-    expect(after).toBe(before);
+    expect(sponsorBalanceAfter).toBe(sponsorBalanceBefore);
     expect(afterInternalBalance).toBe(beforeInternalBalance);
   });
 
@@ -180,7 +193,10 @@ describe("Counter Contract", () => {
       .send({ from: alice })
       .wait();
 
-    const before = await getFeeJuiceBalance(sponsoredFpcAddress, aztecNode);
+    const sponsorBalanceBefore = await getFeeJuiceBalance(
+      sponsoredFpcAddress,
+      aztecNode,
+    );
     const beforeInternalBalance = await feePaymentContract.methods
       .get_fee_juice_balance(alice)
       .simulate({ from: alice });
@@ -195,12 +211,15 @@ describe("Counter Contract", () => {
 
     expect(receipt.status).toBe(TxStatus.APP_LOGIC_REVERTED);
 
-    const after = await getFeeJuiceBalance(sponsoredFpcAddress, aztecNode);
+    const sponsorBalanceAfter = await getFeeJuiceBalance(
+      sponsoredFpcAddress,
+      aztecNode,
+    );
     const afterInternalBalance = await feePaymentContract.methods
       .get_fee_juice_balance(alice)
       .simulate({ from: alice });
 
-    expect(after).toBeLessThan(before);
+    expect(sponsorBalanceAfter).toBeLessThan(sponsorBalanceBefore);
     expect(afterInternalBalance).toBeLessThan(beforeInternalBalance);
   });
 
@@ -274,5 +293,40 @@ describe("Counter Contract", () => {
     expect(afterInternalBalance).toBe(
       beforeInternalBalance - expectedBaseGasCost,
     );
+  });
+
+  it("teardown_revert: tx is mined with TEARDOWN_REVERTED, charges fees, and does not apply app logic", async () => {
+    const sponsorBalanceBefore = await getFeeJuiceBalance(
+      sponsoredFpcAddress,
+      aztecNode,
+    );
+
+    const paymentMethod = new TeardownRevertSponsoredFeePaymentMethod(
+      sponsoredFpcAddress,
+    );
+
+    const receipt = await counter.methods
+      .increment()
+      .send({
+        from: alice,
+        fee: { paymentMethod },
+      })
+      .wait({ dontThrowOnRevert: true });
+
+    expect(receipt.status).toBe(TxStatus.TEARDOWN_REVERTED);
+    expect(receipt.blockNumber).toBeDefined();
+
+    const sponsorBalanceAfter = await getFeeJuiceBalance(
+      sponsoredFpcAddress,
+      aztecNode,
+    );
+    expect(sponsorBalanceAfter).toBeLessThan(sponsorBalanceBefore);
+
+    // App logic should not apply if teardown reverted.
+    expect(
+      await counter.methods.get_counter().simulate({
+        from: alice,
+      }),
+    ).toBe(0n);
   });
 });
