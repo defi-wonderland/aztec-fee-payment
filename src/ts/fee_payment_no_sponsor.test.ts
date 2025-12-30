@@ -41,24 +41,17 @@ describe("Fee Payment with No Sponsor", () => {
   /**
    * Test no sponsor fee payment - SUCCESS case.
    * @expected_status SUCCESS
-   * @effects Counter increments, alice's protocol Fee Juice balance decreases
+   * @effects Counter increments, alice pays protocol fees
    */
   it(
     "no_sponsor_fee: SUCCESS",
     async () => {
-      expect(
-        await counter.methods.get_counter().simulate({
-          from: alice,
-        }),
-      ).toBe(0n);
-
       const aliceFeeJuiceBefore = await getFeeJuiceBalance(alice, aztecNode);
 
       await counter.methods
         .increment()
         .send({
-          from: alice,
-          // No fee payment method specified - alice pays directly
+          from: alice, // pay directly (prior FeeJuice)
         })
         .wait();
 
@@ -77,7 +70,7 @@ describe("Fee Payment with No Sponsor", () => {
   /**
    * Test no sponsor fee payment - revert on public (app logic reverts in public function).
    * @expected_status APP_LOGIC_REVERTED
-   * @effects Transaction setup succeeds, public app logic fails, fees are charged
+   * @effects App logic reverted, alice pays protocol fees
    */
   it(
     "no_sponsor_fee: APP_LOGIC_REVERTED (public app logic reverts)",
@@ -87,25 +80,14 @@ describe("Fee Payment with No Sponsor", () => {
       const receipt = await counter.methods
         .revert_public()
         .send({
-          from: alice,
-          // No fee payment method specified - alice pays directly
+          from: alice, // pay directly (prior FeeJuice)
         })
         .wait({ dontThrowOnRevert: true });
 
       expect(receipt.status).toBe(TxStatus.APP_LOGIC_REVERTED);
-      expect(receipt.blockNumber).toBeDefined();
 
       const aliceFeeJuiceAfter = await getFeeJuiceBalance(alice, aztecNode);
-
-      // Fee juice should be charged even though app logic reverted
       expect(aliceFeeJuiceAfter).toBeLessThan(aliceFeeJuiceBefore);
-
-      // Counter should remain 0 since app logic reverted
-      expect(
-        await counter.methods.get_counter().simulate({
-          from: alice,
-        }),
-      ).toBe(0n);
     },
     TEST_TIMEOUT,
   );

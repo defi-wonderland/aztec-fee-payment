@@ -9,12 +9,13 @@ import {
   MeteredExactTokenSponsoredFeePaymentMethod,
   TeardownRevertTokenSponsoredFeePaymentMethod,
 } from "./sponsored_fee_payment.js";
+import { ContractFunctionInteractionCallIntent } from "@aztec/aztec.js/authorization";
+import { ContractFunctionInteraction } from "@aztec/aztec.js/contracts";
 
 export type TokenSponsorshipKind =
   | "metered"
   | "metered_exact"
-  | "teardown_revert_metered"
-  | "teardown_revert_metered_exact";
+  | "teardown_revert_metered";
 
 export function buildTokenSponsoredFeePaymentMethod(args: {
   kind: TokenSponsorshipKind;
@@ -41,12 +42,6 @@ export function buildTokenSponsoredFeePaymentMethod(args: {
         args.tokenAddress,
         args.nonce,
       );
-    case "teardown_revert_metered_exact":
-      return new TeardownRevertMeteredExactTokenSponsoredFeePaymentMethod(
-        args.feePayer,
-        args.tokenAddress,
-        args.nonce,
-      );
   }
 }
 
@@ -58,11 +53,10 @@ export function buildTokenSponsorshipTransferAction(args: {
   to: AztecAddress;
   amount: bigint;
   nonce: Fr;
-}) {
+}): ContractFunctionInteraction | undefined {
   const tokenWithWallet = args.token.withWallet(args.wallet);
   switch (args.kind) {
     case "metered":
-    case "teardown_revert_metered":
       return tokenWithWallet.methods.transfer_to_public(
         args.from,
         args.to,
@@ -70,7 +64,6 @@ export function buildTokenSponsorshipTransferAction(args: {
         args.nonce,
       );
     case "metered_exact":
-    case "teardown_revert_metered_exact":
       return tokenWithWallet.methods.transfer_to_public_and_prepare_private_balance_increase(
         args.from,
         args.to,
