@@ -1,7 +1,6 @@
 import { type Wallet } from "@aztec/aztec.js/wallet";
 import { AztecAddress } from "@aztec/aztec.js/addresses";
 import type { FeePaymentMethod } from "@aztec/aztec.js/fee";
-import { getFeeJuiceBalance } from "@aztec/aztec.js/utils";
 import { Fr } from "@aztec/aztec.js/fields";
 import { TestWallet } from "@aztec/test-wallet/server";
 import {
@@ -12,10 +11,11 @@ import { Gas, GasFees } from "@aztec/stdlib/gas";
 import {
   GAS_ESTIMATION_DA_GAS_LIMIT,
   GAS_ESTIMATION_L2_GAS_LIMIT,
+  GAS_ESTIMATION_TEARDOWN_DA_GAS_LIMIT,
+  GAS_ESTIMATION_TEARDOWN_L2_GAS_LIMIT,
 } from "@aztec/constants";
 
 import { CounterContract } from "../src/artifacts/Counter.js";
-import { FeePaymentContract } from "../src/artifacts/FeePayment.js";
 import { TokenContract } from "@aztec/noir-contracts.js/Token";
 import {
   MeteredSponsoredFeePaymentMethod,
@@ -29,6 +29,7 @@ import {
   deployAndFundFeePayer,
   LOCAL_AZTEC_NODE_URL,
   maxFeesPerGasFromBaseFees,
+  maxGasCostFor,
   REASONABLE_GAS_LIMITS,
   REASONABLE_TEARDOWN_GAS_LIMITS,
 } from "../src/ts/aztec_harness.js";
@@ -143,17 +144,23 @@ class FeeAndAuthWrappedInteraction {
     // otherwise Token.transfer_to_public will reject with "Unknown auth witness".
     const isEstimatingGas = Boolean(userOptions?.fee?.estimateGas);
     const gasLimitsForCost = isEstimatingGas
-      ? {
+      ? Gas.from({
           daGas: GAS_ESTIMATION_DA_GAS_LIMIT,
           l2Gas: GAS_ESTIMATION_L2_GAS_LIMIT,
-        }
+        })
       : gasSettings.gasLimits;
+    const teardownGasLimitsForCost = isEstimatingGas
+      ? Gas.from({
+          daGas: GAS_ESTIMATION_TEARDOWN_DA_GAS_LIMIT,
+          l2Gas: GAS_ESTIMATION_TEARDOWN_L2_GAS_LIMIT,
+        })
+      : gasSettings.teardownGasLimits;
 
-    const maxGasCost =
-      BigInt(gasSettings.maxFeesPerGas.feePerDaGas) *
-        BigInt(gasLimitsForCost.daGas) +
-      BigInt(gasSettings.maxFeesPerGas.feePerL2Gas) *
-        BigInt(gasLimitsForCost.l2Gas);
+    const maxGasCost = maxGasCostFor(
+      gasSettings.maxFeesPerGas,
+      gasLimitsForCost,
+      teardownGasLimitsForCost,
+    );
 
     const tokenTransferAction = this.buildTokenTransferAction({
       from: txFrom,
