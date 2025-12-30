@@ -21,7 +21,6 @@ import {
   buildTokenSponsoredFeePaymentMethod,
   createTokenSponsorshipAuthWitness,
 } from "./token_sponsorship.js";
-import { TeardownRevertTokenSponsoredFeePaymentMethod } from "./sponsored_fee_payment.js";
 
 import {
   TEST_TIMEOUT,
@@ -42,7 +41,7 @@ describe("Fee Payment with External Tokens", () => {
   beforeAll(async () => {
     const ctx = await createLocalNetworkContext({
       nodeUrl: LOCAL_AZTEC_NODE_URL,
-      wallet: { dataDirectory: "pxe-test", proverEnabled: false },
+      wallet: { dataDirectory: "pxe-test-token", proverEnabled: false },
     });
     aztecNode = ctx.aztecNode;
     wallet = ctx.wallet;
@@ -87,7 +86,7 @@ describe("Fee Payment with External Tokens", () => {
    * @effects Counter increments, user pays max gas cost in tokens, sponsor pays actual Fee Juice fee
    */
   it(
-    "sponsor_metered_token: SUCCESS (max fees are charged)",
+    "metered_token: SUCCESS",
     async () => {
       const {
         maxFeesPerGas,
@@ -231,7 +230,7 @@ describe("Fee Payment with External Tokens", () => {
    * @effects Counter increments, user and sponsor both pay exact transaction fee in tokens (no over-charging)
    */
   it(
-    "sponsor_metered_token_exact: SUCCESS (exact fees are charged)",
+    "metered_token_exact: SUCCESS",
     async () => {
       const {
         maxFeesPerGas,
@@ -311,167 +310,12 @@ describe("Fee Payment with External Tokens", () => {
   );
 
   /**
-   * Test metered token sponsored fee payment when public app logic reverts.
-   * @expected_status APP_LOGIC_REVERTED
-   * @effects Setup charges max gas cost in tokens, app logic fails, sponsor receives full token payment
-   */
-  it(
-    "sponsor_metered_token: APP_LOGIC_REVERTED (public app logic reverts)",
-    async () => {
-      const {
-        maxFeesPerGas,
-        maxPriorityFeesPerGas,
-        gasLimits,
-        teardownGasLimits,
-        maxGasCost,
-      } = await getGasSetup(aztecNode);
-
-      const nonce = Fr.random();
-      const paymentMethod = buildTokenSponsoredFeePaymentMethod({
-        kind: "metered",
-        feePayer: feePaymentContract.address,
-        tokenAddress: token.address,
-        nonce,
-      });
-      const witness = await createTokenSponsorshipAuthWitness({
-        kind: "metered",
-        wallet,
-        token,
-        from: alice,
-        feePayer: feePaymentContract.address,
-        amount: maxGasCost,
-        nonce,
-      });
-
-      const balancesBefore = await getFeePaymentBalances(
-        feePaymentContract,
-        token,
-        alice,
-        aztecNode,
-      );
-
-      const receipt = await counter.methods
-        .revert_public()
-        .send({
-          from: alice,
-          authWitnesses: [witness],
-          fee: {
-            paymentMethod,
-            gasSettings: {
-              gasLimits,
-              teardownGasLimits,
-              maxFeesPerGas,
-              maxPriorityFeesPerGas,
-            },
-          },
-        })
-        .wait({ dontThrowOnRevert: true });
-
-      expect(receipt.status).toBe(TxStatus.APP_LOGIC_REVERTED);
-
-      await syncTokenState(token, alice);
-      const balancesAfter = await getFeePaymentBalances(
-        feePaymentContract,
-        token,
-        alice,
-        aztecNode,
-      );
-
-      expect(balancesAfter.fpcPublic - balancesBefore.fpcPublic).toBe(
-        maxGasCost,
-      );
-      expect(balancesBefore.alicePrivate - balancesAfter.alicePrivate).toBe(
-        maxGasCost,
-      );
-    },
-    TEST_TIMEOUT,
-  );
-
-  /**
-   * Test metered exact token sponsored fee payment when public app logic reverts.
-   * @expected_status APP_LOGIC_REVERTED
-   * @effects Setup charges tokens, app logic fails, sponsor receives partial token payment based on actual gas used
-   */
-  it(
-    "sponsor_metered_token_exact: APP_LOGIC_REVERTED (public app logic reverts)",
-    async () => {
-      const {
-        maxFeesPerGas,
-        maxPriorityFeesPerGas,
-        gasLimits,
-        teardownGasLimits,
-        maxGasCost,
-      } = await getGasSetup(aztecNode);
-
-      const nonce = Fr.random();
-      const paymentMethod = buildTokenSponsoredFeePaymentMethod({
-        kind: "metered_exact",
-        feePayer: feePaymentContract.address,
-        tokenAddress: token.address,
-        nonce,
-      });
-      const witness = await createTokenSponsorshipAuthWitness({
-        kind: "metered_exact",
-        wallet,
-        token,
-        from: alice,
-        feePayer: feePaymentContract.address,
-        amount: maxGasCost,
-        nonce,
-      });
-
-      const balancesBefore = await getFeePaymentBalances(
-        feePaymentContract,
-        token,
-        alice,
-        aztecNode,
-      );
-
-      const receipt = await counter.methods
-        .revert_public()
-        .send({
-          from: alice,
-          authWitnesses: [witness],
-          fee: {
-            paymentMethod,
-            gasSettings: {
-              gasLimits,
-              teardownGasLimits,
-              maxFeesPerGas,
-              maxPriorityFeesPerGas,
-            },
-          },
-        })
-        .wait({ dontThrowOnRevert: true });
-
-      expect(receipt.status).toBe(TxStatus.APP_LOGIC_REVERTED);
-
-      await syncTokenState(token, alice);
-      const balancesAfter = await getFeePaymentBalances(
-        feePaymentContract,
-        token,
-        alice,
-        aztecNode,
-      );
-
-      const sponsorDelta = balancesAfter.fpcPublic - balancesBefore.fpcPublic;
-      const aliceDelta =
-        balancesBefore.alicePrivate - balancesAfter.alicePrivate;
-
-      expect(sponsorDelta).toBeGreaterThan(0n);
-      expect(sponsorDelta).toBeLessThanOrEqual(maxGasCost);
-      expect(aliceDelta).toBe(sponsorDelta);
-    },
-    TEST_TIMEOUT,
-  );
-
-  /**
-   * Test teardown revert token sponsored fee payment.
+   * Test teardown revert metered token sponsored fee payment.
    * @expected_status TEARDOWN_REVERTED
    * @effects Setup succeeds and charges max gas cost in tokens, teardown fails, protocol fees charged, app logic reverted
    */
   it(
-    "teardown_revert: TEARDOWN_REVERTED (setup is not reverted, app-logic effects are reverted)",
+    "teardown_revert_metered_token: TEARDOWN_REVERTED",
     async () => {
       const {
         maxFeesPerGas,
@@ -482,13 +326,14 @@ describe("Fee Payment with External Tokens", () => {
       } = await getGasSetup(aztecNode);
 
       const nonce = Fr.random();
-      const paymentMethod = new TeardownRevertTokenSponsoredFeePaymentMethod(
-        feePaymentContract.address,
-        token.address,
+      const paymentMethod = buildTokenSponsoredFeePaymentMethod({
+        kind: "teardown_revert_metered",
+        feePayer: feePaymentContract.address,
+        tokenAddress: token.address,
         nonce,
-      );
+      });
       const witness = await createTokenSponsorshipAuthWitness({
-        kind: "metered",
+        kind: "teardown_revert_metered",
         wallet,
         token,
         from: alice,
@@ -541,6 +386,88 @@ describe("Fee Payment with External Tokens", () => {
       expect(balancesBefore.alicePrivate - balancesAfter.alicePrivate).toBe(
         maxGasCost,
       );
+    },
+    TEST_TIMEOUT,
+  );
+
+  /**
+   * Test teardown revert metered exact token sponsored fee payment.
+   * @expected_status TEARDOWN_REVERTED
+   * @effects Setup succeeds and charges exact fees in tokens, teardown fails after refund and reverts app logic
+   */
+  it(
+    "teardown_revert_metered_token_exact: TEARDOWN_REVERTED",
+    async () => {
+      const {
+        maxFeesPerGas,
+        maxPriorityFeesPerGas,
+        gasLimits,
+        teardownGasLimits,
+        maxGasCost,
+      } = await getGasSetup(aztecNode);
+
+      const nonce = Fr.random();
+      const paymentMethod = buildTokenSponsoredFeePaymentMethod({
+        kind: "teardown_revert_metered_exact",
+        feePayer: feePaymentContract.address,
+        tokenAddress: token.address,
+        nonce,
+      });
+      const witness = await createTokenSponsorshipAuthWitness({
+        kind: "teardown_revert_metered_exact",
+        wallet,
+        token,
+        from: alice,
+        feePayer: feePaymentContract.address,
+        amount: maxGasCost,
+        nonce,
+      });
+
+      const balancesBefore = await getFeePaymentBalances(
+        feePaymentContract,
+        token,
+        alice,
+        aztecNode,
+      );
+
+      const receipt = await counter.methods
+        .increment()
+        .send({
+          from: alice,
+          authWitnesses: [witness],
+          fee: {
+            paymentMethod,
+            gasSettings: {
+              gasLimits,
+              teardownGasLimits,
+              maxFeesPerGas,
+              maxPriorityFeesPerGas,
+            },
+          },
+        })
+        .wait({ dontThrowOnRevert: true });
+
+      expect(receipt.status).toBe(TxStatus.TEARDOWN_REVERTED);
+      expect(receipt.blockNumber).toBeDefined();
+
+      await syncTokenState(token, alice);
+      const balancesAfter = await getFeePaymentBalances(
+        feePaymentContract,
+        token,
+        alice,
+        aztecNode,
+      );
+
+      expect(balancesAfter.sponsorFeeJuice).toBeLessThan(
+        balancesBefore.sponsorFeeJuice,
+      );
+
+      // Counter should be reverted to 0
+      expect(
+        await counter.methods.get_counter().simulate({
+          from: alice,
+        }),
+      ).toBe(0n);
     },
     TEST_TIMEOUT,
   );

@@ -35,27 +35,12 @@ pub contract FeePayment {
     #[external("private")]
     #[nophasecheck]
     fn sponsor_unconditionally_teardown_revert() {
-        // Teardown phase: intentionally revert. If this reverts, the app logic effects are reverted.
-        self.set_as_teardown(FeePayment::at(self.address)._teardown_always_revert());
-
         // Set the FPC as the fee payer of the tx.
         self.context.set_as_fee_payer();
         // End the setup phase
         self.context.end_setup();
-    }
-
-    /// Demonstrates setting teardown AFTER setup ends.
-    /// Teardown functions can be registered even after end_setup() and will still execute.
-    #[external("private")]
-    #[nophasecheck]
-    fn teardown_after_setup_revert() {
-        // Set the FPC as the fee payer of the tx.
-        self.context.set_as_fee_payer();
-
-        // End the setup phase BEFORE setting teardown
-        self.context.end_setup();
-
-        // Set teardown AFTER setup has ended.
+        // Teardown phase: intentionally revert. If this reverts, the app logic effects are reverted.
+        // NOTE: Teardown can be set after setup ends and will still execute (indistinct).
         self.set_as_teardown(FeePayment::at(self.address)._teardown_always_revert());
     }
 

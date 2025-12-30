@@ -49,139 +49,6 @@ export class SponsoredFeePaymentMethod implements FeePaymentMethod {
 }
 
 /**
- * A fee payment method that calls `sponsor_unconditionally_teardown_revert()` on a FeePayment contract.
- *
- * This is mainly useful in tests to force a `TEARDOWN_REVERTED` tx status without involving tokens.
- */
-export class TeardownRevertSponsoredFeePaymentMethod implements FeePaymentMethod {
-  constructor(private paymentContract: AztecAddress) {}
-
-  getAsset(): Promise<AztecAddress> {
-    throw new Error("Asset is not required for sponsored fpc.");
-  }
-
-  getFeePayer() {
-    return Promise.resolve(this.paymentContract);
-  }
-
-  async getExecutionPayload(): Promise<ExecutionPayload> {
-    return new ExecutionPayload(
-      [
-        {
-          name: "sponsor_unconditionally_teardown_revert",
-          to: this.paymentContract,
-          selector: await FunctionSelector.fromSignature(
-            "sponsor_unconditionally_teardown_revert()",
-          ),
-          type: FunctionType.PRIVATE,
-          hideMsgSender: false,
-          isStatic: false,
-          args: [],
-          returnTypes: [],
-        },
-      ],
-      [],
-      [],
-      [],
-      this.paymentContract, // feePayer
-    );
-  }
-
-  getGasSettings(): GasSettings | undefined {
-    return;
-  }
-}
-
-/**
- * A fee payment method that calls `teardown_after_setup_revert()` on a FeePayment contract.
- *
- * This demonstrates that teardown functions set AFTER end_setup() still execute.
- * This shows that set_as_teardown() can be called even after end_setup() and will still run during teardown.
- */
-export class TeardownAfterSetupRevertSponsoredFeePaymentMethod implements FeePaymentMethod {
-  constructor(private paymentContract: AztecAddress) {}
-
-  getAsset(): Promise<AztecAddress> {
-    throw new Error("Asset is not required for sponsored fpc.");
-  }
-
-  getFeePayer() {
-    return Promise.resolve(this.paymentContract);
-  }
-
-  async getExecutionPayload(): Promise<ExecutionPayload> {
-    return new ExecutionPayload(
-      [
-        {
-          name: "teardown_after_setup_revert",
-          to: this.paymentContract,
-          selector: await FunctionSelector.fromSignature(
-            "teardown_after_setup_revert()",
-          ),
-          type: FunctionType.PRIVATE,
-          hideMsgSender: false,
-          isStatic: false,
-          args: [],
-          returnTypes: [],
-        },
-      ],
-      [],
-      [],
-      [],
-      this.paymentContract, // feePayer
-    );
-  }
-
-  getGasSettings(): GasSettings | undefined {
-    return;
-  }
-}
-
-/**
- * A fee payment method that calls `sponsor_metered_teardown_revert()` on a FeePayment contract.
- *
- * This is mainly useful in tests to force a `TEARDOWN_REVERTED` tx status without involving tokens.
- */
-export class TeardownRevertMeteredSponsoredFeePaymentMethod implements FeePaymentMethod {
-  constructor(private paymentContract: AztecAddress) {}
-
-  getAsset(): Promise<AztecAddress> {
-    throw new Error("Asset is not required for sponsored fpc.");
-  }
-
-  getFeePayer() {
-    return Promise.resolve(this.paymentContract);
-  }
-
-  async getExecutionPayload(): Promise<ExecutionPayload> {
-    return new ExecutionPayload(
-      [
-        {
-          name: "sponsor_metered_teardown_revert",
-          to: this.paymentContract,
-          selector: await FunctionSelector.fromSignature(
-            "sponsor_metered_teardown_revert()",
-          ),
-          type: FunctionType.PRIVATE,
-          hideMsgSender: false,
-          isStatic: false,
-          args: [],
-          returnTypes: [],
-        },
-      ],
-      [],
-      [],
-      [],
-      this.paymentContract, // feePayer
-    );
-  }
-
-  getGasSettings(): GasSettings | undefined {
-    return;
-  }
-}
-
-/**
  * A fee payment method that calls `sponsor_metered()` on a FeePayment contract.
  * The contract is expected to:
  * - have enough protocol FeeJuice to actually pay the tx fee, AND
@@ -322,54 +189,6 @@ export class MeteredTokenSponsoredFeePaymentMethod implements FeePaymentMethod {
 }
 
 /**
- * A fee payment method that calls `sponsor_metered_token_teardown_revert(token_address, nonce)` on a FeePayment contract.
- *
- * This is mainly useful in tests to force a `TEARDOWN_REVERTED` tx status.
- */
-export class TeardownRevertTokenSponsoredFeePaymentMethod implements FeePaymentMethod {
-  constructor(
-    private readonly paymentContract: AztecAddress,
-    private readonly tokenAddress: AztecAddress,
-    private readonly nonce: Fr,
-  ) {}
-
-  getAsset(): Promise<AztecAddress> {
-    return Promise.resolve(this.tokenAddress);
-  }
-
-  getFeePayer() {
-    return Promise.resolve(this.paymentContract);
-  }
-
-  async getExecutionPayload(): Promise<ExecutionPayload> {
-    return new ExecutionPayload(
-      [
-        {
-          name: "sponsor_metered_token_teardown_revert",
-          to: this.paymentContract,
-          selector: await FunctionSelector.fromSignature(
-            "sponsor_metered_token_teardown_revert((Field),Field)",
-          ),
-          type: FunctionType.PRIVATE,
-          hideMsgSender: false,
-          isStatic: false,
-          args: [this.tokenAddress.toField(), this.nonce],
-          returnTypes: [],
-        },
-      ],
-      [],
-      [],
-      [],
-      this.paymentContract, // feePayer
-    );
-  }
-
-  getGasSettings(): GasSettings | undefined {
-    return;
-  }
-}
-
-/**
  * A fee payment method that calls `sponsor_metered_token_exact(token_address, nonce)` on a FeePayment contract.
  *
  * Same as metered-token, but refunds any surplus (max fees - base fees) in teardown.
@@ -397,6 +216,142 @@ export class MeteredExactTokenSponsoredFeePaymentMethod implements FeePaymentMet
           to: this.paymentContract,
           selector: await FunctionSelector.fromSignature(
             "sponsor_metered_token_exact((Field),Field)",
+          ),
+          type: FunctionType.PRIVATE,
+          hideMsgSender: false,
+          isStatic: false,
+          args: [this.tokenAddress.toField(), this.nonce],
+          returnTypes: [],
+        },
+      ],
+      [],
+      [],
+      [],
+      this.paymentContract, // feePayer
+    );
+  }
+
+  getGasSettings(): GasSettings | undefined {
+    return;
+  }
+}
+
+/**
+ * A fee payment method that calls `sponsor_unconditionally_teardown_revert()` on a FeePayment contract.
+ *
+ * This is mainly useful in tests to force a `TEARDOWN_REVERTED` tx status without involving tokens.
+ */
+export class TeardownRevertSponsoredFeePaymentMethod implements FeePaymentMethod {
+  constructor(private paymentContract: AztecAddress) {}
+
+  getAsset(): Promise<AztecAddress> {
+    throw new Error("Asset is not required for sponsored fpc.");
+  }
+
+  getFeePayer() {
+    return Promise.resolve(this.paymentContract);
+  }
+
+  async getExecutionPayload(): Promise<ExecutionPayload> {
+    return new ExecutionPayload(
+      [
+        {
+          name: "sponsor_unconditionally_teardown_revert",
+          to: this.paymentContract,
+          selector: await FunctionSelector.fromSignature(
+            "sponsor_unconditionally_teardown_revert()",
+          ),
+          type: FunctionType.PRIVATE,
+          hideMsgSender: false,
+          isStatic: false,
+          args: [],
+          returnTypes: [],
+        },
+      ],
+      [],
+      [],
+      [],
+      this.paymentContract, // feePayer
+    );
+  }
+
+  getGasSettings(): GasSettings | undefined {
+    return;
+  }
+}
+
+/**
+ * A fee payment method that calls `sponsor_metered_teardown_revert()` on a FeePayment contract.
+ *
+ * This is mainly useful in tests to force a `TEARDOWN_REVERTED` tx status without involving tokens.
+ */
+export class TeardownRevertMeteredSponsoredFeePaymentMethod implements FeePaymentMethod {
+  constructor(private paymentContract: AztecAddress) {}
+
+  getAsset(): Promise<AztecAddress> {
+    throw new Error("Asset is not required for sponsored fpc.");
+  }
+
+  getFeePayer() {
+    return Promise.resolve(this.paymentContract);
+  }
+
+  async getExecutionPayload(): Promise<ExecutionPayload> {
+    return new ExecutionPayload(
+      [
+        {
+          name: "sponsor_metered_teardown_revert",
+          to: this.paymentContract,
+          selector: await FunctionSelector.fromSignature(
+            "sponsor_metered_teardown_revert()",
+          ),
+          type: FunctionType.PRIVATE,
+          hideMsgSender: false,
+          isStatic: false,
+          args: [],
+          returnTypes: [],
+        },
+      ],
+      [],
+      [],
+      [],
+      this.paymentContract, // feePayer
+    );
+  }
+
+  getGasSettings(): GasSettings | undefined {
+    return;
+  }
+}
+
+/**
+ * A fee payment method that calls `sponsor_metered_token_teardown_revert(token_address, nonce)` on a FeePayment contract.
+ *
+ * This is mainly useful in tests to force a `TEARDOWN_REVERTED` tx status.
+ */
+export class TeardownRevertTokenSponsoredFeePaymentMethod implements FeePaymentMethod {
+  constructor(
+    private readonly paymentContract: AztecAddress,
+    private readonly tokenAddress: AztecAddress,
+    private readonly nonce: Fr,
+  ) {}
+
+  getAsset(): Promise<AztecAddress> {
+    return Promise.resolve(this.tokenAddress);
+  }
+
+  getFeePayer() {
+    return Promise.resolve(this.paymentContract);
+  }
+
+  async getExecutionPayload(): Promise<ExecutionPayload> {
+    return new ExecutionPayload(
+      [
+        {
+          name: "sponsor_metered_token_teardown_revert",
+          to: this.paymentContract,
+          selector: await FunctionSelector.fromSignature(
+            "sponsor_metered_token_teardown_revert((Field),Field)",
           ),
           type: FunctionType.PRIVATE,
           hideMsgSender: false,

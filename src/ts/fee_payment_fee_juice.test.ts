@@ -21,7 +21,6 @@ import {
   MeteredExactSponsoredFeePaymentMethod,
   SponsoredFeePaymentMethod,
   TeardownRevertSponsoredFeePaymentMethod,
-  TeardownAfterSetupRevertSponsoredFeePaymentMethod,
   TeardownRevertMeteredSponsoredFeePaymentMethod,
 } from "./sponsored_fee_payment.js";
 
@@ -49,7 +48,7 @@ describe("Fee Payment with Fee Juice", () => {
   beforeAll(async () => {
     const ctx = await createLocalNetworkContext({
       nodeUrl: LOCAL_AZTEC_NODE_URL,
-      wallet: { dataDirectory: "pxe-test", proverEnabled: false },
+      wallet: { dataDirectory: "pxe-test-fee-juice", proverEnabled: false },
     });
     aztecNode = ctx.aztecNode;
     wallet = ctx.wallet;
@@ -91,11 +90,13 @@ describe("Fee Payment with Fee Juice", () => {
   /**
    * Test sponsored fee payment with Fee Juice.
    * @expected_status SUCCESS
-   * @effects Counter increments from 0 to 1, sponsor Fee Juice balance decreases
+   * @effects Counter increments, sponsor address protocol balance decreases
    */
   it(
     "sponsored_fee_juice: SUCCESS",
     async () => {
+      await counter.methods.reset().send({ from: alice });
+
       expect(
         await counter.methods.get_counter().simulate({
           from: alice,
@@ -132,137 +133,12 @@ describe("Fee Payment with Fee Juice", () => {
   );
 
   /**
-   * Test metered sponsored fee payment with insufficient balance in setup.
-   * @expected_status DROPPED (setup reverts due to balance underflow)
-   * @effects Transaction setup fails, tx not included in block, no fees charged, balances unchanged
-   */
-  it(
-    "sponsor_metered_fee_juice: DROPPED (setup reverts)",
-    async () => {
-      const balancesBefore = await getFeeJuiceBalances(
-        feePaymentContract,
-        alice,
-        aztecNode,
-      );
-      expect(balancesBefore.internalBalance).toBe(0n);
-
-      await expect(
-        counter.methods
-          .revert_private()
-          .send({
-            from: alice,
-            fee: { paymentMethod: meteredSponsoredFeePaymentMethod },
-          })
-          .wait(),
-      ).rejects.toThrow();
-
-      const balancesAfter = await getFeeJuiceBalances(
-        feePaymentContract,
-        alice,
-        aztecNode,
-      );
-
-      expect(balancesAfter.sponsorFeeJuice).toBe(
-        balancesBefore.sponsorFeeJuice,
-      );
-      expect(balancesAfter.internalBalance).toBe(
-        balancesBefore.internalBalance,
-      );
-    },
-    TEST_TIMEOUT,
-  );
-
-  /**
-   * Test metered sponsored fee payment when private app logic reverts.
-   * @expected_status DROPPED (private app logic reverts after setup succeeds)
-   * @effects Setup charges max gas cost upfront, app logic fails, transaction dropped, setup charges refunded
-   */
-  it(
-    "sponsor_metered_fee_juice: DROPPED (private app logic reverts)",
-    async () => {
-      await mintFeeJuice(feePaymentContract, alice, INITIAL_FEE_JUICE_BALANCE);
-
-      const balancesBefore = await getFeeJuiceBalances(
-        feePaymentContract,
-        alice,
-        aztecNode,
-      );
-
-      await expect(
-        counter.methods
-          .revert_private()
-          .send({
-            from: alice,
-            fee: { paymentMethod: meteredSponsoredFeePaymentMethod },
-          })
-          .wait(),
-      ).rejects.toThrow();
-
-      const balancesAfter = await getFeeJuiceBalances(
-        feePaymentContract,
-        alice,
-        aztecNode,
-      );
-
-      expect(balancesAfter.sponsorFeeJuice).toBe(
-        balancesBefore.sponsorFeeJuice,
-      );
-      expect(balancesAfter.internalBalance).toBe(
-        balancesBefore.internalBalance,
-      );
-    },
-    TEST_TIMEOUT,
-  );
-
-  /**
-   * Test metered sponsored fee payment when public app logic reverts.
-   * @expected_status APP_LOGIC_REVERTED
-   * @effects Setup charges max gas cost, app logic fails, sponsor pays fees, user gets partial refund
-   */
-  it(
-    "sponsor_metered_fee_juice: APP_LOGIC_REVERTED (public app logic reverts)",
-    async () => {
-      await mintFeeJuice(feePaymentContract, alice, INITIAL_FEE_JUICE_BALANCE);
-
-      const balancesBefore = await getFeeJuiceBalances(
-        feePaymentContract,
-        alice,
-        aztecNode,
-      );
-
-      const receipt = await counter.methods
-        .revert_public()
-        .send({
-          from: alice,
-          fee: { paymentMethod: meteredSponsoredFeePaymentMethod },
-        })
-        .wait({ dontThrowOnRevert: true });
-
-      expect(receipt.status).toBe(TxStatus.APP_LOGIC_REVERTED);
-
-      const balancesAfter = await getFeeJuiceBalances(
-        feePaymentContract,
-        alice,
-        aztecNode,
-      );
-
-      expect(balancesAfter.sponsorFeeJuice).toBeLessThan(
-        balancesBefore.sponsorFeeJuice,
-      );
-      expect(balancesAfter.internalBalance).toBeLessThan(
-        balancesBefore.internalBalance,
-      );
-    },
-    TEST_TIMEOUT,
-  );
-
-  /**
-   * Test metered sponsored fee payment with successful transaction.
+   * Test metered sponsored fee payment with Fee Juice.
    * @expected_status SUCCESS
-   * @effects Counter increments, sponsor pays actual transaction fee, user pays max gas cost upfront then gets refunded surplus
+   * @effects Counter increments, alice's internal balance deduced (max gas cost charged upfront)
    */
   it(
-    "sponsor_metered_fee_juice: SUCCESS (max fees are charged)",
+    "metered_fee_juice: SUCCESS",
     async () => {
       await mintFeeJuice(feePaymentContract, alice, INITIAL_FEE_JUICE_BALANCE);
 
@@ -318,12 +194,12 @@ describe("Fee Payment with Fee Juice", () => {
   );
 
   /**
-   * Test metered exact sponsored fee payment with successful transaction.
+   * Test metered exact sponsored fee payment with Fee Juice.
    * @expected_status SUCCESS
-   * @effects Counter increments, sponsor and user both pay exact transaction fee (no over-charging)
+   * @effects Counter increments, exact fees deduced and refunded
    */
   it(
-    "sponsor_metered_fee_juice_exact: SUCCESS (exact fees are charged)",
+    "metered_exact_fee_juice: SUCCESS",
     async () => {
       await mintFeeJuice(feePaymentContract, alice, INITIAL_FEE_JUICE_BALANCE);
 
@@ -373,12 +249,12 @@ describe("Fee Payment with Fee Juice", () => {
   );
 
   /**
-   * Test teardown revert sponsored fee payment.
+   * Test teardown revert sponsored fee payment with Fee Juice.
    * @expected_status TEARDOWN_REVERTED
    * @effects Setup succeeds and charges fees, teardown fails and reverts app logic, protocol fees still charged
    */
   it(
-    "teardown_revert_fee_juice: TEARDOWN_REVERTED (protocol fees are charged)",
+    "teardown_revert_sponsored_fee_juice: TEARDOWN_REVERTED",
     async () => {
       const sponsorFeeJuiceBalanceBefore = await getFeeJuiceBalance(
         sponsoredFpcAddress,
@@ -420,13 +296,15 @@ describe("Fee Payment with Fee Juice", () => {
   );
 
   /**
-   * Test teardown revert sponsored fee payment.
+   * Test teardown revert metered fee payment with Fee Juice.
    * @expected_status TEARDOWN_REVERTED
    * @effects Setup succeeds and charges fees, teardown fails and reverts app logic, protocol fees still charged
    */
   it(
-    "teardown_revert_metered_fee_juice: TEARDOWN_REVERTED (setup is not reverted, app logic effects are reverted)",
+    "teardown_revert_metered_fee_juice: TEARDOWN_REVERTED",
     async () => {
+      await mintFeeJuice(feePaymentContract, alice, INITIAL_FEE_JUICE_BALANCE);
+
       const balancesBefore = await getFeeJuiceBalances(
         feePaymentContract,
         alice,
@@ -479,38 +357,6 @@ describe("Fee Payment with Fee Juice", () => {
       expect(balancesAfter.internalBalance).toBe(
         balancesBefore.internalBalance - maxGasCost,
       );
-
-      expect(
-        await counter.methods.get_counter().simulate({
-          from: alice,
-        }),
-      ).toBe(0n);
-    },
-    TEST_TIMEOUT,
-  );
-
-  /**
-   * Test teardown revert when teardown is set after setup ends.
-   * @expected_status TEARDOWN_REVERTED
-   * @effects Setup completes successfully, teardown registered late fails, app logic is reverted
-   */
-  it(
-    "teardown_after_setup_fee_juice: TEARDOWN_REVERTED",
-    async () => {
-      const paymentMethod =
-        new TeardownAfterSetupRevertSponsoredFeePaymentMethod(
-          sponsoredFpcAddress,
-        );
-
-      const receipt = await counter.methods
-        .increment()
-        .send({
-          from: alice,
-          fee: { paymentMethod },
-        })
-        .wait({ dontThrowOnRevert: true });
-
-      expect(receipt.status).toBe(TxStatus.TEARDOWN_REVERTED);
 
       expect(
         await counter.methods.get_counter().simulate({

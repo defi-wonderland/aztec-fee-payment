@@ -306,6 +306,8 @@ export default class CounterContractBenchmark extends Benchmark {
     const meteredExactFeePaymentMethod =
       new MeteredExactSponsoredFeePaymentMethod(feePayerContract.address);
 
+    // NOTE: Token artifacts need to be declared with the transfer nonce.
+
     // For token-sponsored fee payment we must provide gas settings (so maxGasCost is known for authwit).
     const baseFees: any = await (aztecNode as any).getCurrentBaseFees();
     const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
