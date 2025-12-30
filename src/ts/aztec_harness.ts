@@ -46,10 +46,16 @@ export function maxFeesPerGasFromBaseFees(
   );
 }
 
-export function maxGasCostFor(maxFeesPerGas: GasFees, gasLimits: Gas): bigint {
+export function maxGasCostFor(
+  maxFeesPerGas: GasFees,
+  gasLimits: Gas,
+  teardownGasLimits: Gas,
+): bigint {
   return (
-    BigInt(maxFeesPerGas.feePerDaGas) * BigInt(gasLimits.daGas) +
-    BigInt(maxFeesPerGas.feePerL2Gas) * BigInt(gasLimits.l2Gas)
+    BigInt(maxFeesPerGas.feePerDaGas) *
+      (BigInt(gasLimits.daGas) + BigInt(teardownGasLimits.daGas)) +
+    BigInt(maxFeesPerGas.feePerL2Gas) *
+      (BigInt(gasLimits.l2Gas) + BigInt(teardownGasLimits.l2Gas))
   );
 }
 

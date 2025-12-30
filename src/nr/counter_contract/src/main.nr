@@ -36,7 +36,13 @@ pub contract Counter {
     /// @dev Increments the counter
     #[external("private")]
     fn increment() {
-        self.enqueue_self.increment_internal();
+        self.enqueue_self._increment();
+    }
+
+    /// @dev Resets the counter
+    #[external("private")]
+    fn reset() {
+        self.enqueue_self._reset();
     }
 
     #[external("private")]
@@ -45,8 +51,14 @@ pub contract Counter {
         assert(version == 0, "Reverted");
     }
 
-    #[external("public")]
+    #[external("private")]
     fn revert_public() {
+        self.enqueue_self._revert_public();
+    }
+
+    #[external("public")]
+    #[only_self]
+    fn _revert_public() {
         let version = self.context.version();
         assert(version == 0, "Reverted");
     }
@@ -62,8 +74,15 @@ pub contract Counter {
     /// @dev Increments the counter
     #[external("public")]
     #[only_self]
-    fn increment_internal() {
+    fn _increment() {
         let current_value = self.storage.counter.read();
         self.storage.counter.write(current_value + 1);
+    }
+
+    /// @dev Resets the counter
+    #[external("public")]
+    #[only_self]
+    fn _reset() {
+        self.storage.counter.write(0);
     }
 }

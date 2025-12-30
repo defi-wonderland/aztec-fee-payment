@@ -5,6 +5,7 @@ use dep::aztec::macros::aztec;
 #[aztec]
 pub contract FeePayment {
     use dep::aztec::{
+        context::PrivateContext,
         macros::{functions::{external, nophasecheck, only_self}, storage::storage},
         messages::message_delivery::MessageDelivery,
         protocol_types::address::AztecAddress,
@@ -34,7 +35,7 @@ pub contract FeePayment {
     #[external("private")]
     #[nophasecheck]
     fn sponsor_unconditionally_teardown_revert() {
-        // Teardown phase: intentionally revert.
+        // Teardown phase: intentionally revert. If this reverts, the app logic effects are reverted.
         self.set_as_teardown(FeePayment::at(self.address)._teardown_always_revert());
 
         // Set the FPC as the fee payer of the tx.
@@ -43,20 +44,26 @@ pub contract FeePayment {
         self.context.end_setup();
     }
 
+    /// Demonstrates setting teardown AFTER setup ends.
+    /// Teardown functions can be registered even after end_setup() and will still execute.
+    #[external("private")]
+    #[nophasecheck]
+    fn teardown_after_setup_revert() {
+        // Set the FPC as the fee payer of the tx.
+        self.context.set_as_fee_payer();
+
+        // End the setup phase BEFORE setting teardown
+        self.context.end_setup();
+
+        // Set teardown AFTER setup has ended.
+        self.set_as_teardown(FeePayment::at(self.address)._teardown_always_revert());
+    }
+
     #[external("private")]
     #[nophasecheck]
     fn sponsor_metered() {
-        // Get the gas limits from the transaction settings.
-        let l2_gas_limit = self.context.gas_settings().gas_limits.l2_gas;
-        let da_gas_limit = self.context.gas_settings().gas_limits.da_gas;
-
-        // Get the max fee per gas from the transaction settings.
-        let max_fee_per_da_gas = self.context.gas_settings().max_fees_per_gas.fee_per_da_gas;
-        let max_fee_per_l2_gas = self.context.gas_settings().max_fees_per_gas.fee_per_l2_gas;
-
-        // Calculate the max gas cost (max fees are already validated in the transaction settings).
-        let max_gas_cost = max_fee_per_da_gas * (da_gas_limit as u128)
-            + max_fee_per_l2_gas * (l2_gas_limit as u128);
+        // Calculate the max gas cost.
+        let max_gas_cost = get_max_gas_cost(self.context);
 
         // This logic is at setup phase, so if it reverts, the tx will be invalid (not included in the block).
         self.storage.fee_juice_balance.at(self.msg_sender().unwrap()).sub(max_gas_cost).deliver(
@@ -71,18 +78,30 @@ pub contract FeePayment {
 
     #[external("private")]
     #[nophasecheck]
+    fn sponsor_metered_teardown_revert() {
+        // Calculate the max gas cost.
+        let max_gas_cost = get_max_gas_cost(self.context);
+
+        // Setup phase: reserve max gas cost by subtracting from the sponsor's balance.
+        // If this reverts, the tx will be invalid (not included in the block).
+        self.storage.fee_juice_balance.at(self.msg_sender().unwrap()).sub(max_gas_cost).deliver(
+            MessageDelivery.UNCONSTRAINED_ONCHAIN,
+        );
+
+        // Teardown phase: intentionally revert. If this reverts, the app logic effects are reverted.
+        self.set_as_teardown(FeePayment::at(self.address)._teardown_always_revert());
+
+        // Set the FPC as the fee payer of the tx.
+        self.context.set_as_fee_payer();
+        // End the setup phase
+        self.context.end_setup();
+    }
+
+    #[external("private")]
+    #[nophasecheck]
     fn sponsor_metered_exact() {
-        // Get the gas limits from the transaction settings.
-        let l2_gas_limit = self.context.gas_settings().gas_limits.l2_gas;
-        let da_gas_limit = self.context.gas_settings().gas_limits.da_gas;
-
-        // Get the max fee per gas from the transaction settings.
-        let max_fee_per_da_gas = self.context.gas_settings().max_fees_per_gas.fee_per_da_gas;
-        let max_fee_per_l2_gas = self.context.gas_settings().max_fees_per_gas.fee_per_l2_gas;
-
-        // Calculate the max gas cost (max fees are already validated in the transaction settings).
-        let max_gas_cost = max_fee_per_da_gas * (da_gas_limit as u128)
-            + max_fee_per_l2_gas * (l2_gas_limit as u128);
+        // Calculate the max gas cost.
+        let max_gas_cost = get_max_gas_cost(self.context);
 
         // This logic is at setup phase, so if it reverts, the tx will be invalid (not included in the block).
         self.storage.fee_juice_balance.at(self.msg_sender().unwrap()).sub(max_gas_cost).deliver(
@@ -111,17 +130,8 @@ pub contract FeePayment {
     #[external("private")]
     #[nophasecheck]
     fn sponsor_metered_token(token_address: AztecAddress, nonce: Field) {
-        // Get the gas limits from the transaction settings.
-        let l2_gas_limit = self.context.gas_settings().gas_limits.l2_gas;
-        let da_gas_limit = self.context.gas_settings().gas_limits.da_gas;
-
-        // Get the max fee per gas from the transaction settings.
-        let max_fee_per_da_gas = self.context.gas_settings().max_fees_per_gas.fee_per_da_gas;
-        let max_fee_per_l2_gas = self.context.gas_settings().max_fees_per_gas.fee_per_l2_gas;
-
         // Calculate the max gas cost (max fees are already validated in the transaction settings).
-        let max_gas_cost = max_fee_per_da_gas * (da_gas_limit as u128)
-            + max_fee_per_l2_gas * (l2_gas_limit as u128);
+        let max_gas_cost = get_max_gas_cost(self.context);
 
         // This logic is at setup phase, so if it reverts, the tx will be invalid (not included in the block).
         self.call(Token::at(token_address).transfer_to_public(
@@ -140,17 +150,8 @@ pub contract FeePayment {
     #[external("private")]
     #[nophasecheck]
     fn sponsor_metered_token_exact(token_address: AztecAddress, nonce: Field) {
-        // Get the gas limits from the transaction settings.
-        let l2_gas_limit = self.context.gas_settings().gas_limits.l2_gas;
-        let da_gas_limit = self.context.gas_settings().gas_limits.da_gas;
-
-        // Get the max fee per gas from the transaction settings.
-        let max_fee_per_da_gas = self.context.gas_settings().max_fees_per_gas.fee_per_da_gas;
-        let max_fee_per_l2_gas = self.context.gas_settings().max_fees_per_gas.fee_per_l2_gas;
-
-        // Calculate the max gas cost (max fees are already validated in the transaction settings).
-        let max_gas_cost = max_fee_per_da_gas * (da_gas_limit as u128)
-            + max_fee_per_l2_gas * (l2_gas_limit as u128);
+        // Calculate the max gas cost.
+        let max_gas_cost = get_max_gas_cost(self.context);
 
         // This logic is at setup phase, so if it reverts, the tx will be invalid (not included in the block).
         let refund_commitment = self.call(Token::at(token_address)
@@ -179,17 +180,8 @@ pub contract FeePayment {
     #[external("private")]
     #[nophasecheck]
     fn sponsor_metered_token_teardown_revert(token_address: AztecAddress, nonce: Field) {
-        // Get the gas limits from the transaction settings.
-        let l2_gas_limit = self.context.gas_settings().gas_limits.l2_gas;
-        let da_gas_limit = self.context.gas_settings().gas_limits.da_gas;
-
-        // Get the max fee per gas from the transaction settings.
-        let max_fee_per_da_gas = self.context.gas_settings().max_fees_per_gas.fee_per_da_gas;
-        let max_fee_per_l2_gas = self.context.gas_settings().max_fees_per_gas.fee_per_l2_gas;
-
-        // Calculate the max gas cost (max fees are already validated in the transaction settings).
-        let max_gas_cost = max_fee_per_da_gas * (da_gas_limit as u128)
-            + max_fee_per_l2_gas * (l2_gas_limit as u128);
+        // Calculate the max gas cost.
+        let max_gas_cost = get_max_gas_cost(self.context);
 
         // Setup phase: reserve max gas cost by transferring tokens from the tx sender to this contract.
         self.call(Token::at(token_address).transfer_to_public(
@@ -199,7 +191,7 @@ pub contract FeePayment {
             nonce,
         ));
 
-        // Teardown phase: intentionally revert. If this reverts, the tx should be invalid (not included in the block).
+        // Teardown phase: intentionally revert. If this reverts, the app logic effects are reverted.
         self.set_as_teardown(FeePayment::at(self.address)._teardown_always_revert());
 
         // Set the FPC as the fee payer of the tx.
@@ -249,5 +241,25 @@ pub contract FeePayment {
     #[external("utility")]
     unconstrained fn get_fee_juice_balance(account: AztecAddress) -> u128 {
         self.storage.fee_juice_balance.at(account).balance_of()
+    }
+
+    #[contract_library_method]
+    pub fn get_max_gas_cost(context: &mut PrivateContext) -> u128 {
+        let gas_settings = context.gas_settings();
+
+        let l2_gas_limit = gas_settings.gas_limits.l2_gas;
+        let da_gas_limit = gas_settings.gas_limits.da_gas;
+
+        let l2_teardown_gas_limit = gas_settings.teardown_gas_limits.l2_gas;
+        let da_teardown_gas_limit = gas_settings.teardown_gas_limits.da_gas;
+
+        let max_fee_per_da_gas = gas_settings.max_fees_per_gas.fee_per_da_gas;
+        let max_fee_per_l2_gas = gas_settings.max_fees_per_gas.fee_per_l2_gas;
+
+        let max_gas_cost = max_fee_per_da_gas
+            * (da_gas_limit as u128 + da_teardown_gas_limit as u128)
+            + max_fee_per_l2_gas * (l2_gas_limit as u128 + l2_teardown_gas_limit as u128);
+
+        max_gas_cost
     }
 }
