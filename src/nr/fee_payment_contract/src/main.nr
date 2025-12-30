@@ -100,10 +100,7 @@ pub contract FeePayment {
         );
 
         // This logic is at teardown phase, so if it reverts, the tx will be invalid (not included in the block).
-        self.set_as_teardown(FeePayment::at(self.address)._refund(
-            max_gas_cost,
-            partial_note,
-        ));
+        self.set_as_teardown(FeePayment::at(self.address)._refund(max_gas_cost, partial_note));
 
         // Set the FPC as the fee payer of the tx.
         self.context.set_as_fee_payer();
@@ -220,10 +217,7 @@ pub contract FeePayment {
 
     #[external("public")]
     #[only_self]
-    fn _refund(
-        max_gas_cost: u128,
-        partial_note: PartialUintNote,
-    ) {
+    fn _refund(max_gas_cost: u128, partial_note: PartialUintNote) {
         let transaction_fee = self.context.transaction_fee();
 
         let refund_amount = max_gas_cost - (transaction_fee as u128);
