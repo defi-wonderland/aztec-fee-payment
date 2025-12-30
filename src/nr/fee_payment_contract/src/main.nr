@@ -60,15 +60,8 @@ pub contract FeePayment {
 
         // This logic is at setup phase, so if it reverts, the tx will be invalid (not included in the block).
         self.storage.fee_juice_balance.at(self.msg_sender().unwrap()).sub(max_gas_cost).deliver(
-            MessageDelivery.CONSTRAINED_ONCHAIN,
+            MessageDelivery.UNCONSTRAINED_ONCHAIN,
         );
-
-        // This logic is at teardown phase, so if it reverts, the tx will be invalid (not included in the block).
-        self.set_as_teardown(FeePayment::at(self.address)._validate_gas_cost(
-            max_gas_cost,
-            da_gas_limit,
-            l2_gas_limit,
-        ));
 
         // Set the FPC as the fee payer of the tx.
         self.context.set_as_fee_payer();
@@ -93,7 +86,7 @@ pub contract FeePayment {
 
         // This logic is at setup phase, so if it reverts, the tx will be invalid (not included in the block).
         self.storage.fee_juice_balance.at(self.msg_sender().unwrap()).sub(max_gas_cost).deliver(
-            MessageDelivery.CONSTRAINED_ONCHAIN,
+            MessageDelivery.UNCONSTRAINED_ONCHAIN,
         );
 
         // Prepare the partial note for the refund.
@@ -107,10 +100,8 @@ pub contract FeePayment {
         );
 
         // This logic is at teardown phase, so if it reverts, the tx will be invalid (not included in the block).
-        self.set_as_teardown(FeePayment::at(self.address)._validate_gas_cost_and_refund(
+        self.set_as_teardown(FeePayment::at(self.address)._refund(
             max_gas_cost,
-            da_gas_limit,
-            l2_gas_limit,
             partial_note,
         ));
 
@@ -141,13 +132,6 @@ pub contract FeePayment {
             self.address,
             max_gas_cost,
             nonce,
-        ));
-
-        // This logic is at teardown phase, so if it reverts, the tx will be invalid (not included in the block).
-        self.set_as_teardown(FeePayment::at(self.address)._validate_gas_cost(
-            max_gas_cost,
-            da_gas_limit,
-            l2_gas_limit,
         ));
 
         // Set the FPC as the fee payer of the tx.
@@ -181,11 +165,9 @@ pub contract FeePayment {
             ));
 
         // This logic is at teardown phase, so if it reverts, the tx will be invalid (not included in the block).
-        self.set_as_teardown(FeePayment::at(self.address)._validate_gas_cost_and_refund_token(
+        self.set_as_teardown(FeePayment::at(self.address)._refund_token(
             token_address,
             max_gas_cost,
-            da_gas_limit,
-            l2_gas_limit,
             refund_commitment,
         ));
 
@@ -238,54 +220,26 @@ pub contract FeePayment {
 
     #[external("public")]
     #[only_self]
-    fn _validate_gas_cost(max_gas_cost: u128, da_gas_limit: u32, l2_gas_limit: u32) {
-        let base_fee_per_da_gas = self.context.base_fee_per_da_gas();
-        let base_fee_per_l2_gas = self.context.base_fee_per_l2_gas();
-
-        let da_gas_cost = base_fee_per_da_gas * (da_gas_limit as u128);
-        let l2_gas_cost = base_fee_per_l2_gas * (l2_gas_limit as u128);
-
-        assert(da_gas_cost + l2_gas_cost <= max_gas_cost, "Gas cost exceeds limit");
-    }
-
-    #[external("public")]
-    #[only_self]
-    fn _validate_gas_cost_and_refund(
+    fn _refund(
         max_gas_cost: u128,
-        da_gas_limit: u32,
-        l2_gas_limit: u32,
         partial_note: PartialUintNote,
     ) {
-        let base_fee_per_da_gas = self.context.base_fee_per_da_gas();
-        let base_fee_per_l2_gas = self.context.base_fee_per_l2_gas();
+        let transaction_fee = self.context.transaction_fee();
 
-        let da_gas_cost = base_fee_per_da_gas * (da_gas_limit as u128);
-        let l2_gas_cost = base_fee_per_l2_gas * (l2_gas_limit as u128);
-
-        assert(da_gas_cost + l2_gas_cost <= max_gas_cost, "Gas cost exceeds limit");
-
-        let refund_amount = max_gas_cost - (da_gas_cost + l2_gas_cost);
+        let refund_amount = max_gas_cost - (transaction_fee as u128);
         partial_note.complete(self.context, self.address, refund_amount);
     }
 
     #[external("public")]
     #[only_self]
-    fn _validate_gas_cost_and_refund_token(
+    fn _refund_token(
         token_address: AztecAddress,
         max_gas_cost: u128,
-        da_gas_limit: u32,
-        l2_gas_limit: u32,
         refund_commitment: PartialUintNote,
     ) {
-        let base_fee_per_da_gas = self.context.base_fee_per_da_gas();
-        let base_fee_per_l2_gas = self.context.base_fee_per_l2_gas();
+        let transaction_fee = self.context.transaction_fee();
 
-        let da_gas_cost = base_fee_per_da_gas * (da_gas_limit as u128);
-        let l2_gas_cost = base_fee_per_l2_gas * (l2_gas_limit as u128);
-
-        assert(da_gas_cost + l2_gas_cost <= max_gas_cost, "Gas cost exceeds limit");
-
-        let refund_amount = max_gas_cost - (da_gas_cost + l2_gas_cost);
+        let refund_amount = max_gas_cost - (transaction_fee as u128);
         self.call(Token::at(token_address).finalize_transfer_to_private(
             refund_amount,
             refund_commitment,
