@@ -5,7 +5,7 @@ pub mod test;
 pub contract Counter {
     // aztec library imports
     use aztec::{
-        macros::{functions::{external, initializer, only_self, view}, storage::storage},
+        macros::{functions::{external, initializer, nophasecheck, only_self, view}, storage::storage},
         protocol_types::address::AztecAddress,
         state_vars::{PublicImmutable, PublicMutable},
     };
@@ -84,5 +84,30 @@ pub contract Counter {
     #[only_self]
     fn _reset() {
         self.storage.counter.write(0);
+    }
+
+    /// @dev Calls set_as_fee_payer() - for testing fee payer behavior
+    #[external("private")]
+    fn call_set_as_fee_payer() {
+        self.context.set_as_fee_payer();
+    }
+
+    #[external("private")]
+    #[nophasecheck]
+    fn call_end_setup() {
+        self.context.end_setup();
+    }
+
+    /// @dev Calls set_as_teardown() with a no-op function - for testing teardown behavior
+    #[external("private")]
+    fn call_set_as_teardown_noop() {
+        self.set_as_teardown(Counter::at(self.address)._teardown_noop());
+    }
+
+    /// @dev No-op teardown function - does nothing
+    #[external("public")]
+    #[only_self]
+    fn _teardown_noop() {
+        // Do nothing
     }
 }
