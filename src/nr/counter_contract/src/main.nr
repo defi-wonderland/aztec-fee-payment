@@ -5,7 +5,10 @@ pub mod test;
 pub contract Counter {
     // aztec library imports
     use aztec::{
-        macros::{functions::{external, initializer, nophasecheck, only_self, view}, storage::storage},
+        macros::{
+            functions::{external, initializer, nophasecheck, only_self, view},
+            storage::storage,
+        },
         protocol_types::address::AztecAddress,
         state_vars::{PublicImmutable, PublicMutable},
     };
