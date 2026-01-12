@@ -1,67 +1,57 @@
 use aztec::macros::aztec;
+pub mod test;
 
 #[aztec]
 pub contract Counter {
+    // aztec library imports
     use aztec::{
-        macros::{functions::{external, only_self, view}, storage::storage},
-        state_vars::PublicMutable,
+        macros::{functions::{external, initializer, only_self, view}, storage::storage},
+        protocol_types::address::AztecAddress,
+        state_vars::{PublicImmutable, PublicMutable},
     };
 
+    // @param owner The address of the owner
+    // @param counter A numerical value
     #[storage]
     struct Storage<Context> {
+        owner: PublicImmutable<AztecAddress, Context>,
         counter: PublicMutable<u128, Context>,
     }
 
-    /// @dev Increments the counter (private -> public)
+    /// @dev Initialize the contract
+    /// @param owner The address of the owner
+    #[external("public")]
+    #[initializer]
+    fn constructor(owner: AztecAddress) {
+        self.storage.owner.initialize(owner);
+    }
+
+    /// @dev Retrieves the owner of the contract
+    /// @return The owner of the contract
+    #[external("public")]
+    fn get_owner() -> AztecAddress {
+        self.storage.owner.read()
+    }
+
+    /// @dev Increments the counter
     #[external("private")]
     fn increment() {
-        self.enqueue_self._increment();
-    }
-
-    /// @dev Resets the counter (private -> public)
-    #[external("private")]
-    fn reset() {
-        self.enqueue_self._reset();
-    }
-
-    /// @dev Triggers a private revert (transaction becomes invalid - not included in block)
-    #[external("private")]
-    fn revert_private() {
-        // Use protocol version check to create a non-trivial circuit that always fails
-        let version = self.context.version();
-        assert(version == 999999, "Intentional private revert");
-    }
-
-    /// @dev Triggers a public revert (for testing app logic revert - fee payer still pays)
-    #[external("private")]
-    fn revert_public() {
-        self.enqueue_self._revert_public();
+        self.enqueue_self.increment_internal();
     }
 
     /// @dev Retrieves the counter value
+    /// @return The current counter value
     #[external("public")]
     #[view]
     fn get_counter() -> u128 {
         self.storage.counter.read()
     }
 
+    /// @dev Increments the counter
     #[external("public")]
     #[only_self]
-    fn _increment() {
+    fn increment_internal() {
         let current_value = self.storage.counter.read();
         self.storage.counter.write(current_value + 1);
-    }
-
-    #[external("public")]
-    #[only_self]
-    fn _reset() {
-        self.storage.counter.write(0);
-    }
-
-    #[external("public")]
-    #[only_self]
-    fn _revert_public() {
-        let version = self.context.version();
-        assert(version == 0, "Reverted");
     }
 }
