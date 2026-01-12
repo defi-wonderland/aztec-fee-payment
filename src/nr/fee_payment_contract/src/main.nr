@@ -8,7 +8,8 @@ pub contract FeePayment {
         context::PrivateContext,
         macros::{functions::{external, nophasecheck, only_self}, storage::storage},
         messages::message_delivery::MessageDelivery,
-        protocol_types::address::AztecAddress,
+        oracle::get_contract_instance::get_contract_instance,
+        protocol_types::{address::AztecAddress, contract_class_id::ContractClassId},
         state_vars::{Owned, state_variable::StateVariable},
     };
     use dep::balance_set::BalanceSet;
@@ -24,6 +25,30 @@ pub contract FeePayment {
     #[external("private")]
     #[nophasecheck]
     fn sponsor_unconditionally() {
+        // Set the FPC as the fee payer of the tx.
+        self.context.set_as_fee_payer();
+        // End the setup phase
+        self.context.end_setup();
+    }
+
+    /// Sponsors the transaction only if the sender's contract class ID matches the expected class.
+    /// This validates that the caller is deployed from a specific contract class (e.g., SchnorrAccountContract).
+    ///
+    /// @param expected_class_id The ContractClassId that the sender must have
+    #[external("private")]
+    #[nophasecheck]
+    fn sponsor_for_class_id(expected_class_id: ContractClassId) {
+        let sender = self.context.msg_sender().unwrap();
+
+        // Verify and get the sender's contract class ID
+        let sender_class_id = get_verified_sender_class_id(sender);
+
+        // Assert the sender is from the expected contract class
+        assert(
+            sender_class_id == expected_class_id,
+            "Invalid sender class: sender is not from the expected contract class",
+        );
+
         // Set the FPC as the fee payer of the tx.
         self.context.set_as_fee_payer();
         // End the setup phase
@@ -246,5 +271,22 @@ pub contract FeePayment {
             + max_fee_per_l2_gas * (l2_gas_limit as u128 + l2_teardown_gas_limit as u128);
 
         max_gas_cost
+    }
+
+    /// Retrieves and verifies the sender's contract class ID by fetching the contract instance via oracle.
+    ///
+    /// This provides constrained verification of the class ID because `get_contract_instance`
+    /// internally verifies the instance by checking that `instance.to_address() == sender`.
+    /// Since the address is a collision-resistant hash of the instance components (including class_id),
+    /// a successful call proves the class_id is correct.
+    ///
+    /// @param sender The address to get the class ID for
+    /// @return The verified ContractClassId of the sender
+    #[contract_library_method]
+    pub fn get_verified_sender_class_id(sender: AztecAddress) -> ContractClassId {
+        // get_contract_instance internally verifies that instance.to_address() == sender,
+        // which proves the instance data (including contract_class_id) is correct
+        let instance = get_contract_instance(sender);
+        instance.contract_class_id
     }
 }

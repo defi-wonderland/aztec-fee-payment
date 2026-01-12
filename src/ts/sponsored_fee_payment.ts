@@ -49,6 +49,61 @@ export class SponsoredFeePaymentMethod implements FeePaymentMethod {
 }
 
 /**
+ * A fee payment method that validates the caller's contract class ID before sponsoring.
+ * This calls `sponsor_for_class_id(expected_class_id)` on a FeePayment contract.
+ *
+ * The contract will:
+ * - Fetch the caller's contract instance via oracle
+ * - Verify the instance by checking the address derivation
+ * - Assert the caller's class ID matches the expected class ID
+ * - Only then sponsor the transaction
+ *
+ * This is useful for restricting fee sponsorship to specific account contract types
+ * (e.g., only sponsor transactions from SchnorrAccountContract wallets).
+ */
+export class ClassIdValidatedSponsoredFeePaymentMethod implements FeePaymentMethod {
+  constructor(
+    private readonly paymentContract: AztecAddress,
+    private readonly expectedClassId: Fr,
+  ) {}
+
+  getAsset(): Promise<AztecAddress> {
+    throw new Error("Asset is not required for sponsored fpc.");
+  }
+
+  getFeePayer() {
+    return Promise.resolve(this.paymentContract);
+  }
+
+  async getExecutionPayload(): Promise<ExecutionPayload> {
+    return new ExecutionPayload(
+      [
+        {
+          name: "sponsor_for_class_id",
+          to: this.paymentContract,
+          selector: await FunctionSelector.fromSignature(
+            "sponsor_for_class_id((Field))",
+          ),
+          type: FunctionType.PRIVATE,
+          hideMsgSender: false,
+          isStatic: false,
+          args: [this.expectedClassId],
+          returnTypes: [],
+        },
+      ],
+      [],
+      [],
+      [],
+      this.paymentContract, // feePayer
+    );
+  }
+
+  getGasSettings(): GasSettings | undefined {
+    return;
+  }
+}
+
+/**
  * A fee payment method that calls `sponsor_metered()` on a FeePayment contract.
  * The contract is expected to:
  * - have enough protocol FeeJuice to actually pay the tx fee, AND
