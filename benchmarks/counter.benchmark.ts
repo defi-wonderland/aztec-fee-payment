@@ -15,7 +15,7 @@ import {
   GAS_ESTIMATION_TEARDOWN_L2_GAS_LIMIT,
 } from "@aztec/constants";
 
-import { CounterContract } from "../src/artifacts/Counter.js";
+import { CounterContract } from "../src/ts/artifacts/Counter.js";
 import { TokenContract } from "@aztec/noir-contracts.js/Token";
 import {
   MeteredSponsoredFeePaymentMethod,
@@ -23,17 +23,19 @@ import {
   MeteredTokenSponsoredFeePaymentMethod,
   MeteredExactTokenSponsoredFeePaymentMethod,
   SponsoredFeePaymentMethod,
-} from "../src/ts/sponsored_fee_payment.js";
+} from "../src/ts/fee-payment-methods/index.js";
 import {
   createLocalNetworkContext,
   deployAndFundFeePayer,
   LOCAL_AZTEC_NODE_URL,
+} from "../src/ts/test/harness.js";
+import {
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
   REASONABLE_GAS_LIMITS,
   REASONABLE_TEARDOWN_GAS_LIMITS,
-} from "../src/ts/aztec_harness.js";
-import { buildTokenSponsorshipTransferAction } from "../src/ts/token_sponsorship.js";
+} from "../src/ts/utils/gas.js";
+import { buildTokenSponsorshipTransferAction } from "../src/ts/utils/authwit.js";
 
 /**
  * Wraps a ContractFunctionInteraction so the benchmark runner's profiler (which calls
@@ -248,7 +250,7 @@ export default class CounterContractBenchmark extends Benchmark {
         wallet: { proverEnabled: false },
       });
 
-    const counterContract = await CounterContract.deploy(wallet, deployer)
+    const counterContract = await CounterContract.deploy(wallet)
       .send({ from: deployer })
       .deployed();
 

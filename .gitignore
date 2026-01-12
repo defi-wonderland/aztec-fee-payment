@@ -9,3 +9,4 @@ codegenCache.json
 .cursor
 pxe-test/
 pxe-test-*/
+benchmarks/*.benchmark.json

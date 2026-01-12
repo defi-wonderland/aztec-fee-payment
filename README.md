@@ -1,225 +1,157 @@
-# Aztec Noir Boilerplate
+# Aztec Fee Payment Contract (FPC)
 
-<div align="center"><strong>Start your next Aztec project with Noir in seconds</strong></div>
-<div align="center">A highly scalable foundation for building privacy-preserving smart contracts on Aztec</div>
+<div align="center"><strong>Sponsor and abstract transaction fees on Aztec</strong></div>
+<div align="center">A complete solution for gasless transactions, metered billing, and token-based fee payment</div>
 
 <br />
 
-## Features
+## Overview
 
-<dl>
-  <dt>Sample Noir contract</dt>
-  <dd>Basic Counter contract demonstrating private-to-public execution patterns and owner access control.</dd>
+This repository contains the **Fee Payment Contract (FPC)** for Aztec, enabling applications to abstract transaction fees from users. Instead of users paying fees directly with FeeJuice, you can:
 
-  <dt>Aztec development setup</dt>
-  <dd>Pre-configured Aztec workspace with Noir contract compilation and TypeScript artifact generation.</dd>
+- **Sponsor transactions** — Your application pays all fees (gasless UX)
+- **Track internal balances** — Users prepay and you deduct from their balance
+- **Accept tokens as payment** — Users pay with any ERC20-like token
 
-  <dt>TypeScript integration</dt>
-  <dd>Complete TypeScript setup with generated contract bindings and utilities for interacting with Aztec sandbox.</dd>
-
-  <dt>Comprehensive testing</dt>
-  <dd>Noir unit tests for contract logic and TypeScript integration tests using Vitest. Tests automatically start and manage the Aztec sandbox - no manual setup required.</dd>
-
-  <dt>Automated benchmarking</dt>
-  <dd>GitHub Actions workflow that automatically benchmarks your contracts on every PR, comparing Gates, DA Gas and L2 Gas against the base branch.</dd>
-
-  <dt>Development tooling</dt>
-  <dd>Integrated linting with Prettier and streamlined build commands for rapid development.</dd>
-</dl>
-
-## Setup
-
-1. Install Aztec by following the instructions from [their documentation](https://docs.aztec.network/developers/getting_started).
-2. Install the dependencies by running: `yarn install`
-3. Ensure you have Docker installed and running (required for Aztec sandbox)
-
-## Build
-
-The complete build pipeline includes cleaning, compiling Noir contracts, and generating TypeScript artifacts:
-
-```bash
-yarn ccc
-```
-
-This runs:
-- `yarn clean` - Removes all build artifacts
-- `yarn compile` - Compiles Noir contracts using aztec
-- `yarn codegen` - Generates TypeScript bindings from compiled contracts
-
-## Running tests
-
-### Prerequisites
-The tests **automatically start and manage the Aztec sandbox** for you. 
-
-**Option 1: Automatic**
-Just run the tests and the sandbox will be handled automatically:
-
-```bash
-yarn test  # Sandbox starts automatically and stops when tests complete
-```
-
-**Option 2: Manual Control** 
-If you prefer to manage the sandbox yourself (e.g., for debugging or multiple test runs):
-
-```bash
-aztec start --sandbox  # Start manually in separate terminal
-yarn test              # Run tests against existing sandbox
-```
-
-The sandbox runs on `http://localhost:8080` by default.
-
-### All tests
-Run both Noir contract tests and TypeScript integration tests:
-
-```bash
-yarn test
-```
-
-### Noir tests only
-Test your contract logic directly:
-
-```bash
-yarn test:nr
-```
-
-### TypeScript integration tests only
-Test contract interactions through TypeScript:
-
-```bash
-yarn test:js
-```
-
-## Benchmarking
-
-This repository includes automated benchmarking that measures and compares performance metrics across pull requests.
-
-### Metrics tracked
-- **Gates**: Total gate count in zero-knowledge circuits (measures circuit complexity)
-- **DA Gas**: Data Availability gas costs
-- **L2 Gas**: Layer 2 execution gas costs
-
-### GitHub Actions integration
-Every pull request automatically:
-1. Runs benchmarks on the base branch
-2. Runs benchmarks on your PR branch
-3. Generates a comparison report as a PR comment
-4. Shows performance improvements or regressions
-
-### Running benchmarks locally
-
-Benchmarks also benefit from automatic sandbox management:
-
-```bash
-# Option 1: Automatic sandbox management (recommended)
-yarn benchmark  # Sandbox starts automatically
-
-# Option 2: Manual sandbox control
-aztec start --sandbox  # Start manually in separate terminal
-yarn benchmark          # Run against existing sandbox
-```
-
-Benchmark results are saved to `benchmarks/` directory.
-
-### Adding new benchmarks
-
-Create a new benchmark file extending the base `Benchmark` class or add a new method line to your existing setup:
-
-```typescript
-import { Benchmark } from '@defi-wonderland/aztec-benchmark';
-
-export class MyContractBenchmark extends Benchmark {
-  async setup() {
-    // Initialize your contract and dependencies
-  }
-
-  getMethods(context: CounterBenchmarkContext): BenchmarkedInteraction[] {
-    const { contract, accounts } = context;
-    const [alice] = accounts;
-
-    const methods = [
-      // Add the function calls that you want to benchmark here
-      contract.withWallet(alice).methods.method(1),
-    ] as BenchmarkedInteraction[];
-
-    return methods.filter(Boolean);
-  }
-}
-```
-
-## Project structure
+## Repository Structure
 
 ```
 ├── src/
-│   ├── nr/                     # Noir contracts
-│   │   └── counter_contract/   # Example Counter contract
-│   ├── ts/                     # TypeScript tests and utilities
-│   └── artifacts/              # Generated TypeScript bindings
-├── benchmarks/                 # Performance benchmarking
-├── target/                     # Compiled Noir artifacts
-└── .github/
-    └── workflows/              # CI/CD pipelines
+│   ├── nr/                           # Noir contracts
+│   │   ├── fee_payment_contract/     # The Fee Payment Contract
+│   │   └── counter_contract/         # Simple test contract for integration tests
+│   └── ts/                           # Publishable NPM package
+│       ├── artifacts/                # Generated contract bindings
+│       ├── fee-payment-methods/      # FeePaymentMethod implementations
+│       ├── utils/                    # Gas calculations, authwit helpers
+│       └── test/                     # Integration tests
+├── benchmarks/                       # Performance benchmarking
+└── target/                           # Compiled Noir artifacts
 ```
 
-## Contract architecture
+## Using the Package
 
-The Counter contract demonstrates key Aztec patterns:
-
-### Private-to-Public execution pattern
-The `increment()` function is private but enqueues a public `increment_internal()` call. This pattern maintains privacy while updating public state.
-
-### Storage
-- **Owner**: Immutable address set at deployment
-- **Counter**: Mutable public value
-
-### Functions
-- `constructor`: Initializes contract with owner
-- `get_owner`: Returns owner address (public)
-- `increment`: Private function that enqueues public state update
-- `increment_internal`: Internal public function for state modification
-- `get_counter`: Returns current counter value (public)
-
-## Development workflow
-
-1. **Modify Noir contracts** in `src/nr/`
-2. **Run `yarn build`** to rebuild and regenerate TypeScript artifacts
-3. **Write tests** in `src/ts/` using generated artifacts
-4. **Run tests** with `yarn test` (sandbox starts automatically)
-5. **Format code** with `yarn lint:prettier`
-6. **Create PR** and review automated benchmark results
-
-## Code quality
-
-Format all TypeScript and JavaScript files:
+### Installation
 
 ```bash
-yarn lint:prettier
+npm install @defi-wonderland/aztec-fee-payment
+# or
+yarn add @defi-wonderland/aztec-fee-payment
 ```
 
-## Commit Guidelines
+### Quick Example
 
-This project uses [Conventional Commits](https://www.conventionalcommits.org/) to ensure consistent and meaningful commit messages. All commits are automatically validated using commitlint.
+```typescript
+import {
+  FeePaymentContract,
+  SponsoredFeePaymentMethod,
+  deployFeePaymentContract,
+} from '@defi-wonderland/aztec-fee-payment';
 
+// Deploy FPC and fund it with FeeJuice
+const fpc = await deployFeePaymentContract(wallet);
 
-## Contributing
+// Sponsor a transaction (user pays nothing)
+const paymentMethod = new SponsoredFeePaymentMethod(fpc.address);
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Write tests for your changes
-4. Ensure all tests pass and benchmarks are acceptable
-5. Follow commit guidelines
-6. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
+await myContract.methods.doSomething()
+  .send({
+    from: userAddress,
+    fee: { paymentMethod },
+  })
+  .wait();
+```
 
-The automated benchmarking will run on your PR, providing performance insights compared to the base branch.
+📖 **See [`src/ts/README.md`](./src/ts/README.md) for complete documentation and all payment methods.**
+
+---
+
+## Development
+
+### Prerequisites
+
+1. Install Aztec CLI: [docs.aztec.network](https://docs.aztec.network/developers/getting_started)
+2. Install dependencies: `yarn install`
+3. Ensure Docker is running (required for Aztec sandbox)
+
+### Build
+
+```bash
+yarn ccc  # Clean, Compile, Codegen
+```
+
+This runs:
+- `yarn clean` — Remove build artifacts
+- `yarn compile` — Compile Noir contracts
+- `yarn codegen` — Generate TypeScript bindings
+
+### Test
+
+Tests automatically start and manage the Aztec sandbox:
+
+```bash
+yarn test        # All tests (Noir + TypeScript)
+yarn test:js     # TypeScript integration tests only
+yarn test:nr     # Noir unit tests only
+```
+
+Or with manual sandbox control:
+
+```bash
+aztec start --local-network  # In separate terminal
+yarn test
+```
+
+### Benchmark
+
+```bash
+yarn benchmark
+```
+
+Metrics tracked: **Gates**, **DA Gas**, **L2 Gas**
+
+---
+
+## Fee Payment Methods
+
+| Method | Description |
+|--------|-------------|
+| `SponsoredFeePaymentMethod` | Unconditionally sponsors all fees |
+| `ClassIdValidatedSponsoredFeePaymentMethod` | Sponsors only specific account types |
+| `MeteredSponsoredFeePaymentMethod` | Deducts max gas cost from internal balance |
+| `MeteredExactSponsoredFeePaymentMethod` | Deducts max, refunds surplus in teardown |
+| `MeteredTokenSponsoredFeePaymentMethod` | User pays with tokens via authwit |
+| `MeteredExactTokenSponsoredFeePaymentMethod` | Token payment with surplus refund |
+
+---
+
+## Contract Architecture
+
+The FPC works by prepending a sponsor function to user transactions:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         User Transaction                         │
+├─────────────────────────────────────────────────────────────────┤
+│  1. User calls myContract.methods.doSomething()                 │
+│  2. Transaction includes fee: { paymentMethod: ... }            │
+│  3. FPC's sponsor function is prepended to the transaction      │
+│  4. FPC calls context.set_as_fee_payer() to pay protocol fees   │
+│  5. (Optional) Metered: deduct from user's internal balance     │
+│  6. (Optional) Token: transfer tokens from user to FPC          │
+│  7. User's app logic executes                                   │
+│  8. (Optional) Teardown: refund surplus to user                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
 
 ## Resources
 
 - [Aztec Documentation](https://docs.aztec.network/)
 - [Noir Language Documentation](https://noir-lang.org/)
-- [Aztec Sandbox Quickstart](https://docs.aztec.network/developers/getting_started)
-- [Aztec Contracts Guide](https://docs.aztec.network/aztec/smart_contracts_overview)
+- [Fee Payment on Aztec](https://docs.aztec.network/aztec/concepts/fees)
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — [Wonderland](https://defi.sucks)

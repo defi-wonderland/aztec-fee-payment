@@ -143,18 +143,19 @@ pub contract FeePayment {
         // Calculate the max gas cost (max fees are already validated in the transaction settings).
         let max_gas_cost = get_max_gas_cost(self.context);
 
-        // This logic is at setup phase, so if it reverts, the tx will be invalid (not included in the block).
+        // Set the FPC as the fee payer of the tx.
+        self.context.set_as_fee_payer();
+        // End the setup phase early - token transfer will happen in app logic phase.
+        // This is safe because if the private call fails, the entire tx is invalid regardless of phase.
+        self.context.end_setup();
+
+        // Transfer tokens from sender to FPC (app logic phase - not subject to setup allow list).
         self.call(Token::at(token_address).transfer_to_public(
             self.msg_sender().unwrap(),
             self.address,
             max_gas_cost,
             nonce,
         ));
-
-        // Set the FPC as the fee payer of the tx.
-        self.context.set_as_fee_payer();
-        // End the setup phase
-        self.context.end_setup();
     }
 
     #[external("private")]
@@ -163,7 +164,13 @@ pub contract FeePayment {
         // Calculate the max gas cost.
         let max_gas_cost = get_max_gas_cost(self.context);
 
-        // This logic is at setup phase, so if it reverts, the tx will be invalid (not included in the block).
+        // Set the FPC as the fee payer of the tx.
+        self.context.set_as_fee_payer();
+        // End the setup phase early - token transfer will happen in app logic phase.
+        // This is safe because if the private call fails, the entire tx is invalid regardless of phase.
+        self.context.end_setup();
+
+        // Transfer tokens and prepare refund commitment (app logic phase - not subject to setup allow list).
         let refund_commitment = self.call(Token::at(token_address)
             .transfer_to_public_and_prepare_private_balance_increase(
                 self.msg_sender().unwrap(),
@@ -172,17 +179,12 @@ pub contract FeePayment {
                 nonce,
             ));
 
-        // This logic is at teardown phase, so if it reverts, the tx will be invalid (not included in the block).
+        // Set teardown to refund any surplus tokens.
         self.set_as_teardown(FeePayment::at(self.address)._refund_token(
             token_address,
             max_gas_cost,
             refund_commitment,
         ));
-
-        // Set the FPC as the fee payer of the tx.
-        self.context.set_as_fee_payer();
-        // End the setup phase
-        self.context.end_setup();
     }
 
     /// Sponsors the transaction by reserving max gas cost in tokens (same as `sponsor_metered_token`),
@@ -193,7 +195,13 @@ pub contract FeePayment {
         // Calculate the max gas cost.
         let max_gas_cost = get_max_gas_cost(self.context);
 
-        // Setup phase: reserve max gas cost by transferring tokens from the tx sender to this contract.
+        // Set the FPC as the fee payer of the tx.
+        self.context.set_as_fee_payer();
+        // End the setup phase early - token transfer will happen in app logic phase.
+        // This is safe because if the private call fails, the entire tx is invalid regardless of phase.
+        self.context.end_setup();
+
+        // Transfer tokens from sender to FPC (app logic phase - not subject to setup allow list).
         self.call(Token::at(token_address).transfer_to_public(
             self.msg_sender().unwrap(),
             self.address,
@@ -203,11 +211,6 @@ pub contract FeePayment {
 
         // Teardown phase: intentionally revert. If this reverts, the app logic effects are reverted.
         self.set_as_teardown(FeePayment::at(self.address)._teardown_always_revert());
-
-        // Set the FPC as the fee payer of the tx.
-        self.context.set_as_fee_payer();
-        // End the setup phase
-        self.context.end_setup();
     }
 
     #[external("private")]
