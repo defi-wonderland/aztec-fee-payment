@@ -5,10 +5,13 @@ export {
   maxGasCostFor,
 } from "./gas.js";
 export {
-  buildTokenSponsoredFeePaymentMethod,
-  buildTokenSponsorshipTransferAction,
-  createTokenSponsorshipAuthWitness,
+  createMeteredTokenAuthWitness,
+  createMeteredTokenExactAuthWitness,
 } from "./authwit.js";
-export type { TokenSponsorshipKind } from "./authwit.js";
-export { deployFeePaymentContract } from "./deploy.js";
+export {
+  deployUnconditionalContract,
+  deployPerClassIdContract,
+  deployMeteredContract,
+  deployMeteredTokenContract,
+} from "./deploy.js";
 //# sourceMappingURL=index.d.ts.map

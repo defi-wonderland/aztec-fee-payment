@@ -10,15 +10,11 @@ import {
 } from "@aztec/test-wallet/server";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { L1FeeJuicePortalManager } from "@aztec/aztec.js/ethereum";
-import { getFeeJuiceBalance } from "@aztec/aztec.js/utils";
 import { FeeJuiceContract } from "@aztec/noir-contracts.js/FeeJuice";
 import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 import { Fr } from "@aztec/foundation/curves/bn254";
 import { createLogger } from "@aztec/foundation/log";
 import { createExtendedL1Client } from "@aztec/ethereum/client";
-
-import type { FeePaymentContract } from "../artifacts/FeePayment.js";
-import { deployFeePaymentContract } from "../utils/deploy.js";
 
 export const LOCAL_AZTEC_NODE_URL = "http://localhost:8080";
 
@@ -32,7 +28,6 @@ export type LocalNetworkContext = {
 export async function createLocalNetworkContext(opts?: {
   nodeUrl?: string;
   wallet?: { dataDirectory?: string; proverEnabled?: boolean };
-  /** Defaults to true for more reliable local runs. */
   waitForNode?: boolean;
 }): Promise<LocalNetworkContext> {
   const nodeUrl = opts?.nodeUrl ?? LOCAL_AZTEC_NODE_URL;
@@ -70,6 +65,10 @@ export type FundFeeJuiceFromL1Options = {
   messagePollIntervalMs?: number;
 };
 
+/**
+ * Fund an L2 address with FeeJuice by bridging from L1.
+ * This is the standard way to fund FPCs with the native fee token.
+ */
 export async function fundL2AddressWithFeeJuiceFromL1(
   aztecNode: Pick<AztecNode, "getL1ToL2MessageBlock" | "getBlockNumber">,
   wallet: Wallet,
@@ -128,31 +127,7 @@ export async function fundL2AddressWithFeeJuiceFromL1(
     .send({ from: opts.claimTxSender })
     .wait();
 
+  const { getFeeJuiceBalance } = await import("@aztec/aztec.js/utils");
   const balance = await getFeeJuiceBalance(recipient, aztecNode as any);
   return { balance, messageBlock };
-}
-
-export async function deployAndFundFeePayer(args: {
-  aztecNode: Pick<AztecNode, "getL1ToL2MessageBlock" | "getBlockNumber">;
-  wallet: Wallet;
-  claimTxSender: AztecAddress;
-  produceL2Block: () => Promise<void>;
-  loggerName?: string;
-}): Promise<{
-  feePaymentContract: FeePaymentContract;
-  feeJuiceBalance: bigint;
-  messageBlock: number;
-}> {
-  const feePaymentContract = await deployFeePaymentContract(args.wallet);
-  const { balance, messageBlock } = await fundL2AddressWithFeeJuiceFromL1(
-    args.aztecNode,
-    args.wallet,
-    feePaymentContract.address,
-    {
-      claimTxSender: args.claimTxSender,
-      produceL2Block: args.produceL2Block,
-      loggerName: args.loggerName,
-    },
-  );
-  return { feePaymentContract, feeJuiceBalance: balance, messageBlock };
 }

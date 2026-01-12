@@ -1,337 +1,189 @@
 # @defi-wonderland/aztec-fee-payment
 
-Fee Payment Contract (FPC) for Aztec — enables sponsored, metered, and token-based transaction fee payments.
-
-## Overview
-
-This package provides a complete solution for abstracting transaction fees on Aztec. Instead of users paying fees directly with FeeJuice, you can:
-
-- **Sponsor transactions** — Your application pays all fees
-- **Track internal balances** — Users prepay and you deduct from their balance
-- **Accept tokens as payment** — Users pay with any ERC20-like token
+Fee Payment Contracts (FPCs) for Aztec. This package provides 4 different fee payment strategies that can be used to sponsor transaction fees on behalf of users.
 
 ## Installation
 
 ```bash
-npm install @defi-wonderland/aztec-fee-payment
-# or
 yarn add @defi-wonderland/aztec-fee-payment
 ```
 
-### Peer Dependencies
+## Available Contracts
 
-This package requires `@aztec/aztec.js` and `@aztec/stdlib`:
-
-```bash
-npm install @aztec/aztec.js @aztec/stdlib
-```
-
-## Package Structure
-
-```
-@defi-wonderland/aztec-fee-payment
-├── /                      # Main entry - exports everything
-├── /artifacts             # Contract artifact and TypeScript wrapper
-├── /fee-payment-methods   # FeePaymentMethod implementations
-└── /utils                 # Gas calculations, authwit helpers, deploy utilities
-```
-
-### Import Paths
-
-```typescript
-// Everything from main entry
-import {
-  FeePaymentContract,
-  SponsoredFeePaymentMethod,
-  maxGasCostFor,
-} from '@defi-wonderland/aztec-fee-payment';
-
-// Just the contract artifact
-import {
-  FeePaymentContract,
-  FeePaymentContractArtifact,
-} from '@defi-wonderland/aztec-fee-payment/artifacts';
-
-// Just fee payment methods
-import {
-  SponsoredFeePaymentMethod,
-  MeteredSponsoredFeePaymentMethod,
-  MeteredTokenSponsoredFeePaymentMethod,
-} from '@defi-wonderland/aztec-fee-payment/fee-payment-methods';
-
-// Just utilities
-import {
-  REASONABLE_GAS_LIMITS,
-  maxGasCostFor,
-  createTokenSponsorshipAuthWitness,
-} from '@defi-wonderland/aztec-fee-payment/utils';
-```
-
----
+| Contract | Description | Use Case |
+|----------|-------------|----------|
+| **Unconditional** | Sponsors all transactions without conditions | Testing, free-tier services |
+| **PerClassId** | Only sponsors transactions from a specific contract class | Whitelisted account types only |
+| **Metered** | Tracks internal balances, deducts max gas cost | Pre-paid credits system |
+| **MeteredToken** | Accepts ERC20-like tokens for payment (1:1 rate) | Pay-per-use with tokens |
 
 ## Quick Start
 
-### 1. Deploy the Fee Payment Contract
+### Unconditional Fee Payment
+
+The simplest FPC - it pays for all transactions unconditionally.
 
 ```typescript
-import { FeePaymentContract, deployFeePaymentContract } from '@defi-wonderland/aztec-fee-payment';
+import {
+  UnconditionalContract,
+  UnconditionalFeePaymentMethod,
+  deployUnconditionalContract,
+} from '@defi-wonderland/aztec-fee-payment';
 
-// Deploy a new FPC instance
-const fpc = await deployFeePaymentContract(wallet);
-console.log('FPC deployed at:', fpc.address.toString());
+// Deploy the FPC (must be funded with FeeJuice)
+const fpc = await deployUnconditionalContract(wallet);
 
-// Fund the FPC with FeeJuice (required to pay protocol fees)
-// ... bridge FeeJuice from L1 or transfer from another account
-```
-
-### 2. Choose a Fee Payment Strategy
-
----
-
-## Fee Payment Methods
-
-### Sponsored (Unconditional)
-
-The FPC pays all transaction fees — users pay nothing. Best for onboarding, airdrops, or subsidized transactions.
-
-```typescript
-import { SponsoredFeePaymentMethod } from '@defi-wonderland/aztec-fee-payment';
-
-const paymentMethod = new SponsoredFeePaymentMethod(fpc.address);
-
-await myContract.methods.doSomething()
+// Use it for any transaction
+await someContract.methods.doSomething()
   .send({
-    from: userAddress,
-    fee: { paymentMethod },
+    fee: { paymentMethod: new UnconditionalFeePaymentMethod(fpc.address) }
   })
   .wait();
 ```
 
-### Sponsored with Class ID Validation
+### PerClassId Fee Payment
 
-Only sponsor specific account contract types (e.g., only Schnorr accounts):
+Only sponsors transactions from accounts of a specific contract class (e.g., only SchnorrAccountContract wallets).
 
 ```typescript
-import { ClassIdValidatedSponsoredFeePaymentMethod } from '@defi-wonderland/aztec-fee-payment';
+import {
+  PerClassIdContract,
+  PerClassIdFeePaymentMethod,
+  deployPerClassIdContract,
+} from '@defi-wonderland/aztec-fee-payment';
+import { Fr } from '@aztec/aztec.js/fields';
 import { getContractClassFromArtifact } from '@aztec/stdlib/contract';
 import { SchnorrAccountContractArtifact } from '@aztec/accounts/schnorr';
 
-const schnorrClass = await getContractClassFromArtifact(SchnorrAccountContractArtifact);
+// Get SchnorrAccountContract class ID from artifact
+const contractClass = await getContractClassFromArtifact(SchnorrAccountContractArtifact);
+const allowedClassId = new Fr(contractClass.id.toBigInt());
 
-const paymentMethod = new ClassIdValidatedSponsoredFeePaymentMethod(
-  fpc.address,
-  schnorrClass.id,
-);
-```
+// Deploy FPC with the allowed class ID
+const fpc = await deployPerClassIdContract(wallet, allowedClassId);
 
-### Metered (Internal Balance)
-
-Track user balances internally. Users prepay FeeJuice-equivalent amounts, and you deduct from their balance per transaction.
-
-```typescript
-import { MeteredSponsoredFeePaymentMethod } from '@defi-wonderland/aztec-fee-payment';
-
-// First, credit the user's internal balance
-await fpc.methods.mint_fee_juice(userAddress, 1_000_000_000n).send().wait();
-
-// Then use metered payment — deducts max gas cost from internal balance
-const paymentMethod = new MeteredSponsoredFeePaymentMethod(fpc.address);
-
-await myContract.methods.doSomething()
+// Use it - will only work for accounts with matching class ID
+await someContract.methods.doSomething()
   .send({
-    from: userAddress,
-    fee: { paymentMethod },
+    fee: { paymentMethod: new PerClassIdFeePaymentMethod(fpc.address) }
   })
   .wait();
 ```
 
-### Metered Exact (With Refund)
+### Metered Fee Payment
 
-Same as metered, but refunds the difference between max gas cost and actual cost in the teardown phase:
-
-```typescript
-import { MeteredExactSponsoredFeePaymentMethod } from '@defi-wonderland/aztec-fee-payment';
-
-const paymentMethod = new MeteredExactSponsoredFeePaymentMethod(fpc.address);
-```
-
-### Token-Based Payment
-
-Users pay with any ERC20-like token. The FPC collects tokens and pays protocol fees in FeeJuice.
+Tracks internal balances per account. Users must have sufficient balance (via `mint()`) before using.
 
 ```typescript
-import { Fr } from '@aztec/aztec.js/fields';
 import {
-  MeteredTokenSponsoredFeePaymentMethod,
-  createTokenSponsorshipAuthWitness,
-  REASONABLE_GAS_LIMITS,
-  REASONABLE_TEARDOWN_GAS_LIMITS,
+  MeteredContract,
+  MeteredFeePaymentMethod,
+  deployMeteredContract,
   maxGasCostFor,
-  maxFeesPerGasFromBaseFees,
+  REASONABLE_GAS_LIMITS,
 } from '@defi-wonderland/aztec-fee-payment';
 
-// 1. Get current base fees and calculate max gas cost
-const baseFees = await aztecNode.getCurrentBaseFees();
-const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
-const maxGasCost = maxGasCostFor(maxFeesPerGas, REASONABLE_GAS_LIMITS, REASONABLE_TEARDOWN_GAS_LIMITS);
+// Deploy the FPC
+const fpc = await deployMeteredContract(wallet);
 
-// 2. Create authorization witness for token transfer
-const nonce = Fr.random();
-const witness = await createTokenSponsorshipAuthWitness({
-  kind: 'metered',           // or 'metered_exact'
-  wallet,
-  token: tokenContract,
-  from: userAddress,
-  feePayer: fpc.address,
-  amount: maxGasCost,
-  nonce,
-});
+// Mint internal balance for user
+await fpc.methods.mint(userAddress, 1_000_000_000_000n).send().wait();
 
-// 3. Build payment method
-const paymentMethod = new MeteredTokenSponsoredFeePaymentMethod(
-  fpc.address,
-  tokenContract.address,
-  nonce,
-);
-
-// 4. Send transaction with authwit and gas settings
-await myContract.methods.doSomething()
+// User can now use the FPC
+await someContract.methods.doSomething()
   .send({
     from: userAddress,
-    authWitnesses: [witness],
     fee: {
-      paymentMethod,
-      gasSettings: {
-        gasLimits: REASONABLE_GAS_LIMITS,
-        teardownGasLimits: REASONABLE_TEARDOWN_GAS_LIMITS,
-        maxFeesPerGas,
-      },
-    },
+      paymentMethod: new MeteredFeePaymentMethod(fpc.address),
+      gasSettings: { gasLimits: REASONABLE_GAS_LIMITS, ... }
+    }
   })
   .wait();
 ```
 
-### Simplified Token Payment Builder
+### MeteredToken Fee Payment
 
-Use the helper for a more streamlined approach:
+Accepts tokens as payment. User must authorize the FPC to transfer tokens via authwit.
 
 ```typescript
 import {
-  buildTokenSponsoredFeePaymentMethod,
-  createTokenSponsorshipAuthWitness,
+  MeteredTokenContract,
+  MeteredTokenFeePaymentMethod,
+  deployMeteredTokenContract,
+  createMeteredTokenAuthWitness,
 } from '@defi-wonderland/aztec-fee-payment';
+import { Fr } from '@aztec/aztec.js/fields';
 
+// Deploy FPC with accepted token
+const fpc = await deployMeteredTokenContract(wallet, tokenAddress);
+
+// Create authwit for token transfer
 const nonce = Fr.random();
-const maxGasCost = /* calculate based on gas settings */;
-
-// Build payment method
-const paymentMethod = buildTokenSponsoredFeePaymentMethod({
-  kind: 'metered',
-  feePayer: fpc.address,
-  tokenAddress: token.address,
-  nonce,
-});
-
-// Create authwit
-const witness = await createTokenSponsorshipAuthWitness({
-  kind: 'metered',
+const authwit = await createMeteredTokenAuthWitness({
   wallet,
   token,
   from: userAddress,
-  feePayer: fpc.address,
+  fpcAddress: fpc.address,
   amount: maxGasCost,
   nonce,
 });
+
+// Use it - pass authwit in send options
+await someContract.methods.doSomething()
+  .send({
+    from: userAddress,
+    authWitnesses: [authwit],
+    fee: {
+      paymentMethod: new MeteredTokenFeePaymentMethod(fpc.address, nonce),
+      gasSettings: { ... }
+    }
+  })
+  .wait();
 ```
 
----
+## Transaction Behavior
 
-## Available Fee Payment Methods
+All FPCs handle transaction failures consistently:
 
-| Class | Description | Teardown |
-|-------|-------------|----------|
-| `SponsoredFeePaymentMethod` | Unconditionally sponsors all fees | None |
-| `ClassIdValidatedSponsoredFeePaymentMethod` | Sponsors only specific account types | None |
-| `MeteredSponsoredFeePaymentMethod` | Deducts max gas cost from internal balance | None |
-| `MeteredExactSponsoredFeePaymentMethod` | Deducts max, refunds surplus | Refund |
-| `MeteredTokenSponsoredFeePaymentMethod` | User pays max gas cost in tokens | None |
-| `MeteredExactTokenSponsoredFeePaymentMethod` | User pays max, gets refund in tokens | Refund |
+| Scenario | Transaction Result | Fee Paid? |
+|----------|-------------------|-----------|
+| **Private revert** | `INVALID` (not included in block) | No |
+| **Public revert** | `APP_LOGIC_REVERTED` | Yes (FPC pays) |
+| **Success** | `SUCCESS` | Yes (FPC pays) |
 
----
+Key insight: If private logic fails, the transaction is never included - no fees are charged. But if the transaction is included and public logic reverts, the fee payer still pays the fees.
 
-## Utilities Reference
+## Exports
 
-### Gas Calculations
+### Main Entry Point (`@defi-wonderland/aztec-fee-payment`)
 
 ```typescript
-import {
-  REASONABLE_GAS_LIMITS,           // Default gas limits for app logic
-  REASONABLE_TEARDOWN_GAS_LIMITS,  // Default gas limits for teardown
-  maxFeesPerGasFromBaseFees,       // Convert base fees to max fees (with multiplier)
-  maxGasCostFor,                   // Calculate total max gas cost
-} from '@defi-wonderland/aztec-fee-payment/utils';
+// Contracts
+UnconditionalContract, UnconditionalContractArtifact
+PerClassIdContract, PerClassIdContractArtifact
+MeteredContract, MeteredContractArtifact
+MeteredTokenContract, MeteredTokenContractArtifact
 
-// Example: Calculate max gas cost for a transaction
-const baseFees = await aztecNode.getCurrentBaseFees();
-const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
-const maxGasCost = maxGasCostFor(
-  maxFeesPerGas,
-  REASONABLE_GAS_LIMITS,
-  REASONABLE_TEARDOWN_GAS_LIMITS,
-);
+// Fee Payment Methods
+UnconditionalFeePaymentMethod
+PerClassIdFeePaymentMethod
+MeteredFeePaymentMethod
+MeteredTokenFeePaymentMethod
+
+// Utilities
+REASONABLE_GAS_LIMITS, REASONABLE_TEARDOWN_GAS_LIMITS
+maxFeesPerGasFromBaseFees, maxGasCostFor
+createMeteredTokenAuthWitness
+deployUnconditionalContract, deployPerClassIdContract
+deployMeteredContract, deployMeteredTokenContract
 ```
 
-### Token Sponsorship Helpers
+### Sub-path Exports
 
-```typescript
-import {
-  createTokenSponsorshipAuthWitness,  // Create authwit for token transfer
-  buildTokenSponsoredFeePaymentMethod, // Build payment method from config
-  buildTokenSponsorshipTransferAction, // Build the token transfer action (for custom authwit)
-} from '@defi-wonderland/aztec-fee-payment/utils';
-```
-
-### Deployment
-
-```typescript
-import { deployFeePaymentContract } from '@defi-wonderland/aztec-fee-payment/utils';
-
-const fpc = await deployFeePaymentContract(wallet);
-```
-
----
-
-## Contract Methods
-
-The deployed `FeePaymentContract` exposes these methods:
-
-| Method | Description |
-|--------|-------------|
-| `mint_fee_juice(to, amount)` | Credit internal FeeJuice balance |
-| `burn_fee_juice(to, amount)` | Debit internal FeeJuice balance |
-| `get_fee_juice_balance(account)` | Query internal balance |
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         User Transaction                         │
-├─────────────────────────────────────────────────────────────────┤
-│  1. User calls myContract.methods.doSomething()                 │
-│  2. Transaction includes fee: { paymentMethod: ... }            │
-│  3. FPC's sponsor function is prepended to the transaction      │
-│  4. FPC calls context.set_as_fee_payer() to pay protocol fees   │
-│  5. (Optional) Metered: deduct from user's internal balance     │
-│  6. (Optional) Token: transfer tokens from user to FPC          │
-│  7. User's app logic executes                                   │
-│  8. (Optional) Teardown: refund surplus to user                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
+- `@defi-wonderland/aztec-fee-payment/artifacts` - Contract artifacts only
+- `@defi-wonderland/aztec-fee-payment/fee-payment-methods` - Fee payment methods only
+- `@defi-wonderland/aztec-fee-payment/utils` - Utility functions only
 
 ## License
 
-MIT — [Wonderland](https://defi.sucks)
+MIT

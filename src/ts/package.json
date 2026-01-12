@@ -32,7 +32,9 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-artifacts && npm run fix-artifact-paths",
+    "copy-artifacts": "mkdir -p ./dist/target && cp ../../target/*.json ./dist/target/ 2>/dev/null; find ./dist/target -name '*.bak' -delete 2>/dev/null || true",
+    "fix-artifact-paths": "sed -i '' 's|../../../target/|../target/|g' ./dist/artifacts/*.js ./dist/artifacts/*.d.ts 2>/dev/null || sed -i 's|../../../target/|../target/|g' ./dist/artifacts/*.js ./dist/artifacts/*.d.ts",
     "clean": "rm -rf ./dist",
     "prepublishOnly": "npm run build",
     "test": "vitest run",

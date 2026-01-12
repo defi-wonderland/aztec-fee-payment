@@ -1,157 +1,114 @@
-# Aztec Fee Payment Contract (FPC)
+# Aztec Fee Payment Contracts
 
-<div align="center"><strong>Sponsor and abstract transaction fees on Aztec</strong></div>
-<div align="center">A complete solution for gasless transactions, metered billing, and token-based fee payment</div>
-
-<br />
+A collection of Fee Payment Contracts (FPCs) for Aztec that enable various transaction fee sponsorship strategies.
 
 ## Overview
 
-This repository contains the **Fee Payment Contract (FPC)** for Aztec, enabling applications to abstract transaction fees from users. Instead of users paying fees directly with FeeJuice, you can:
+This repository provides 4 production-ready FPC implementations:
 
-- **Sponsor transactions** — Your application pays all fees (gasless UX)
-- **Track internal balances** — Users prepay and you deduct from their balance
-- **Accept tokens as payment** — Users pay with any ERC20-like token
+| Contract | Description |
+|----------|-------------|
+| **Unconditional** | Sponsors all transactions without any conditions |
+| **PerClassId** | Only sponsors transactions from a specific contract class |
+| **Metered** | Tracks internal balances and deducts max gas cost |
+| **MeteredToken** | Accepts tokens for payment (1:1 conversion rate) |
 
-## Repository Structure
+## Project Structure
 
 ```
 ├── src/
-│   ├── nr/                           # Noir contracts
-│   │   ├── fee_payment_contract/     # The Fee Payment Contract
-│   │   └── counter_contract/         # Simple test contract for integration tests
-│   └── ts/                           # Publishable NPM package
-│       ├── artifacts/                # Generated contract bindings
-│       ├── fee-payment-methods/      # FeePaymentMethod implementations
-│       ├── utils/                    # Gas calculations, authwit helpers
-│       └── test/                     # Integration tests
-├── benchmarks/                       # Performance benchmarking
-└── target/                           # Compiled Noir artifacts
+│   ├── nr/                          # Noir smart contracts
+│   │   ├── counter_contract/        # Test utility contract
+│   │   ├── unconditional_contract/  # Unconditional FPC
+│   │   ├── per_class_id_contract/   # Per-class-ID FPC
+│   │   ├── metered_contract/        # Metered FPC
+│   │   └── metered_token_contract/  # Token-based FPC
+│   └── ts/                          # TypeScript package
+│       ├── artifacts/               # Generated contract bindings
+│       ├── fee-payment-methods/     # Fee payment method classes
+│       ├── utils/                   # Utilities (gas, authwit, deploy)
+│       └── test/                    # Integration tests
+├── target/                          # Compiled contract artifacts
+└── benchmarks/                      # Performance benchmarks
 ```
 
-## Using the Package
+## Setup
+
+### Prerequisites
+
+- [Aztec Sandbox](https://docs.aztec.network/getting_started) v3.0.0 or later
+- Node.js 22+
+- Yarn 1.22+
 
 ### Installation
 
 ```bash
-npm install @defi-wonderland/aztec-fee-payment
-# or
-yarn add @defi-wonderland/aztec-fee-payment
+yarn install
 ```
 
-### Quick Example
-
-```typescript
-import {
-  FeePaymentContract,
-  SponsoredFeePaymentMethod,
-  deployFeePaymentContract,
-} from '@defi-wonderland/aztec-fee-payment';
-
-// Deploy FPC and fund it with FeeJuice
-const fpc = await deployFeePaymentContract(wallet);
-
-// Sponsor a transaction (user pays nothing)
-const paymentMethod = new SponsoredFeePaymentMethod(fpc.address);
-
-await myContract.methods.doSomething()
-  .send({
-    from: userAddress,
-    fee: { paymentMethod },
-  })
-  .wait();
-```
-
-📖 **See [`src/ts/README.md`](./src/ts/README.md) for complete documentation and all payment methods.**
-
----
-
-## Development
-
-### Prerequisites
-
-1. Install Aztec CLI: [docs.aztec.network](https://docs.aztec.network/developers/getting_started)
-2. Install dependencies: `yarn install`
-3. Ensure Docker is running (required for Aztec sandbox)
-
-### Build
+### Compile Contracts
 
 ```bash
-yarn ccc  # Clean, Compile, Codegen
+# Compile Noir contracts
+nargo compile --silence-warnings
+
+# Post-process with Aztec tooling
+aztec compile
+
+# Generate TypeScript bindings
+aztec codegen target --outdir src/ts/artifacts
 ```
 
-This runs:
-- `yarn clean` — Remove build artifacts
-- `yarn compile` — Compile Noir contracts
-- `yarn codegen` — Generate TypeScript bindings
+## Testing
 
-### Test
-
-Tests automatically start and manage the Aztec sandbox:
+Start the Aztec sandbox:
 
 ```bash
-yarn test        # All tests (Noir + TypeScript)
-yarn test:js     # TypeScript integration tests only
-yarn test:nr     # Noir unit tests only
+yarn start:sandbox
 ```
 
-Or with manual sandbox control:
+Run tests:
 
 ```bash
-aztec start --local-network  # In separate terminal
 yarn test
 ```
 
-### Benchmark
+Each FPC has its own test file that validates:
+- ✅ **SUCCESS**: Transaction succeeds, FPC pays fees
+- ❌ **Private revert**: Transaction is invalid (not included)
+- ⚠️ **Public revert**: FPC still pays fees (APP_LOGIC_REVERTED)
+
+## External Usage
+
+See [src/ts/README.md](src/ts/README.md) for detailed documentation on using the published NPM package.
+
+```bash
+yarn add @defi-wonderland/aztec-fee-payment
+```
+
+Quick example:
+
+```typescript
+import {
+  UnconditionalContract,
+  UnconditionalFeePaymentMethod,
+} from '@defi-wonderland/aztec-fee-payment';
+
+// Deploy and fund the FPC
+const fpc = await UnconditionalContract.deploy(wallet).send().deployed();
+
+// Use it for transactions
+await myContract.methods.doSomething()
+  .send({ fee: { paymentMethod: new UnconditionalFeePaymentMethod(fpc.address) } })
+  .wait();
+```
+
+## Benchmarks
 
 ```bash
 yarn benchmark
 ```
 
-Metrics tracked: **Gates**, **DA Gas**, **L2 Gas**
-
----
-
-## Fee Payment Methods
-
-| Method | Description |
-|--------|-------------|
-| `SponsoredFeePaymentMethod` | Unconditionally sponsors all fees |
-| `ClassIdValidatedSponsoredFeePaymentMethod` | Sponsors only specific account types |
-| `MeteredSponsoredFeePaymentMethod` | Deducts max gas cost from internal balance |
-| `MeteredExactSponsoredFeePaymentMethod` | Deducts max, refunds surplus in teardown |
-| `MeteredTokenSponsoredFeePaymentMethod` | User pays with tokens via authwit |
-| `MeteredExactTokenSponsoredFeePaymentMethod` | Token payment with surplus refund |
-
----
-
-## Contract Architecture
-
-The FPC works by prepending a sponsor function to user transactions:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         User Transaction                         │
-├─────────────────────────────────────────────────────────────────┤
-│  1. User calls myContract.methods.doSomething()                 │
-│  2. Transaction includes fee: { paymentMethod: ... }            │
-│  3. FPC's sponsor function is prepended to the transaction      │
-│  4. FPC calls context.set_as_fee_payer() to pay protocol fees   │
-│  5. (Optional) Metered: deduct from user's internal balance     │
-│  6. (Optional) Token: transfer tokens from user to FPC          │
-│  7. User's app logic executes                                   │
-│  8. (Optional) Teardown: refund surplus to user                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Resources
-
-- [Aztec Documentation](https://docs.aztec.network/)
-- [Noir Language Documentation](https://noir-lang.org/)
-- [Fee Payment on Aztec](https://docs.aztec.network/aztec/concepts/fees)
-
 ## License
 
-MIT — [Wonderland](https://defi.sucks)
+MIT

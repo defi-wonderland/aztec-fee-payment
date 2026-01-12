@@ -8,13 +8,14 @@ export {
 
 // Authorization witness utilities for token-based fee payment
 export {
-  buildTokenSponsoredFeePaymentMethod,
-  buildTokenSponsorshipTransferAction,
-  createTokenSponsorshipAuthWitness,
+  createMeteredTokenAuthWitness,
+  createMeteredTokenExactAuthWitness,
 } from "./authwit.js";
 
-// Types
-export type { TokenSponsorshipKind } from "./authwit.js";
-
 // Deployment utilities
-export { deployFeePaymentContract } from "./deploy.js";
+export {
+  deployUnconditionalContract,
+  deployPerClassIdContract,
+  deployMeteredContract,
+  deployMeteredTokenContract,
+} from "./deploy.js";

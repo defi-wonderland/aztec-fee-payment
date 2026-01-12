@@ -1,52 +1,54 @@
 /**
  * @defi-wonderland/aztec-fee-payment
  *
- * Fee Payment Contract (FPC) for Aztec - enables sponsored and metered transaction fee payments.
+ * Fee Payment Contracts (FPCs) for Aztec - enables various fee payment strategies.
  *
  * @example
  * ```typescript
  * import {
- *   FeePaymentContract,
- *   SponsoredFeePaymentMethod,
- *   MeteredTokenSponsoredFeePaymentMethod,
- *   createTokenSponsorshipAuthWitness
+ *   UnconditionalContract,
+ *   UnconditionalFeePaymentMethod,
  * } from '@defi-wonderland/aztec-fee-payment';
  *
  * // Deploy FPC
- * const fpc = await FeePaymentContract.deploy(wallet).send().deployed();
+ * const fpc = await UnconditionalContract.deploy(wallet).send().deployed();
  *
  * // Use sponsored payment (free for user)
  * await someContract.methods.doSomething()
  *   .send({
- *     fee: { paymentMethod: new SponsoredFeePaymentMethod(fpc.address) }
+ *     fee: { paymentMethod: new UnconditionalFeePaymentMethod(fpc.address) }
  *   })
  *   .wait();
  * ```
  */
 export {
-  FeePaymentContract,
-  FeePaymentContractArtifact,
+  UnconditionalContract,
+  UnconditionalContractArtifact,
+  PerClassIdContract,
+  PerClassIdContractArtifact,
+  MeteredContract,
+  MeteredContractArtifact,
+  MeteredTokenContract,
+  MeteredTokenContractArtifact,
 } from "./artifacts/index.js";
 export {
-  SponsoredFeePaymentMethod,
-  ClassIdValidatedSponsoredFeePaymentMethod,
-  TeardownRevertSponsoredFeePaymentMethod,
-  MeteredSponsoredFeePaymentMethod,
-  MeteredExactSponsoredFeePaymentMethod,
-  TeardownRevertMeteredSponsoredFeePaymentMethod,
-  MeteredTokenSponsoredFeePaymentMethod,
-  MeteredExactTokenSponsoredFeePaymentMethod,
-  TeardownRevertTokenSponsoredFeePaymentMethod,
+  UnconditionalFeePaymentMethod,
+  PerClassIdFeePaymentMethod,
+  MeteredFeePaymentMethod,
+  MeteredExactFeePaymentMethod,
+  MeteredTokenFeePaymentMethod,
+  MeteredTokenExactFeePaymentMethod,
 } from "./fee-payment-methods/index.js";
 export {
   REASONABLE_GAS_LIMITS,
   REASONABLE_TEARDOWN_GAS_LIMITS,
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
-  buildTokenSponsoredFeePaymentMethod,
-  buildTokenSponsorshipTransferAction,
-  createTokenSponsorshipAuthWitness,
-  deployFeePaymentContract,
+  createMeteredTokenAuthWitness,
+  createMeteredTokenExactAuthWitness,
+  deployUnconditionalContract,
+  deployPerClassIdContract,
+  deployMeteredContract,
+  deployMeteredTokenContract,
 } from "./utils/index.js";
-export type { TokenSponsorshipKind } from "./utils/index.js";
 //# sourceMappingURL=index.d.ts.map

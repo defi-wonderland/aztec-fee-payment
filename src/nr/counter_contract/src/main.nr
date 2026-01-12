@@ -24,7 +24,15 @@ pub contract Counter {
         self.enqueue_self._reset();
     }
 
-    /// @dev Triggers a public revert (for testing app logic revert scenarios)
+    /// @dev Triggers a private revert (transaction becomes invalid - not included in block)
+    #[external("private")]
+    fn revert_private() {
+        // Use protocol version check to create a non-trivial circuit that always fails
+        let version = self.context.version();
+        assert(version == 999999, "Intentional private revert");
+    }
+
+    /// @dev Triggers a public revert (for testing app logic revert - fee payer still pays)
     #[external("private")]
     fn revert_public() {
         self.enqueue_self._revert_public();

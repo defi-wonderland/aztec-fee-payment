@@ -1,49 +1,47 @@
 /**
  * @defi-wonderland/aztec-fee-payment
  *
- * Fee Payment Contract (FPC) for Aztec - enables sponsored and metered transaction fee payments.
+ * Fee Payment Contracts (FPCs) for Aztec - enables various fee payment strategies.
  *
  * @example
  * ```typescript
  * import {
- *   FeePaymentContract,
- *   SponsoredFeePaymentMethod,
- *   MeteredTokenSponsoredFeePaymentMethod,
- *   createTokenSponsorshipAuthWitness
+ *   UnconditionalContract,
+ *   UnconditionalFeePaymentMethod,
  * } from '@defi-wonderland/aztec-fee-payment';
  *
  * // Deploy FPC
- * const fpc = await FeePaymentContract.deploy(wallet).send().deployed();
+ * const fpc = await UnconditionalContract.deploy(wallet).send().deployed();
  *
  * // Use sponsored payment (free for user)
  * await someContract.methods.doSomething()
  *   .send({
- *     fee: { paymentMethod: new SponsoredFeePaymentMethod(fpc.address) }
+ *     fee: { paymentMethod: new UnconditionalFeePaymentMethod(fpc.address) }
  *   })
  *   .wait();
  * ```
  */
 
-// Contract artifact and type-safe wrapper
+// Contract artifacts and type-safe wrappers
 export {
-  FeePaymentContract,
-  FeePaymentContractArtifact,
+  UnconditionalContract,
+  UnconditionalContractArtifact,
+  PerClassIdContract,
+  PerClassIdContractArtifact,
+  MeteredContract,
+  MeteredContractArtifact,
+  MeteredTokenContract,
+  MeteredTokenContractArtifact,
 } from "./artifacts/index.js";
 
 // Fee payment method implementations
 export {
-  // Sponsored (unconditional)
-  SponsoredFeePaymentMethod,
-  ClassIdValidatedSponsoredFeePaymentMethod,
-  TeardownRevertSponsoredFeePaymentMethod,
-  // Metered (internal balance tracking)
-  MeteredSponsoredFeePaymentMethod,
-  MeteredExactSponsoredFeePaymentMethod,
-  TeardownRevertMeteredSponsoredFeePaymentMethod,
-  // Token-based (ERC20-like payments)
-  MeteredTokenSponsoredFeePaymentMethod,
-  MeteredExactTokenSponsoredFeePaymentMethod,
-  TeardownRevertTokenSponsoredFeePaymentMethod,
+  UnconditionalFeePaymentMethod,
+  PerClassIdFeePaymentMethod,
+  MeteredFeePaymentMethod,
+  MeteredExactFeePaymentMethod,
+  MeteredTokenFeePaymentMethod,
+  MeteredTokenExactFeePaymentMethod,
 } from "./fee-payment-methods/index.js";
 
 // Utilities for integrators
@@ -54,12 +52,11 @@ export {
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
   // Token sponsorship helpers
-  buildTokenSponsoredFeePaymentMethod,
-  buildTokenSponsorshipTransferAction,
-  createTokenSponsorshipAuthWitness,
+  createMeteredTokenAuthWitness,
+  createMeteredTokenExactAuthWitness,
   // Deployment
-  deployFeePaymentContract,
+  deployUnconditionalContract,
+  deployPerClassIdContract,
+  deployMeteredContract,
+  deployMeteredTokenContract,
 } from "./utils/index.js";
-
-// Types
-export type { TokenSponsorshipKind } from "./utils/index.js";

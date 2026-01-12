@@ -1,16 +1,11 @@
+export { UnconditionalFeePaymentMethod } from "./unconditional.js";
+export { PerClassIdFeePaymentMethod } from "./per-class-id.js";
 export {
-  SponsoredFeePaymentMethod,
-  ClassIdValidatedSponsoredFeePaymentMethod,
-  TeardownRevertSponsoredFeePaymentMethod,
-} from "./sponsored.js";
-export {
-  MeteredSponsoredFeePaymentMethod,
-  MeteredExactSponsoredFeePaymentMethod,
-  TeardownRevertMeteredSponsoredFeePaymentMethod,
+  MeteredFeePaymentMethod,
+  MeteredExactFeePaymentMethod,
 } from "./metered.js";
 export {
-  MeteredTokenSponsoredFeePaymentMethod,
-  MeteredExactTokenSponsoredFeePaymentMethod,
-  TeardownRevertTokenSponsoredFeePaymentMethod,
-} from "./token.js";
+  MeteredTokenFeePaymentMethod,
+  MeteredTokenExactFeePaymentMethod,
+} from "./metered-token.js";
 //# sourceMappingURL=index.d.ts.map

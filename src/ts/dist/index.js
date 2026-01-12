@@ -1,47 +1,45 @@
 /**
  * @defi-wonderland/aztec-fee-payment
  *
- * Fee Payment Contract (FPC) for Aztec - enables sponsored and metered transaction fee payments.
+ * Fee Payment Contracts (FPCs) for Aztec - enables various fee payment strategies.
  *
  * @example
  * ```typescript
  * import {
- *   FeePaymentContract,
- *   SponsoredFeePaymentMethod,
- *   MeteredTokenSponsoredFeePaymentMethod,
- *   createTokenSponsorshipAuthWitness
+ *   UnconditionalContract,
+ *   UnconditionalFeePaymentMethod,
  * } from '@defi-wonderland/aztec-fee-payment';
  *
  * // Deploy FPC
- * const fpc = await FeePaymentContract.deploy(wallet).send().deployed();
+ * const fpc = await UnconditionalContract.deploy(wallet).send().deployed();
  *
  * // Use sponsored payment (free for user)
  * await someContract.methods.doSomething()
  *   .send({
- *     fee: { paymentMethod: new SponsoredFeePaymentMethod(fpc.address) }
+ *     fee: { paymentMethod: new UnconditionalFeePaymentMethod(fpc.address) }
  *   })
  *   .wait();
  * ```
  */
-// Contract artifact and type-safe wrapper
+// Contract artifacts and type-safe wrappers
 export {
-  FeePaymentContract,
-  FeePaymentContractArtifact,
+  UnconditionalContract,
+  UnconditionalContractArtifact,
+  PerClassIdContract,
+  PerClassIdContractArtifact,
+  MeteredContract,
+  MeteredContractArtifact,
+  MeteredTokenContract,
+  MeteredTokenContractArtifact,
 } from "./artifacts/index.js";
 // Fee payment method implementations
 export {
-  // Sponsored (unconditional)
-  SponsoredFeePaymentMethod,
-  ClassIdValidatedSponsoredFeePaymentMethod,
-  TeardownRevertSponsoredFeePaymentMethod,
-  // Metered (internal balance tracking)
-  MeteredSponsoredFeePaymentMethod,
-  MeteredExactSponsoredFeePaymentMethod,
-  TeardownRevertMeteredSponsoredFeePaymentMethod,
-  // Token-based (ERC20-like payments)
-  MeteredTokenSponsoredFeePaymentMethod,
-  MeteredExactTokenSponsoredFeePaymentMethod,
-  TeardownRevertTokenSponsoredFeePaymentMethod,
+  UnconditionalFeePaymentMethod,
+  PerClassIdFeePaymentMethod,
+  MeteredFeePaymentMethod,
+  MeteredExactFeePaymentMethod,
+  MeteredTokenFeePaymentMethod,
+  MeteredTokenExactFeePaymentMethod,
 } from "./fee-payment-methods/index.js";
 // Utilities for integrators
 export {
@@ -51,10 +49,12 @@ export {
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
   // Token sponsorship helpers
-  buildTokenSponsoredFeePaymentMethod,
-  buildTokenSponsorshipTransferAction,
-  createTokenSponsorshipAuthWitness,
+  createMeteredTokenAuthWitness,
+  createMeteredTokenExactAuthWitness,
   // Deployment
-  deployFeePaymentContract,
+  deployUnconditionalContract,
+  deployPerClassIdContract,
+  deployMeteredContract,
+  deployMeteredTokenContract,
 } from "./utils/index.js";
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9pbmRleC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0dBd0JHO0FBRUgsMENBQTBDO0FBQzFDLE9BQU8sRUFDTCxrQkFBa0IsRUFDbEIsMEJBQTBCLEdBQzNCLE1BQU0sc0JBQXNCLENBQUM7QUFFOUIscUNBQXFDO0FBQ3JDLE9BQU87QUFDTCw0QkFBNEI7QUFDNUIseUJBQXlCLEVBQ3pCLHlDQUF5QyxFQUN6Qyx1Q0FBdUM7QUFDdkMsc0NBQXNDO0FBQ3RDLGdDQUFnQyxFQUNoQyxxQ0FBcUMsRUFDckMsOENBQThDO0FBQzlDLG9DQUFvQztBQUNwQyxxQ0FBcUMsRUFDckMsMENBQTBDLEVBQzFDLDRDQUE0QyxHQUM3QyxNQUFNLGdDQUFnQyxDQUFDO0FBRXhDLDRCQUE0QjtBQUM1QixPQUFPO0FBQ0wsbUJBQW1CO0FBQ25CLHFCQUFxQixFQUNyQiw4QkFBOEIsRUFDOUIseUJBQXlCLEVBQ3pCLGFBQWE7QUFDYiw0QkFBNEI7QUFDNUIsbUNBQW1DLEVBQ25DLG1DQUFtQyxFQUNuQyxpQ0FBaUM7QUFDakMsYUFBYTtBQUNiLHdCQUF3QixHQUN6QixNQUFNLGtCQUFrQixDQUFDIn0=
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9pbmRleC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztHQXNCRztBQUVILDRDQUE0QztBQUM1QyxPQUFPLEVBQ0wscUJBQXFCLEVBQ3JCLDZCQUE2QixFQUM3QixrQkFBa0IsRUFDbEIsMEJBQTBCLEVBQzFCLGVBQWUsRUFDZix1QkFBdUIsRUFDdkIsb0JBQW9CLEVBQ3BCLDRCQUE0QixHQUM3QixNQUFNLHNCQUFzQixDQUFDO0FBRTlCLHFDQUFxQztBQUNyQyxPQUFPLEVBQ0wsNkJBQTZCLEVBQzdCLDBCQUEwQixFQUMxQix1QkFBdUIsRUFDdkIsNEJBQTRCLEVBQzVCLDRCQUE0QixFQUM1QixpQ0FBaUMsR0FDbEMsTUFBTSxnQ0FBZ0MsQ0FBQztBQUV4Qyw0QkFBNEI7QUFDNUIsT0FBTztBQUNMLG1CQUFtQjtBQUNuQixxQkFBcUIsRUFDckIsOEJBQThCLEVBQzlCLHlCQUF5QixFQUN6QixhQUFhO0FBQ2IsNEJBQTRCO0FBQzVCLDZCQUE2QixFQUM3QixrQ0FBa0M7QUFDbEMsYUFBYTtBQUNiLDJCQUEyQixFQUMzQix3QkFBd0IsRUFDeEIscUJBQXFCLEVBQ3JCLDBCQUEwQixHQUMzQixNQUFNLGtCQUFrQixDQUFDIn0=

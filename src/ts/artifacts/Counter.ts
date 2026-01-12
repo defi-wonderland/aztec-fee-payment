@@ -153,6 +153,10 @@ export class CounterContract extends ContractBase {
     reset: (() => ContractFunctionInteraction) &
       Pick<ContractMethod, "selector">;
 
+    /** revert_private() */
+    revert_private: (() => ContractFunctionInteraction) &
+      Pick<ContractMethod, "selector">;
+
     /** revert_public() */
     revert_public: (() => ContractFunctionInteraction) &
       Pick<ContractMethod, "selector">;

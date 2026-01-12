@@ -1,5 +1,5 @@
 node_modules
-target/
+/target/
 src/artifacts/
 log/
 .vscode
@@ -10,3 +10,4 @@ codegenCache.json
 pxe-test/
 pxe-test-*/
 benchmarks/*.benchmark.json
+tsconfig.tsbuildinfo

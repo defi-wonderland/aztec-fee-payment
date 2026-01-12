@@ -3,42 +3,26 @@ import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import type { GasSettings } from "@aztec/stdlib/gas";
 import { ExecutionPayload } from "@aztec/stdlib/tx";
 /**
- * A fee payment method that calls `sponsor_metered()` on a FeePayment contract.
- * The contract is expected to:
- * - have enough protocol FeeJuice to actually pay the tx fee, AND
- * - have enough internal `fee_juice_balance` to reserve/subtract `max_gas_cost`.
+ * Fee payment method for the Metered contract.
+ * The contract tracks internal balances and deducts max gas cost per transaction.
+ * Users must have sufficient balance (via `mint()`) to cover estimated fees.
+ * NOTE: Does not refund unused gas - use MeteredExactFeePaymentMethod for refunds.
  */
-export declare class MeteredSponsoredFeePaymentMethod implements FeePaymentMethod {
-  private paymentContract;
-  constructor(paymentContract: AztecAddress);
+export declare class MeteredFeePaymentMethod implements FeePaymentMethod {
+  private readonly fpcAddress;
+  constructor(fpcAddress: AztecAddress);
   getAsset(): Promise<AztecAddress>;
   getFeePayer(): Promise<AztecAddress>;
   getExecutionPayload(): Promise<ExecutionPayload>;
   getGasSettings(): GasSettings | undefined;
 }
 /**
- * A fee payment method that calls `sponsor_metered_exact()` on a FeePayment contract.
- * The contract is expected to:
- * - have enough protocol FeeJuice to actually pay the tx fee, AND
- * - have enough internal `fee_juice_balance` to reserve/subtract `max_gas_cost`,
- *   then refund any surplus in teardown.
+ * Fee payment method for the Metered contract with exact refunds.
+ * Deducts max gas cost upfront, then refunds (max - actual) in teardown.
  */
-export declare class MeteredExactSponsoredFeePaymentMethod implements FeePaymentMethod {
-  private paymentContract;
-  constructor(paymentContract: AztecAddress);
-  getAsset(): Promise<AztecAddress>;
-  getFeePayer(): Promise<AztecAddress>;
-  getExecutionPayload(): Promise<ExecutionPayload>;
-  getGasSettings(): GasSettings | undefined;
-}
-/**
- * A fee payment method that calls `sponsor_metered_teardown_revert()` on a FeePayment contract.
- *
- * This is mainly useful in tests to force a `TEARDOWN_REVERTED` tx status without involving tokens.
- */
-export declare class TeardownRevertMeteredSponsoredFeePaymentMethod implements FeePaymentMethod {
-  private paymentContract;
-  constructor(paymentContract: AztecAddress);
+export declare class MeteredExactFeePaymentMethod implements FeePaymentMethod {
+  private readonly fpcAddress;
+  constructor(fpcAddress: AztecAddress);
   getAsset(): Promise<AztecAddress>;
   getFeePayer(): Promise<AztecAddress>;
   getExecutionPayload(): Promise<ExecutionPayload>;
