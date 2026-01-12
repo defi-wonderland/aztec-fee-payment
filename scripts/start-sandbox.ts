@@ -1,10 +1,13 @@
-import { spawn, ChildProcess, execSync } from "child_process";
+import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
 import { createAztecNodeClient } from "@aztec/aztec.js/node";
+import { Fr } from "@aztec/aztec.js/fields";
+import type { AllowedElement } from "@aztec/stdlib/config";
 import net from "node:net";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { getContractClassIds } from "./get-contract-class-ids.js";
 
 // Global reference for the active sandbox manager
 let activeSandboxManager: SandboxManager | null = null;
@@ -12,6 +15,20 @@ let signalHandlersSetup = false;
 
 interface SandboxManagerOptions {
   verbose?: boolean;
+  /**
+   * Allowed setup functions to whitelist for public setup phase.
+   * Format: Array of contract class IDs (hex strings without 0x prefix)
+   * - If not provided, will auto-detect from repo contracts.
+   * - If empty array [], will disable whitelisting (use default local-network behavior).
+   * - If `appendToExisting` is true, will append to existing values instead of replacing.
+   */
+  allowedSetupContractClassIds?: string[];
+  /**
+   * If true, appends our contract class IDs to any existing defaultAllowedSetupFunctions
+   * instead of replacing them. This preserves any existing whitelisted contracts.
+   * Defaults to false (replace).
+   */
+  appendToExisting?: boolean;
 }
 
 interface ManagedTimer {
@@ -60,6 +77,8 @@ class SandboxManager extends EventEmitter {
   public verbose: boolean;
   public port: number;
   public url: string;
+  private allowedSetupContractClassIds: string[] | undefined;
+  private appendToExisting: boolean;
 
   // Timer/interval tracking for centralized cleanup
   private timers: Record<string, NodeJS.Timeout> = {};
@@ -73,6 +92,8 @@ class SandboxManager extends EventEmitter {
     this.verbose = options.verbose ?? Boolean(process.env.CI);
     this.port = 8080;
     this.url = "http://localhost:8080";
+    this.allowedSetupContractClassIds = options.allowedSetupContractClassIds;
+    this.appendToExisting = options.appendToExisting ?? false;
 
     // Register this manager for signal handling
     activeSandboxManager = this;
@@ -227,7 +248,7 @@ class SandboxManager extends EventEmitter {
   /**
    * Spawn the Aztec sandbox process
    */
-  spawnSandboxProcess(): ChildProcess {
+  async spawnSandboxProcess(): Promise<ChildProcess> {
     // This repo uses the Aztec local network mode.
     const modeFlag: "--local-network" = "--local-network";
 
@@ -246,11 +267,49 @@ class SandboxManager extends EventEmitter {
       "50",
     ];
 
+    // Build environment with optional TX_PUBLIC_SETUP_ALLOWLIST
+    const env = { ...process.env };
+
+    // If we have custom class IDs to whitelist, set the environment variable
+    // IMPORTANT: The format is NOT JSON! It's a comma-separated list with prefixes:
+    // - C:0x... for contract class IDs
+    // - I:0x... for instance addresses
+    // See: docs/issues/LOCAL_NETWORK_SETUP_ALLOWLIST_GUIDE.md
+    if (
+      this.allowedSetupContractClassIds &&
+      this.allowedSetupContractClassIds.length > 0
+    ) {
+      // Format each class ID with the C: prefix
+      const classIdEntries = this.allowedSetupContractClassIds.map((id) => {
+        const normalizedId = id.startsWith("0x") ? id : `0x${id}`;
+        return `C:${normalizedId}`;
+      });
+
+      // Note: This REPLACES the defaults (AuthRegistry, FeeJuice, Token, FPC).
+      // To extend defaults, we would need to get them from getDefaultAllowedSetupFunctions()
+      // but that requires the network to be running first.
+      // The local-network mode may handle defaults differently.
+
+      env.TX_PUBLIC_SETUP_ALLOWLIST = classIdEntries.join(",");
+
+      if (this.verbose) {
+        console.log(`📋 Setting TX_PUBLIC_SETUP_ALLOWLIST env var:`);
+        console.log(`   ${env.TX_PUBLIC_SETUP_ALLOWLIST}`);
+        console.log(`   Format: C:classId for each contract class`);
+        if (!this.appendToExisting) {
+          console.log(
+            `   ⚠️  Note: This replaces default whitelisted contracts`,
+          );
+        }
+      }
+    }
+
     return spawn(
       "aztec",
       ["start", modeFlag, "--port", String(this.port), ...fastSyncArgs],
       {
         stdio: "pipe",
+        env,
       },
     );
   }
@@ -446,10 +505,15 @@ class SandboxManager extends EventEmitter {
         "startupTimeout",
       );
 
-      // Start connectivity checking in parallel
-      console.log("🔍 Waiting for sandbox to be ready");
+      // Spawn and setup process, then check connectivity
       (async () => {
         try {
+          // First spawn the sandbox process
+          this.process = await this.spawnSandboxProcess();
+          this.setupProcessHandlers(this.process, safeResolve, safeReject);
+
+          // Then wait for it to be ready
+          console.log("🔍 Waiting for sandbox to be ready");
           await this.checkSandboxConnectivity();
           this.cleanupTimers();
           this.isExternalSandbox = false; // Mark that we're using our own process
@@ -458,25 +522,108 @@ class SandboxManager extends EventEmitter {
           safeResolve(this);
         } catch (error: any) {
           this.handleError(
-            `Failed to connect to sandbox: ${error.message}`,
-            "connectivity-check",
+            `Failed to start sandbox: ${error.message}`,
+            "sandbox-start",
             safeReject,
           );
         }
       })();
-
-      // Spawn and setup process
-      try {
-        this.process = this.spawnSandboxProcess();
-        this.setupProcessHandlers(this.process, safeResolve, safeReject);
-      } catch (error: any) {
-        this.handleError(
-          `Failed to spawn sandbox process: ${error.message}`,
-          "process-spawn",
-          safeReject,
-        );
-      }
     });
+  }
+
+  /**
+   * Logs the current txPublicSetupAllowList and checks if our contracts are whitelisted.
+   *
+   * Note: The Aztec admin API for updating config at runtime is not publicly exported.
+   * To whitelist custom contracts, you must either:
+   * 1. Start the sandbox with --sequencer.txPublicSetupAllowList CLI flag (replaces defaults)
+   * 2. Set TX_PUBLIC_SETUP_ALLOWLIST environment variable before starting
+   *
+   * This method is informational - it logs what's currently whitelisted and what we need.
+   *
+   * @param customClassIds - Optional custom class IDs to check. If not provided, auto-detects from repo contracts.
+   * @returns Object containing the current allow list and whether our contracts are whitelisted
+   */
+  async checkAllowList(customClassIds?: string[]): Promise<{
+    currentAllowList: AllowedElement[];
+    ourClassIds: string[];
+    allWhitelisted: boolean;
+    missingClassIds: string[];
+  }> {
+    if (!this.isReady) {
+      throw new Error("Sandbox is not ready. Call start() first.");
+    }
+
+    // Step 1: Get current allow list from running node
+    const aztecNode = await createAztecNodeClient(this.url, {});
+    const currentAllowList = await aztecNode.getAllowedPublicSetup();
+
+    if (this.verbose) {
+      console.log(
+        `📋 Current allowed setup functions (${currentAllowList.length} entries):`,
+      );
+      currentAllowList.forEach((elem, i) => {
+        if ("classId" in elem) {
+          console.log(`   ${i + 1}. classId: ${elem.classId.toString()}`);
+        } else if ("address" in elem) {
+          console.log(`   ${i + 1}. address: ${elem.address.toString()}`);
+        }
+      });
+    }
+
+    // Step 2: Get our custom contract class IDs
+    let classIds: string[] = [];
+    if (customClassIds !== undefined) {
+      classIds = customClassIds;
+    } else if (this.allowedSetupContractClassIds !== undefined) {
+      classIds = this.allowedSetupContractClassIds;
+    } else {
+      // Auto-detect from repo contracts
+      classIds = await getContractClassIds();
+    }
+
+    if (this.verbose && classIds.length > 0) {
+      console.log(`📋 Our contract class IDs (${classIds.length}):`);
+      classIds.forEach((id) => {
+        console.log(`   - classId: ${id}`);
+      });
+    }
+
+    // Step 3: Check which of our class IDs are in the current allow list
+    const existingClassIds = new Set(
+      currentAllowList
+        .filter((e) => "classId" in e)
+        .map((e) => ("classId" in e ? e.classId.toString() : "")),
+    );
+
+    const missingClassIds = classIds.filter((id) => {
+      const normalized = id.startsWith("0x") ? id : `0x${id}`;
+      // Check both with and without 0x prefix
+      return (
+        !existingClassIds.has(normalized as `0x${string}`) &&
+        !existingClassIds.has(id as `0x${string}` | "")
+      );
+    });
+
+    const allWhitelisted = missingClassIds.length === 0;
+
+    if (this.verbose) {
+      if (allWhitelisted) {
+        console.log(`✅ All our contracts are whitelisted!`);
+      } else {
+        console.log(`⚠️  Missing from whitelist (${missingClassIds.length}):`);
+        missingClassIds.forEach((id) => {
+          console.log(`   - ${id}`);
+        });
+      }
+    }
+
+    return {
+      currentAllowList,
+      ourClassIds: classIds,
+      allWhitelisted,
+      missingClassIds,
+    };
   }
 
   async stop(): Promise<void> {

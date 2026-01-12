@@ -228,6 +228,30 @@ pub contract FeePayment {
         self.storage.fee_juice_balance.at(account).balance_of()
     }
 
+    /// @dev Public function that can be called during setup phase for testing whitelisting.
+    #[external("public")]
+    fn public_call() {
+        // This function can be called during setup phase if FeePayment is whitelisted
+        // No-op function - just proves the call succeeded
+    }
+
+    /// @dev Test function that calls FeePayment's own PUBLIC function during setup phase.
+    /// This is used to test setup phase whitelisting - FeePayment must be whitelisted
+    /// for this self-call to succeed during setup phase.
+    #[external("private")]
+    #[nophasecheck]
+    fn sponsor_and_call_self_public() {
+        // Call FeePayment's own PUBLIC function during setup phase using enqueue_self
+        // This requires FeePayment to be whitelisted in defaultAllowedSetupFunctions
+        // The sequencer enforces the whitelist when the public function executes
+        self.enqueue_self.public_call();
+
+        // Set the FPC as the fee payer of the tx.
+        self.context.set_as_fee_payer();
+        // End the setup phase
+        self.context.end_setup();
+    }
+
     #[contract_library_method]
     pub fn get_max_gas_cost(context: &mut PrivateContext) -> u128 {
         let gas_settings = context.gas_settings();
