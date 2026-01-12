@@ -79,15 +79,6 @@ export declare class CounterContract extends ContractBase {
     /** public_dispatch(selector: field) */
     public_dispatch: ((selector: FieldLike) => ContractFunctionInteraction) &
       Pick<ContractMethod, "selector">;
-    /** reset() */
-    reset: (() => ContractFunctionInteraction) &
-      Pick<ContractMethod, "selector">;
-    /** revert_private() */
-    revert_private: (() => ContractFunctionInteraction) &
-      Pick<ContractMethod, "selector">;
-    /** revert_public() */
-    revert_public: (() => ContractFunctionInteraction) &
-      Pick<ContractMethod, "selector">;
     /** sync_private_state() */
     sync_private_state: (() => ContractFunctionInteraction) &
       Pick<ContractMethod, "selector">;
