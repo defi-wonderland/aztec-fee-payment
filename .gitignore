@@ -11,3 +11,8 @@ pxe-test/
 pxe-test-*/
 benchmarks/*.benchmark.json
 tsconfig.tsbuildinfo
+deployer-wallet-*/
+deployments/local-network/
+devnet-store/
+testnet-store/
+local-network-store/

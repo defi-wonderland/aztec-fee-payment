@@ -1,10 +1,7 @@
 [workspace]
 members = [
     "src/nr/counter_contract",
-    "src/nr/unconditional_contract",
-    "src/nr/per_class_id_contract",
     "src/nr/metered_contract",
-    "src/nr/metered_token_contract"
 ]
 
 [benchmark]

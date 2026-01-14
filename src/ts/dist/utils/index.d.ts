@@ -4,14 +4,5 @@ export {
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
 } from "./gas.js";
-export {
-  createMeteredTokenAuthWitness,
-  createMeteredTokenExactAuthWitness,
-} from "./authwit.js";
-export {
-  deployUnconditionalContract,
-  deployPerClassIdContract,
-  deployMeteredContract,
-  deployMeteredTokenContract,
-} from "./deploy.js";
+export { deployMeteredContract } from "./deploy.js";
 //# sourceMappingURL=index.d.ts.map

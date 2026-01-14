@@ -1,17 +1,14 @@
 # Aztec Fee Payment Contracts
 
-A collection of Fee Payment Contracts (FPCs) for Aztec that enable various transaction fee sponsorship strategies.
+A collection of Fee Payment Contracts (FPCs) for Aztec that enable transaction fee sponsorship strategies.
 
 ## Overview
 
-This repository provides 4 production-ready FPC implementations:
+This repository provides a production-ready Metered FPC implementation:
 
 | Contract | Description |
 |----------|-------------|
-| **Unconditional** | Sponsors all transactions without any conditions |
-| **PerClassId** | Only sponsors transactions from a specific contract class |
 | **Metered** | Tracks internal balances and deducts max gas cost |
-| **MeteredToken** | Accepts tokens for payment (1:1 conversion rate) |
 
 ## Project Structure
 
@@ -19,14 +16,11 @@ This repository provides 4 production-ready FPC implementations:
 ├── src/
 │   ├── nr/                          # Noir smart contracts
 │   │   ├── counter_contract/        # Test utility contract
-│   │   ├── unconditional_contract/  # Unconditional FPC
-│   │   ├── per_class_id_contract/   # Per-class-ID FPC
-│   │   ├── metered_contract/        # Metered FPC
-│   │   └── metered_token_contract/  # Token-based FPC
+│   │   └── metered_contract/        # Metered FPC
 │   └── ts/                          # TypeScript package
 │       ├── artifacts/               # Generated contract bindings
 │       ├── fee-payment-methods/     # Fee payment method classes
-│       ├── utils/                   # Utilities (gas, authwit, deploy)
+│       ├── utils/                   # Utilities (gas, deploy)
 │       └── test/                    # Integration tests
 ├── target/                          # Compiled contract artifacts
 └── benchmarks/                      # Performance benchmarks
@@ -73,7 +67,7 @@ Run tests:
 yarn test
 ```
 
-Each FPC has its own test file that validates:
+The Metered FPC test file validates:
 - ✅ **SUCCESS**: Transaction succeeds, FPC pays fees
 - ❌ **Private revert**: Transaction is invalid (not included)
 - ⚠️ **Public revert**: FPC still pays fees (APP_LOGIC_REVERTED)
@@ -90,16 +84,20 @@ Quick example:
 
 ```typescript
 import {
-  UnconditionalContract,
-  UnconditionalFeePaymentMethod,
+  MeteredContract,
+  MeteredFeePaymentMethod,
+  deployMeteredContract,
 } from '@defi-wonderland/aztec-fee-payment';
 
 // Deploy and fund the FPC
-const fpc = await UnconditionalContract.deploy(wallet).send().deployed();
+const fpc = await deployMeteredContract(wallet);
+
+// Mint balance for user
+await fpc.methods.mint(userAddress, 1_000_000_000_000n).send().wait();
 
 // Use it for transactions
 await myContract.methods.doSomething()
-  .send({ fee: { paymentMethod: new UnconditionalFeePaymentMethod(fpc.address) } })
+  .send({ fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) } })
   .wait();
 ```
 

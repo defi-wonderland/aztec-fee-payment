@@ -1,47 +1,38 @@
 /**
  * @defi-wonderland/aztec-fee-payment
  *
- * Fee Payment Contracts (FPCs) for Aztec - enables various fee payment strategies.
+ * Fee Payment Contracts (FPCs) for Aztec - enables metered fee payment strategies.
  *
  * @example
  * ```typescript
  * import {
- *   UnconditionalContract,
- *   UnconditionalFeePaymentMethod,
+ *   MeteredContract,
+ *   MeteredFeePaymentMethod,
+ *   deployMeteredContract,
  * } from '@defi-wonderland/aztec-fee-payment';
  *
  * // Deploy FPC
- * const fpc = await UnconditionalContract.deploy(wallet).send().deployed();
+ * const fpc = await deployMeteredContract(wallet);
  *
- * // Use sponsored payment (free for user)
+ * // Mint balance for user
+ * await fpc.methods.mint(userAddress, 1_000_000_000_000n).send().wait();
+ *
+ * // Use sponsored payment
  * await someContract.methods.doSomething()
  *   .send({
- *     fee: { paymentMethod: new UnconditionalFeePaymentMethod(fpc.address) }
+ *     fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) }
  *   })
  *   .wait();
  * ```
  */
 
 // Contract artifacts and type-safe wrappers
-export {
-  UnconditionalContract,
-  UnconditionalContractArtifact,
-  PerClassIdContract,
-  PerClassIdContractArtifact,
-  MeteredContract,
-  MeteredContractArtifact,
-  MeteredTokenContract,
-  MeteredTokenContractArtifact,
-} from "./artifacts/index.js";
+export { MeteredContract, MeteredContractArtifact } from "./artifacts/index.js";
 
 // Fee payment method implementations
 export {
-  UnconditionalFeePaymentMethod,
-  PerClassIdFeePaymentMethod,
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
-  MeteredTokenFeePaymentMethod,
-  MeteredTokenExactFeePaymentMethod,
 } from "./fee-payment-methods/index.js";
 
 // Utilities for integrators
@@ -51,12 +42,6 @@ export {
   REASONABLE_TEARDOWN_GAS_LIMITS,
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
-  // Token sponsorship helpers
-  createMeteredTokenAuthWitness,
-  createMeteredTokenExactAuthWitness,
   // Deployment
-  deployUnconditionalContract,
-  deployPerClassIdContract,
   deployMeteredContract,
-  deployMeteredTokenContract,
 } from "./utils/index.js";

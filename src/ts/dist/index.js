@@ -1,45 +1,36 @@
 /**
  * @defi-wonderland/aztec-fee-payment
  *
- * Fee Payment Contracts (FPCs) for Aztec - enables various fee payment strategies.
+ * Fee Payment Contracts (FPCs) for Aztec - enables metered fee payment strategies.
  *
  * @example
  * ```typescript
  * import {
- *   UnconditionalContract,
- *   UnconditionalFeePaymentMethod,
+ *   MeteredContract,
+ *   MeteredFeePaymentMethod,
+ *   deployMeteredContract,
  * } from '@defi-wonderland/aztec-fee-payment';
  *
  * // Deploy FPC
- * const fpc = await UnconditionalContract.deploy(wallet).send().deployed();
+ * const fpc = await deployMeteredContract(wallet);
  *
- * // Use sponsored payment (free for user)
+ * // Mint balance for user
+ * await fpc.methods.mint(userAddress, 1_000_000_000_000n).send().wait();
+ *
+ * // Use sponsored payment
  * await someContract.methods.doSomething()
  *   .send({
- *     fee: { paymentMethod: new UnconditionalFeePaymentMethod(fpc.address) }
+ *     fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) }
  *   })
  *   .wait();
  * ```
  */
 // Contract artifacts and type-safe wrappers
-export {
-  UnconditionalContract,
-  UnconditionalContractArtifact,
-  PerClassIdContract,
-  PerClassIdContractArtifact,
-  MeteredContract,
-  MeteredContractArtifact,
-  MeteredTokenContract,
-  MeteredTokenContractArtifact,
-} from "./artifacts/index.js";
+export { MeteredContract, MeteredContractArtifact } from "./artifacts/index.js";
 // Fee payment method implementations
 export {
-  UnconditionalFeePaymentMethod,
-  PerClassIdFeePaymentMethod,
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
-  MeteredTokenFeePaymentMethod,
-  MeteredTokenExactFeePaymentMethod,
 } from "./fee-payment-methods/index.js";
 // Utilities for integrators
 export {
@@ -48,13 +39,7 @@ export {
   REASONABLE_TEARDOWN_GAS_LIMITS,
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
-  // Token sponsorship helpers
-  createMeteredTokenAuthWitness,
-  createMeteredTokenExactAuthWitness,
   // Deployment
-  deployUnconditionalContract,
-  deployPerClassIdContract,
   deployMeteredContract,
-  deployMeteredTokenContract,
 } from "./utils/index.js";
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9pbmRleC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztHQXNCRztBQUVILDRDQUE0QztBQUM1QyxPQUFPLEVBQ0wscUJBQXFCLEVBQ3JCLDZCQUE2QixFQUM3QixrQkFBa0IsRUFDbEIsMEJBQTBCLEVBQzFCLGVBQWUsRUFDZix1QkFBdUIsRUFDdkIsb0JBQW9CLEVBQ3BCLDRCQUE0QixHQUM3QixNQUFNLHNCQUFzQixDQUFDO0FBRTlCLHFDQUFxQztBQUNyQyxPQUFPLEVBQ0wsNkJBQTZCLEVBQzdCLDBCQUEwQixFQUMxQix1QkFBdUIsRUFDdkIsNEJBQTRCLEVBQzVCLDRCQUE0QixFQUM1QixpQ0FBaUMsR0FDbEMsTUFBTSxnQ0FBZ0MsQ0FBQztBQUV4Qyw0QkFBNEI7QUFDNUIsT0FBTztBQUNMLG1CQUFtQjtBQUNuQixxQkFBcUIsRUFDckIsOEJBQThCLEVBQzlCLHlCQUF5QixFQUN6QixhQUFhO0FBQ2IsNEJBQTRCO0FBQzVCLDZCQUE2QixFQUM3QixrQ0FBa0M7QUFDbEMsYUFBYTtBQUNiLDJCQUEyQixFQUMzQix3QkFBd0IsRUFDeEIscUJBQXFCLEVBQ3JCLDBCQUEwQixHQUMzQixNQUFNLGtCQUFrQixDQUFDIn0=
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9pbmRleC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7R0EwQkc7QUFFSCw0Q0FBNEM7QUFDNUMsT0FBTyxFQUFFLGVBQWUsRUFBRSx1QkFBdUIsRUFBRSxNQUFNLHNCQUFzQixDQUFDO0FBRWhGLHFDQUFxQztBQUNyQyxPQUFPLEVBQ0wsdUJBQXVCLEVBQ3ZCLDRCQUE0QixHQUM3QixNQUFNLGdDQUFnQyxDQUFDO0FBRXhDLDRCQUE0QjtBQUM1QixPQUFPO0FBQ0wsbUJBQW1CO0FBQ25CLHFCQUFxQixFQUNyQiw4QkFBOEIsRUFDOUIseUJBQXlCLEVBQ3pCLGFBQWE7QUFDYixhQUFhO0FBQ2IscUJBQXFCLEdBQ3RCLE1BQU0sa0JBQWtCLENBQUMifQ==
