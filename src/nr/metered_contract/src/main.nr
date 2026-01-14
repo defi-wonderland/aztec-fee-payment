@@ -33,9 +33,13 @@ pub contract Metered {
 
         // Deduct from sender's balance (reverts if insufficient).
         // This happens in setup phase - if it fails, tx is invalid.
-        self.storage.balances.at(sender).sub(max_gas_cost).deliver(
-            MessageDelivery.UNCONSTRAINED_ONCHAIN,
-        );
+        let balance_set = self.storage.balances.at(sender);
+        let subtracted = balance_set.try_sub(max_gas_cost, 1);
+
+        // try_sub may have subtracted more or less than amount. We must ensure that we subtracted at least as much as
+        // we needed, and then create a new note for the owner for the change (if any).
+        assert(subtracted >= max_gas_cost, "Balance too low or note insufficient");
+        balance_set.add(subtracted - max_gas_cost).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
 
         // Set the FPC as the fee payer of the tx.
         self.context.set_as_fee_payer();
@@ -53,10 +57,15 @@ pub contract Metered {
         // Calculate the max gas cost from transaction settings.
         let max_gas_cost = get_max_gas_cost(self.context);
 
-        // Deduct from sender's balance (reverts if insufficient).
-        self.storage.balances.at(sender).sub(max_gas_cost).deliver(
-            MessageDelivery.UNCONSTRAINED_ONCHAIN,
-        );
+        // Deduct from sender's balance using single note optimization (reverts if insufficient).
+        // Use try_sub with max_notes = 1 to only read a single note, reducing proof generation time.
+        let balance_set = self.storage.balances.at(sender);
+        let subtracted = balance_set.try_sub(max_gas_cost, 1);
+
+        // try_sub may have subtracted more or less than amount. We must ensure that we subtracted at least as much as
+        // we needed, and then create a new note for the owner for the change (if any).
+        assert(subtracted >= max_gas_cost, "Balance too low or note insufficient");
+        balance_set.add(subtracted - max_gas_cost).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
 
         // Prepare the partial note for the refund.
         let partial_note = UintNote::partial(

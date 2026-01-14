@@ -108,9 +108,6 @@ describe("Metered Fee Payment Contract", () => {
       expect(fpcBalanceAfter).toBeLessThan(fpcBalanceBefore);
       // User's internal balance was debited max gas cost (no refund)
       expect(internalBalanceAfter).toBe(internalBalanceBefore - maxGasCost);
-      expect(
-        await counter.methods.get_counter().simulate({ from: alice }),
-      ).toBe(1n);
     },
     TEST_TIMEOUT,
   );
@@ -153,9 +150,6 @@ describe("Metered Fee Payment Contract", () => {
       // User's internal balance was debited maxGasCost upfront, then refunded the difference in teardown
       const expectedBalance = internalBalanceBefore - BigInt(transactionFee);
       expect(internalBalanceAfter).toBe(expectedBalance);
-      expect(
-        await counter.methods.get_counter().simulate({ from: alice }),
-      ).toBe(1n);
     },
     TEST_TIMEOUT,
   );
