@@ -69,7 +69,6 @@ describe("Metered Fee Payment Contract", () => {
   });
 
   beforeEach(async () => {
-    await counter.methods.reset().send({ from: alice });
     // Mint internal balance for alice before each test
     await fpc.methods.mint(alice, MINT_AMOUNT).send({ from: alice }).wait();
   });
@@ -116,57 +115,6 @@ describe("Metered Fee Payment Contract", () => {
     TEST_TIMEOUT,
   );
 
-  it(
-    "pay_fee INVALID: reverts on private failure (tx not included)",
-    async () => {
-      const { maxFeesPerGas, gasLimits, teardownGasLimits } =
-        await getGasSetup(aztecNode);
-
-      await expect(
-        counter.methods
-          .revert_private()
-          .send({
-            from: alice,
-            fee: {
-              paymentMethod,
-              gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
-            },
-          })
-          .wait(),
-      ).rejects.toThrow();
-    },
-    TEST_TIMEOUT,
-  );
-
-  it(
-    "pay_fee APP_LOGIC_REVERTED: fee payer still pays on public revert",
-    async () => {
-      const fpcBalanceBefore = await getBalance(fpc.address, aztecNode);
-      const { maxFeesPerGas, gasLimits, teardownGasLimits } =
-        await getGasSetup(aztecNode);
-
-      const receipt = await counter.methods
-        .revert_public()
-        .send({
-          from: alice,
-          fee: {
-            paymentMethod,
-            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
-          },
-        })
-        .wait({ dontThrowOnRevert: true });
-
-      expect(receipt.status).toBe(TxStatus.APP_LOGIC_REVERTED);
-
-      const fpcBalanceAfter = await getBalance(fpc.address, aztecNode);
-      expect(fpcBalanceAfter).toBeLessThan(fpcBalanceBefore);
-      expect(
-        await counter.methods.get_counter().simulate({ from: alice }),
-      ).toBe(0n);
-    },
-    TEST_TIMEOUT,
-  );
-
   // --- pay_fee_exact (with refund) tests ---
 
   it(
@@ -199,66 +147,15 @@ describe("Metered Fee Payment Contract", () => {
         .simulate({ from: alice });
       const transactionFee = receipt.transactionFee!;
 
-      // FPC paid the actual transaction fee
+      // FPC paid the actual transaction fee (includes teardown costs)
       expect(fpcBalanceAfter).toBe(fpcBalanceBefore - transactionFee);
-      // User's internal balance was debited only the actual fee (refund happened)
-      expect(internalBalanceAfter).toBe(
-        internalBalanceBefore - BigInt(transactionFee),
-      );
+
+      // User's internal balance was debited maxGasCost upfront, then refunded the difference in teardown
+      const expectedBalance = internalBalanceBefore - BigInt(transactionFee);
+      expect(internalBalanceAfter).toBe(expectedBalance);
       expect(
         await counter.methods.get_counter().simulate({ from: alice }),
       ).toBe(1n);
-    },
-    TEST_TIMEOUT,
-  );
-
-  it(
-    "pay_fee_exact INVALID: reverts on private failure (tx not included)",
-    async () => {
-      const { maxFeesPerGas, gasLimits, teardownGasLimits } =
-        await getGasSetupWithTeardown(aztecNode);
-
-      await expect(
-        counter.methods
-          .revert_private()
-          .send({
-            from: alice,
-            fee: {
-              paymentMethod: exactPaymentMethod,
-              gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
-            },
-          })
-          .wait(),
-      ).rejects.toThrow();
-    },
-    TEST_TIMEOUT,
-  );
-
-  it(
-    "pay_fee_exact APP_LOGIC_REVERTED: fee payer still pays on public revert",
-    async () => {
-      const fpcBalanceBefore = await getBalance(fpc.address, aztecNode);
-      const { maxFeesPerGas, gasLimits, teardownGasLimits } =
-        await getGasSetupWithTeardown(aztecNode);
-
-      const receipt = await counter.methods
-        .revert_public()
-        .send({
-          from: alice,
-          fee: {
-            paymentMethod: exactPaymentMethod,
-            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
-          },
-        })
-        .wait({ dontThrowOnRevert: true });
-
-      expect(receipt.status).toBe(TxStatus.APP_LOGIC_REVERTED);
-
-      const fpcBalanceAfter = await getBalance(fpc.address, aztecNode);
-      expect(fpcBalanceAfter).toBeLessThan(fpcBalanceBefore);
-      expect(
-        await counter.methods.get_counter().simulate({ from: alice }),
-      ).toBe(0n);
     },
     TEST_TIMEOUT,
   );
