@@ -19,7 +19,3 @@ Each deployment file contains:
 - Deployer address
 - Constructor artifact name
 - Network information
-
-## FeeJuice and Account Deployment
-
-For information about how account deployment is sponsored and how to fund accounts with FeeJuice on devnet/testnet, see [FEEJUICE.md](./FEEJUICE.md).
