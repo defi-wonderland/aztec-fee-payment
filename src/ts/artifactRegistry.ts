@@ -1,4 +1,10 @@
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
+import type { NoirCompiledContract } from "@aztec/aztec.js/abi";
+import { loadContractArtifact } from "@aztec/aztec.js/abi";
 
 export type ArtifactRegistryUploadResponse =
   | {
@@ -117,6 +123,75 @@ export async function maybeUploadArtifactToRegistry(params: {
     );
     return null;
   }
+}
+
+export async function fetchArtifactFromRegistry(params: {
+  classId: string;
+  registryBaseUrl?: string;
+}): Promise<unknown> {
+  const base = normalizeBaseUrl(
+    params.registryBaseUrl ?? getArtifactRegistryBaseUrl(),
+  );
+  const fetchUrl = new URL(`api/artifacts/${params.classId}`, base).toString();
+
+  const res = await fetch(fetchUrl, { method: "GET" });
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error(`Artifact not found in registry: ${params.classId}`);
+    }
+    throw new Error(
+      `Failed to fetch artifact from registry (${res.status}): ${res.statusText}`,
+    );
+  }
+
+  const text = await res.text();
+  return safeJsonParse(text);
+}
+
+/**
+ * Loads an artifact from the registry with fallback to local file.
+ * Tries registry first if classId is provided, then falls back to local file.
+ */
+export async function loadArtifactWithRegistryFallback(params: {
+  classId?: string;
+  localPath: string;
+  registryBaseUrl?: string;
+}): Promise<NoirCompiledContract> {
+  // Try registry first if classId is provided
+  if (params.classId) {
+    try {
+      const artifact = await fetchArtifactFromRegistry({
+        classId: params.classId,
+        registryBaseUrl: params.registryBaseUrl,
+      });
+      return artifact as NoirCompiledContract;
+    } catch (error) {
+      // Fall through to local file if registry fetch fails
+      console.warn(
+        `Failed to fetch artifact from registry, using local file: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  // Fallback to local file
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const localArtifactPath = join(__dirname, "../../..", params.localPath);
+
+  if (!existsSync(localArtifactPath)) {
+    throw new Error(
+      `Artifact not found at local path: ${localArtifactPath}. ` +
+        (params.classId
+          ? `Registry fetch also failed for classId: ${params.classId}`
+          : "No classId provided for registry fetch."),
+    );
+  }
+
+  const buf = await readFile(localArtifactPath, "utf8");
+  return JSON.parse(buf) as NoirCompiledContract;
 }
 
 function safeJsonParse(text: string): unknown {
