@@ -16,3 +16,5 @@ deployments/local-network/
 devnet-store/
 testnet-store/
 local-network-store/
+# Deprecated: dist/ folder is no longer used
+src/ts/dist/

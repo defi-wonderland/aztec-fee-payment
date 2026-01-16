@@ -50,6 +50,11 @@ import type { PXE, PXECreationOptions } from "@aztec/pxe/server";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import {
+  maybeUploadArtifactToRegistry,
+  getArtifactRegistryBaseUrl,
+  shouldUploadArtifacts,
+} from "../src/ts/artifactRegistry.js";
 
 // Import config
 import config, { DeploymentConfig } from "../config/config.js";
@@ -290,7 +295,7 @@ async function checkContractDeployed(
 ): Promise<boolean> {
   try {
     const instance = await node.getContract(address);
-    return instance !== null;
+    return instance != null;
   } catch (error) {
     return false;
   }
@@ -682,6 +687,29 @@ program
           // Auto-save to deployments directory
           const filePath = saveDeploymentData(deploymentData, options.network);
           logger.info(`Deployment data auto-saved to ${filePath}`);
+        }
+
+        // Upload artifacts to registry if enabled and contract was newly deployed
+        if (hasNewDeployments && shouldUploadArtifacts()) {
+          logger.info("Uploading artifacts to registry...");
+          try {
+            const resp = await maybeUploadArtifactToRegistry({
+              artifact: MeteredContractArtifact,
+              filename: "metered_contract-Metered.json",
+              registryBaseUrl: getArtifactRegistryBaseUrl(),
+            });
+            if (resp) {
+              logger.info(
+                `Artifact uploaded successfully: ${JSON.stringify(resp, null, 2)}`,
+              );
+            }
+          } catch (error) {
+            logger.warn(
+              `Failed to upload artifact (non-fatal): ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            );
+          }
         }
       } else if (options.output) {
         logger.info("No new contracts deployed, skipping output file creation");
