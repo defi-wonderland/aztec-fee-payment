@@ -31,8 +31,8 @@ export default defineConfig({
         execArgv: ["--experimental-vm-modules"],
       },
     },
+    include: ["src/ts/test/**/*.test.ts"],
     // Use new API to inline dependencies through Vite's transform pipeline
-    // This ensures viem, @aztec, @noble, and @scure packages use Vite's module resolution with proper aliasing
     server: {
       deps: {
         inline: [/@aztec/, /@noble\/(hashes|curves|ciphers)/, /viem/, /@scure/],

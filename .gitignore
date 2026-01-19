@@ -1,5 +1,5 @@
 node_modules
-target/
+/target/
 src/artifacts/
 log/
 .vscode
@@ -8,3 +8,13 @@ codegenCache.json
 .env
 .cursor
 pxe-test/
+pxe-test-*/
+benchmarks/*.benchmark.json
+tsconfig.tsbuildinfo
+deployer-wallet-*/
+deployments/local-network/
+devnet-store/
+testnet-store/
+local-network-store/
+# TODO: deprecate when released as package
+# src/ts/dist/

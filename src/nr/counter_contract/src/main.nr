@@ -5,32 +5,13 @@ pub mod test;
 pub contract Counter {
     // aztec library imports
     use aztec::{
-        macros::{functions::{external, initializer, only_self, view}, storage::storage},
-        protocol_types::address::AztecAddress,
-        state_vars::{PublicImmutable, PublicMutable},
+        macros::{functions::{external, only_self, view}, storage::storage},
+        state_vars::PublicMutable,
     };
 
-    // @param owner The address of the owner
-    // @param counter A numerical value
     #[storage]
     struct Storage<Context> {
-        owner: PublicImmutable<AztecAddress, Context>,
         counter: PublicMutable<u128, Context>,
-    }
-
-    /// @dev Initialize the contract
-    /// @param owner The address of the owner
-    #[external("public")]
-    #[initializer]
-    fn constructor(owner: AztecAddress) {
-        self.storage.owner.initialize(owner);
-    }
-
-    /// @dev Retrieves the owner of the contract
-    /// @return The owner of the contract
-    #[external("public")]
-    fn get_owner() -> AztecAddress {
-        self.storage.owner.read()
     }
 
     /// @dev Increments the counter

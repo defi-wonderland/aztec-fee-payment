@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "rootDir": ".",
+    "outDir": "./dist",
     "target": "ES2020",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -17,16 +18,8 @@
     "allowSyntheticDefaultImports": true,
     "downlevelIteration": true,
     "inlineSourceMap": true,
-    "importHelpers": true,
-    "composite": true,
-    "jsx": "react-jsx"
+    "importHelpers": true
   },
-  "include": [
-    "src/ts/**/*",
-    "scripts/**/*.ts",
-    "benchmarks/**/*.ts",
-    "vitest.setup.ts",
-    "target/**/*"
-  ],
-  "exclude": ["node_modules", "src/ts/dist"]
+  "include": ["./**/*"],
+  "exclude": ["node_modules", "dist", "test"]
 }
