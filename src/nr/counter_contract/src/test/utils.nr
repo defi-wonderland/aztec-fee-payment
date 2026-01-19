@@ -1,4 +1,3 @@
-use crate::Counter;
 use aztec::{
     protocol_types::address::AztecAddress, test::helpers::test_environment::TestEnvironment,
 };
@@ -18,18 +17,13 @@ pub unconstrained fn setup_contract(
         (owner, user)
     };
 
-    let contract_address = deploy_contract(&mut env, owner);
+    let contract_address = deploy_contract(&mut env);
 
     (&mut env, contract_address, owner, user)
 }
 
-pub unconstrained fn deploy_contract(
-    env: &mut TestEnvironment,
-    owner: AztecAddress,
-) -> AztecAddress {
-    let initializer_call_interface = Counter::interface().constructor(owner);
-    let contract_address =
-        env.deploy("Counter").with_public_initializer(owner, initializer_call_interface);
+pub unconstrained fn deploy_contract(env: &mut TestEnvironment) -> AztecAddress {
+    let contract_address = env.deploy("Counter").without_initializer();
 
     contract_address
 }
