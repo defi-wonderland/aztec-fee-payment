@@ -48,7 +48,7 @@
     "@defi-wonderland/aztec-benchmark": "3.0.0-devnet.20251212",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
-    "@types/node": "25.0.2",
+    "@types/node": "25.0.3",
     "commander": "14.0.1",
     "dotenv": "16.4.5",
     "husky": "9.1.7",
@@ -56,7 +56,7 @@
     "prettier": "3.7.4",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
-    "vitest": "4.0.15"
+    "vitest": "4.0.16"
   },
   "config": {
     "aztecVersion": "3.0.0-devnet.6-patch.1"
