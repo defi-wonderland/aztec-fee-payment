@@ -31,7 +31,7 @@ export interface DeploymentConfig {
 // Network-specific overrides are defined in scripts/deploy.ts networkConfigs
 const config: DeploymentConfig = {
   network: {
-    nodeUrl: process.env.AZTEC_NODE_URL || "https://next.devnet.aztec-labs.com",
+    nodeUrl: process.env.AZTEC_NODE_URL || "https://devnet-6.aztec-labs.com/",
     name: "devnet",
   },
   deployer: {

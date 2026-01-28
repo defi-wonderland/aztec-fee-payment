@@ -603,8 +603,7 @@ const program = new Command();
 const networkConfigs: Record<Network, Partial<DeploymentConfig>> = {
   devnet: {
     network: {
-      nodeUrl:
-        process.env.AZTEC_NODE_URL || "https://next.devnet.aztec-labs.com",
+      nodeUrl: process.env.AZTEC_NODE_URL || "https://devnet-6.aztec-labs.com/",
       name: "devnet",
     },
     deployer: {
