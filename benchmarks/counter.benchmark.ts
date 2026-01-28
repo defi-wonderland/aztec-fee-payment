@@ -230,4 +230,13 @@ export default class CounterContractBenchmark extends Benchmark {
 
     return methods;
   }
+
+  /**
+   * Teardown method called after all benchmarks complete.
+   * Forces process exit to prevent hanging due to open handles.
+   */
+  async teardown(): Promise<void> {
+    // Force exit to prevent hanging from open HTTP connections/handles
+    process.exit(0);
+  }
 }
