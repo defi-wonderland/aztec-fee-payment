@@ -52,10 +52,6 @@ jobs:
       - name: Update path
         run: echo "/home/runner/.aztec/bin" >> $GITHUB_PATH
 
-      - name: Update Aztec
-        run: |
-          aztec-up ${{ steps.aztec-version.outputs.version }}
-
       - name: Cache Noir compilation artifacts
         id: cache-noir
         uses: actions/cache@v5

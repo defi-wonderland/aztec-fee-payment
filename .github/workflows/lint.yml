@@ -64,10 +64,6 @@ jobs:
 
       - name: Update path
         run: echo "/home/runner/.aztec/bin" >> $GITHUB_PATH
-      
-      - name: Update Aztec
-        run: |
-          aztec-up ${{ steps.aztec-version.outputs.version }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
