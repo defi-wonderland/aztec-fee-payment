@@ -26,7 +26,9 @@
     "deploy:testnet": "NODE_NO_WARNINGS=1 tsx scripts/deploy.ts --network testnet",
     "deploy:local-network": "NODE_NO_WARNINGS=1 tsx scripts/deploy.ts --network local-network",
     "deploy:dry-run": "NODE_NO_WARNINGS=1 tsx scripts/deploy.ts --dry-run",
-    "upload:artifacts": "tsx scripts/upload-artifact.ts"
+    "upload:artifacts": "tsx scripts/upload-artifact.ts",
+    "fund-fpc": "NODE_NO_WARNINGS=1 tsx scripts/fund-fpc.ts",
+    "fund-fpc:devnet": "NODE_NO_WARNINGS=1 tsx scripts/fund-fpc.ts --network devnet"
   },
   "lint-staged": {
     "*.{js,ts}": "prettier --write -u"

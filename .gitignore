@@ -13,8 +13,10 @@ benchmarks/*.benchmark.json
 tsconfig.tsbuildinfo
 deployer-wallet-*/
 deployments/local-network/
-devnet-store/
-testnet-store/
-local-network-store/
+devnet-*/
+testnet-*/
+local-network-*/
+*-fpc-store-*/
+deployments/*/pending-claims.json
 # TODO: deprecate when released as package
 # src/ts/dist/
