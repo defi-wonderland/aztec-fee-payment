@@ -70,6 +70,7 @@
   },
   "resolutions": {
     "@noble/hashes": "1.8.0",
-    "@aztec/foundation": "3.0.0-devnet.6-patch.1"
+    "@aztec/foundation": "3.0.0-devnet.6-patch.1",
+    "@aztec/stdlib": "3.0.0-devnet.6-patch.1"
   }
 }
