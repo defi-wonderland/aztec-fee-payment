@@ -46,7 +46,7 @@
     "@aztec/stdlib": "3.0.0-devnet.6-patch.1",
     "@aztec/test-wallet": "3.0.0-devnet.6-patch.1",
     "@commitlint/cli": "20.2.0",
-    "@commitlint/config-conventional": "20.2.0",
+    "@commitlint/config-conventional": "20.4.0",
     "@defi-wonderland/aztec-benchmark": "3.0.0-devnet.20251212",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
