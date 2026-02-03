@@ -187,7 +187,7 @@ jobs:
           current_suffix: '_pr'
 
       - name: Comment diff
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@v5
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body-file: benchmark-comparison.md
@@ -201,7 +201,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Post skip comment
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@v5
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: |

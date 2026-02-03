@@ -59,7 +59,10 @@
     "@aztec/test-wallet": "3.0.0-devnet.6-patch.1",
     "@types/node": "25.0.2",
     "typescript": "5.9.3",
-    "vitest": "4.0.15"
+    "vitest": "4.0.18"
+  },
+  "resolutions": {
+    "@aztec/foundation": "3.0.0-devnet.6-patch.1"
   },
   "keywords": [
     "aztec",
