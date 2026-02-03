@@ -2,73 +2,37 @@ name: Verify dist folder
 
 on:
   push:
-    branches: [main, dev]
+    branches:
+      - main
+      - dev
   pull_request:
-    branches: [main, dev]
+    branches:
+      - main
+      - dev
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify-dist:
     name: Verify dist folder matches build output
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-m
+    timeout-minutes: 30
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install and cache yarn
-        uses: actions/setup-node@v6
+      - name: Setup Aztec environment
+        uses: ./.github/actions/setup-aztec
         with:
-          node-version: '22'
-          cache: 'yarn'
-
-      - name: Cache node_modules
-        uses: actions/cache@v5
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-node-modules-
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Detect Aztec version
-        id: aztec-version
-        run: |
-          AZTEC_VERSION=$(node -p "require('./package.json').config.aztecVersion")
-          echo "version=$AZTEC_VERSION" >> "$GITHUB_OUTPUT"
-          echo "Aztec version is $AZTEC_VERSION"
-
-      - name: Install Aztec CLI
-        run: |
-          INSTALL_URL="https://install.aztec.network/${{ steps.aztec-version.outputs.version }}/"
-          echo "Installing from: $INSTALL_URL"
-          curl -sL $INSTALL_URL > tmp.sh
-          VERSION=${{ steps.aztec-version.outputs.version }} bash tmp.sh <<< yes "yes"
-
-      - name: Update path
-        run: echo "/home/runner/.aztec/bin" >> $GITHUB_PATH
-
-      - name: Cache Noir compilation artifacts
-        id: cache-noir
-        uses: actions/cache@v5
-        with:
-          path: |
-            target/
-            src/ts/artifacts/
-          key: ${{ runner.os }}-noir-${{ env.AZTEC_VERSION }}-${{ hashFiles('src/nr/**/*', 'Nargo.toml') }}
-
-      - name: Compile contracts
-        if: steps.cache-noir.outputs.cache-hit != 'true'
-        run: yarn compile
-
-      - name: Generate artifacts
-        if: steps.cache-noir.outputs.cache-hit != 'true'
-        run: yarn codegen -f
+          start-pxe: 'false'
+          run-codegen: 'true'
 
       - name: Build package
-        run: yarn build && yarn lint:prettier
+        run: yarn workspace @defi-wonderland/aztec-fee-payment build && yarn lint:prettier
 
       - name: Check for dist folder changes
         run: |
