@@ -6,14 +6,45 @@ use dep::aztec::macros::aztec;
 #[aztec]
 pub contract Metered {
     use dep::aztec::{
+        authwit::auth::compute_inner_authwit_hash,
         context::PrivateContext,
-        macros::{functions::{external, nophasecheck, only_self}, storage::storage},
+        macros::{functions::{external, internal, nophasecheck, only_self}, storage::storage},
         messages::message_delivery::MessageDelivery,
-        protocol_types::address::AztecAddress,
+        protocol_types::{
+            address::AztecAddress,
+            traits::{FromField, ToField},
+        },
         state_vars::{Owned, state_variable::StateVariable},
     };
     use dep::balance_set::BalanceSet;
     use dep::uint_note::uint_note::{PartialUintNote, UintNote};
+
+    // ============================================================================
+    // TEST KEYS - For benchmarking/testing only
+    // These must match the private keys used in benchmarks/signature.benchmark.ts
+    // ============================================================================
+
+    // Schnorr key pair (Grumpkin curve)
+    // Derived from private key = 1 using Grumpkin scalar multiplication
+    // G * 1 = G (generator point)
+    // Grumpkin generator: x = 1, y = 0x2cf135e7506a45d632d270d45f1181294833fc48d823f272c
+    global SCHNORR_PUBLIC_KEY_X: Field = 0x0000000000000000000000000000000000000000000000000000000000000001;
+    global SCHNORR_PUBLIC_KEY_Y: Field = 0x0000000000000002cf135e7506a45d632d270d45f1181294833fc48d823f272c;
+
+    // ECDSA key pair (secp256k1) - derived from private key = 1
+    // This is the generator point G of secp256k1
+    global ECDSA_PUBLIC_KEY_X: [u8; 32] = [
+        0x79, 0xBE, 0x66, 0x7E, 0xF9, 0xDC, 0xBB, 0xAC,
+        0x55, 0xA0, 0x62, 0x95, 0xCE, 0x87, 0x0B, 0x07,
+        0x02, 0x9B, 0xFC, 0xDB, 0x2D, 0xCE, 0x28, 0xD9,
+        0x59, 0xF2, 0x81, 0x5B, 0x16, 0xF8, 0x17, 0x98
+    ];
+    global ECDSA_PUBLIC_KEY_Y: [u8; 32] = [
+        0x48, 0x3A, 0xDA, 0x77, 0x26, 0xA3, 0xC4, 0x65,
+        0x5D, 0xA4, 0xFB, 0xFC, 0x0E, 0x11, 0x08, 0xA8,
+        0xFD, 0x17, 0xB4, 0x48, 0xA6, 0x85, 0x54, 0x19,
+        0x9C, 0x47, 0xD0, 0x8F, 0xFB, 0x10, 0xD4, 0xB8
+    ];
 
     #[storage]
     struct Storage<Context> {
@@ -99,6 +130,73 @@ pub contract Metered {
         let transaction_fee = self.context.transaction_fee();
         let refund_amount = max_gas_cost - (transaction_fee as u128);
         partial_note.complete(self.context, self.address, refund_amount);
+    }
+
+    /// @notice Verify that the tx_hash and amount given to mint have been approved by the FPC
+    /// @param tx_hash Truncated L1 hash of the transaction containing the AZT transfer
+    /// @param amount The amount of wFJ to mint
+    /// @param signature The signature
+    #[internal("private")]
+    fn _verify_schnorr_signature(tx_hash: Field, amount: u128, signature: [u8; 64]) {
+        let message_hash = compute_inner_authwit_hash([
+            tx_hash, 
+            amount as Field,  
+            self.address.to_field(),
+            self.context.chain_id()
+        ]);
+
+        let pub_key = std::embedded_curve_ops::EmbeddedCurvePoint {
+            x: SCHNORR_PUBLIC_KEY_X,
+            y: SCHNORR_PUBLIC_KEY_Y,
+            is_infinite: false,
+        };
+        // Verify signature of the payload bytes
+        let is_valid_signature: bool = schnorr::verify_signature(pub_key, signature, message_hash.to_be_bytes::<32>());
+        assert(is_valid_signature, "Message not authorized by account");
+
+        // Nullify message_hash so that the same signature cannot be used twice
+        self.context.push_nullifier(message_hash);
+    }
+
+    /// @notice Verify that the tx_hash and amount given to mint have been approved by the FPC
+    /// @param tx_hash Truncated L1 hash of the transaction containing the AZT transfer
+    /// @param amount The amount of wFJ to mint
+    /// @param signature The signature
+    #[internal("private")]
+    fn _verify_ecdsa_signature(tx_hash: Field, amount: u128, signature: [u8; 64]) {
+        let message_hash = compute_inner_authwit_hash([
+            tx_hash, 
+            amount as Field, 
+            self.address.to_field(),
+            self.context.chain_id()
+        ]);
+        
+        // Verify signature of the payload bytes
+        let message_hash_bytes: [u8; 32] = message_hash.to_be_bytes();
+        let hashed_message: [u8; 32] = sha256::digest(message_hash_bytes);
+        let is_valid_signature: bool = std::ecdsa_secp256k1::verify_signature(ECDSA_PUBLIC_KEY_X, ECDSA_PUBLIC_KEY_Y, signature, hashed_message);
+        assert(is_valid_signature, "Message not authorized by account");
+
+        // Nullify message_hash so that the same signature cannot be used twice
+        self.context.push_nullifier(message_hash);
+    }
+
+    /// @notice External wrapper for benchmarking Schnorr signature verification
+    /// @param tx_hash Truncated L1 hash of the transaction
+    /// @param amount The amount value
+    /// @param signature The Schnorr signature (64 bytes)
+    #[external("private")]
+    fn verify_schnorr_signature(tx_hash: Field, amount: u128, signature: [u8; 64]) {
+        self.internal._verify_schnorr_signature(tx_hash, amount, signature);
+    }
+
+    /// @notice External wrapper for benchmarking ECDSA signature verification
+    /// @param tx_hash Truncated L1 hash of the transaction
+    /// @param amount The amount value
+    /// @param signature The ECDSA signature (64 bytes: r || s)
+    #[external("private")]
+    fn verify_ecdsa_signature(tx_hash: Field, amount: u128, signature: [u8; 64]) {
+        self.internal._verify_ecdsa_signature(tx_hash, amount, signature);
     }
 
     /// Returns the internal balance of an account.
