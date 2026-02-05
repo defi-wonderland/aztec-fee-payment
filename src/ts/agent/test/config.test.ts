@@ -164,23 +164,15 @@ describe("Configuration Schema", () => {
     });
 
     it("rejects non-positive chain ID", () => {
-      const invalidRequest = {
-        ...validRequest,
-        evmChainId: 0,
-      };
+      for (const badId of [0, -1]) {
+        const invalidRequest = {
+          ...validRequest,
+          evmChainId: badId,
+        };
 
-      const result = authwitRequestSchema.safeParse(invalidRequest);
-      expect(result.success).toBe(false);
-    });
-
-    it("rejects negative chain ID", () => {
-      const invalidRequest = {
-        ...validRequest,
-        evmChainId: -1,
-      };
-
-      const result = authwitRequestSchema.safeParse(invalidRequest);
-      expect(result.success).toBe(false);
+        const result = authwitRequestSchema.safeParse(invalidRequest);
+        expect(result.success).toBe(false);
+      }
     });
   });
 });

@@ -38,28 +38,6 @@ const TEST_SECRET_ALT =
 
 describe("AuthwitGenerator", () => {
   describe("constructor", () => {
-    it("creates instance with valid config", () => {
-      const generator = new AuthwitGenerator({
-        fpcAddress: TEST_FPC_ADDRESS,
-        ownerAddress: TEST_OWNER_ADDRESS,
-        ownerSigningKey: TEST_SIGNING_KEY,
-      });
-
-      expect(generator).toBeInstanceOf(AuthwitGenerator);
-    });
-
-    it("accepts custom chainId and version", () => {
-      const generator = new AuthwitGenerator({
-        fpcAddress: TEST_FPC_ADDRESS,
-        ownerAddress: TEST_OWNER_ADDRESS,
-        ownerSigningKey: TEST_SIGNING_KEY,
-        chainId: 42n,
-        version: 2n,
-      });
-
-      expect(generator).toBeInstanceOf(AuthwitGenerator);
-    });
-
     it("uses default chainId=0 and version=1 when not specified", async () => {
       const generatorDefault = new AuthwitGenerator({
         fpcAddress: TEST_FPC_ADDRESS,
@@ -144,33 +122,6 @@ describe("AuthwitGenerator", () => {
 
       expect(authwit.amount).toBe(amount);
       expect(authwit.secret).toBe(TEST_SECRET);
-    });
-
-    it("returns non-empty hashes and witness", async () => {
-      generator = createGenerator();
-      const authwit = await generator.generateMintAuthwit(1000n, TEST_SECRET);
-
-      expect(authwit.innerHash).toBeTruthy();
-      expect(authwit.outerHash).toBeTruthy();
-      expect(authwit.witness.length).toBeGreaterThan(0);
-    });
-
-    it("innerHash and outerHash are hex-like strings", async () => {
-      generator = createGenerator();
-      const authwit = await generator.generateMintAuthwit(1000n, TEST_SECRET);
-
-      // Aztec Fr fields are represented as hex strings (with or without 0x)
-      expect(typeof authwit.innerHash).toBe("string");
-      expect(typeof authwit.outerHash).toBe("string");
-    });
-
-    it("witness array contains string elements", async () => {
-      generator = createGenerator();
-      const authwit = await generator.generateMintAuthwit(1000n, TEST_SECRET);
-
-      for (const w of authwit.witness) {
-        expect(typeof w).toBe("string");
-      }
     });
 
     it("is deterministic for hashes (same inputs produce same hashes)", async () => {

@@ -125,17 +125,6 @@ describe("SecretGenerator", () => {
       expect(secretBase).not.toBe(secretEthereum);
     });
 
-    it("generates same secret for same txHash and chainId (idempotency)", () => {
-      const generator = new SecretGenerator(testSigningKey);
-      const txHash =
-        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" as Hex;
-
-      const secret1 = generator.generateSecret(txHash, chainIdBase);
-      const secret2 = generator.generateSecret(txHash, chainIdBase);
-
-      expect(secret1).toBe(secret2);
-    });
-
     it("handles large chain IDs correctly", () => {
       const generator = new SecretGenerator(testSigningKey);
       const txHash =

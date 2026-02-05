@@ -10,7 +10,10 @@ import {
   recoverTypedDataAddress,
   verifyTypedData,
 } from "viem";
-import type { ClaimRequestMessage } from "../../types/index.js";
+
+export interface ClaimRequestMessage {
+  txHash: Hex;
+}
 
 // EIP-712 Domain
 const EIP712_DOMAIN_NAME = "Aztec FPC Claim" as const;

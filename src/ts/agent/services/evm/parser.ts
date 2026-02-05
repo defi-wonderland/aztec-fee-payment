@@ -7,7 +7,13 @@
 
 import type { TransactionReceipt, Address, Hex, Log } from "viem";
 import { decodeEventLog } from "viem";
-import type { ParsedTransfer } from "../../types/index.js";
+
+export interface ParsedTransfer {
+  token: Address;
+  from: Address;
+  to: Address;
+  amount: bigint;
+}
 
 // ERC20 Transfer event signature: Transfer(address indexed from, address indexed to, uint256 value)
 const TRANSFER_EVENT_SIGNATURE =

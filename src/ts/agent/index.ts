@@ -49,7 +49,3 @@ main().catch((error) => {
 // Export for testing
 export { loadConfig } from "./config/index.js";
 export { createServer, startServer } from "./server.js";
-export * from "./types/index.js";
-export * from "./services/evm/index.js";
-export * from "./services/crypto/index.js";
-export * from "./middleware/index.js";

@@ -3,11 +3,12 @@
  */
 
 import { describe, it, expect } from "vitest";
-import type { TransactionReceipt, Address, Log } from "viem";
+import type { Address } from "viem";
 import {
   parseTransferEvents,
   findFeeCollectorTransfers,
 } from "../services/evm/parser.js";
+import { createTransferLog, createMockReceipt } from "./helpers.js";
 
 describe("EVM Transfer Parser", () => {
   const feeCollector = "0x1234567890123456789012345678901234567890" as Address;
@@ -176,62 +177,3 @@ describe("EVM Transfer Parser", () => {
     });
   });
 });
-
-// Helper functions
-
-function createMockReceipt(logs: Log[]): TransactionReceipt {
-  return {
-    blockHash:
-      "0x0000000000000000000000000000000000000000000000000000000000000001" as `0x${string}`,
-    blockNumber: 1n,
-    contractAddress: null,
-    cumulativeGasUsed: 21000n,
-    effectiveGasPrice: 1000000000n,
-    from: "0x0000000000000000000000000000000000000001" as `0x${string}`,
-    gasUsed: 21000n,
-    logs,
-    logsBloom: "0x" as `0x${string}`,
-    status: "success",
-    to: "0x0000000000000000000000000000000000000002" as `0x${string}`,
-    transactionHash:
-      "0x0000000000000000000000000000000000000000000000000000000000000001" as `0x${string}`,
-    transactionIndex: 0,
-    type: "eip1559",
-    blobGasPrice: 0n,
-    blobGasUsed: 0n,
-    root: undefined,
-  };
-}
-
-function createTransferLog(
-  tokenAddress: Address,
-  from: Address,
-  to: Address,
-  amount: bigint,
-): Log {
-  // Pad addresses to 32 bytes for topics
-  const fromTopic =
-    `0x000000000000000000000000${from.slice(2)}` as `0x${string}`;
-  const toTopic = `0x000000000000000000000000${to.slice(2)}` as `0x${string}`;
-
-  // Encode amount as 32-byte hex
-  const amountHex = amount.toString(16).padStart(64, "0");
-
-  return {
-    address: tokenAddress,
-    topics: [
-      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-      fromTopic,
-      toTopic,
-    ],
-    data: `0x${amountHex}` as `0x${string}`,
-    blockNumber: 1n,
-    blockHash:
-      "0x0000000000000000000000000000000000000000000000000000000000000001" as `0x${string}`,
-    transactionHash:
-      "0x0000000000000000000000000000000000000000000000000000000000000001" as `0x${string}`,
-    transactionIndex: 0,
-    logIndex: 0,
-    removed: false,
-  };
-}

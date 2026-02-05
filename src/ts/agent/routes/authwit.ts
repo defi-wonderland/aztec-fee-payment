@@ -68,22 +68,16 @@ export async function registerAuthwitRoutes(
       requestLogger.info("Processing authwit request");
 
       // 1. Validate chain is supported
-      if (!evmClients.isChainSupported(evmChainId)) {
+      const client = evmClients.getClientForChain(evmChainId);
+      if (!client) {
         throw new AppError(
           "INVALID_CHAIN",
-          `Chain ${evmChainId} is not supported`,
+          `Chain ${evmChainId} is not supported. Supported chains: ${evmClients.getSupportedChains().join(", ")}`,
           { supportedChains: evmClients.getSupportedChains() },
         );
       }
 
       const chainConfig = config.chains[evmChainId];
-      const client = evmClients.getClientForChain(evmChainId);
-      if (!client) {
-        throw new AppError(
-          "INVALID_CHAIN",
-          `No client available for chain ${evmChainId}`,
-        );
-      }
 
       // 2. Validate the EVM transaction
       const txResult = await validateTransaction({

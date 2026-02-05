@@ -77,13 +77,6 @@ export interface ErrorResponse {
 // EVM Types
 // ============================================================================
 
-export interface ParsedTransfer {
-  token: Address;
-  from: Address;
-  to: Address;
-  amount: bigint;
-}
-
 export interface TransactionInfo {
   hash: Hex;
   from: Address;
@@ -110,12 +103,4 @@ export interface MintAuthwit {
   innerHash: string;
   outerHash: string;
   witness: string[];
-}
-
-// ============================================================================
-// EIP-712 Types
-// ============================================================================
-
-export interface ClaimRequestMessage {
-  txHash: Hex;
 }

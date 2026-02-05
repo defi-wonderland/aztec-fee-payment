@@ -78,21 +78,6 @@ export function createErrorHandler(logger: Logger) {
       return reply.status(429).send(response);
     }
 
-    // Handle validation errors (from schema validation)
-    if (error.validation) {
-      const response: ErrorResponse = {
-        error: "INVALID_REQUEST",
-        message: "Request validation failed",
-        details: {
-          errors: error.validation.map((v) => ({
-            path: v.instancePath,
-            message: v.message,
-          })),
-        },
-      };
-      return reply.status(400).send(response);
-    }
-
     // Log unexpected errors (without exposing details to client)
     logger.error(
       {
