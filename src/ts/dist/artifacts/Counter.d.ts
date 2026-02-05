@@ -79,8 +79,8 @@ export declare class CounterContract extends ContractBase {
     /** public_dispatch(selector: field) */
     public_dispatch: ((selector: FieldLike) => ContractFunctionInteraction) &
       Pick<ContractMethod, "selector">;
-    /** sync_private_state() */
-    sync_private_state: (() => ContractFunctionInteraction) &
+    /** sync_state() */
+    sync_state: (() => ContractFunctionInteraction) &
       Pick<ContractMethod, "selector">;
   };
 }

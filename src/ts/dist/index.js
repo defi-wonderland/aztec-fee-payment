@@ -21,7 +21,8 @@
  * await someContract.methods.doSomething()
  *   .send({
  *     fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) }
- *   });
+ *   })
+ *   ;
  * ```
  */
 // Contract artifacts and type-safe wrappers

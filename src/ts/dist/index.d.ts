@@ -21,7 +21,8 @@
  * await someContract.methods.doSomething()
  *   .send({
  *     fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) }
- *   });
+ *   })
+ *   ;
  * ```
  */
 export { MeteredContract, MeteredContractArtifact } from "./artifacts/index.js";
