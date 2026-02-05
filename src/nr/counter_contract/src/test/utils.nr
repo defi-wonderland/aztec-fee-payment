@@ -1,6 +1,4 @@
-use aztec::{
-    protocol_types::address::AztecAddress, test::helpers::test_environment::TestEnvironment,
-};
+use aztec::{protocol::address::AztecAddress, test::helpers::test_environment::TestEnvironment};
 
 pub unconstrained fn setup_contract(
     with_account_contracts: bool,

@@ -4,8 +4,6 @@ import { MeteredContract } from "../artifacts/index.js";
  */
 export async function deployMeteredContract(deployer) {
   const deployerAddress = (await deployer.getAccounts())[0].item;
-  return MeteredContract.deploy(deployer)
-    .send({ from: deployerAddress })
-    .deployed();
+  return MeteredContract.deploy(deployer).send({ from: deployerAddress });
 }
 //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZGVwbG95LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vdXRpbHMvZGVwbG95LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUVBLE9BQU8sRUFBRSxlQUFlLEVBQUUsTUFBTSx1QkFBdUIsQ0FBQztBQUV4RDs7R0FFRztBQUNILE1BQU0sQ0FBQyxLQUFLLFVBQVUscUJBQXFCLENBQ3pDLFFBQWdCO0lBRWhCLE1BQU0sZUFBZSxHQUFHLENBQUMsTUFBTSxRQUFRLENBQUMsV0FBVyxFQUFFLENBQUMsQ0FBQyxDQUFDLENBQUUsQ0FBQyxJQUFJLENBQUM7SUFDaEUsT0FBTyxlQUFlLENBQUMsTUFBTSxDQUFDLFFBQVEsQ0FBQztTQUNwQyxJQUFJLENBQUMsRUFBRSxJQUFJLEVBQUUsZUFBZSxFQUFFLENBQUM7U0FDL0IsUUFBUSxFQUFFLENBQUM7QUFDaEIsQ0FBQyJ9

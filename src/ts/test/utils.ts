@@ -41,14 +41,12 @@ export async function deployCounter(
   deployer: Wallet,
 ): Promise<CounterContract> {
   const deployerAddress = (await deployer.getAccounts())[0]!.item;
-  return CounterContract.deploy(deployer)
-    .send({ from: deployerAddress })
-    .deployed();
+  return CounterContract.deploy(deployer).send({ from: deployerAddress });
 }
 
 /** Get common gas setup for fee payment tests (no teardown). */
 export async function getGasSetup(aztecNode: AztecNode): Promise<GasSetup> {
-  const baseFees = (await aztecNode.getCurrentBaseFees()) as BaseFees;
+  const baseFees = (await aztecNode.getCurrentMinFees()) as BaseFees;
   const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
   const gasLimits: Gas = REASONABLE_GAS_LIMITS;
   const teardownGasLimits: Gas = Gas.from({ l2Gas: 0, daGas: 0 });
@@ -68,7 +66,7 @@ export async function getGasSetup(aztecNode: AztecNode): Promise<GasSetup> {
 export async function getGasSetupWithTeardown(
   aztecNode: AztecNode,
 ): Promise<GasSetup> {
-  const baseFees = (await aztecNode.getCurrentBaseFees()) as BaseFees;
+  const baseFees = (await aztecNode.getCurrentMinFees()) as BaseFees;
   const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
   const gasLimits: Gas = REASONABLE_GAS_LIMITS;
   const teardownGasLimits: Gas = REASONABLE_TEARDOWN_GAS_LIMITS;

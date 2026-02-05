@@ -119,9 +119,9 @@ export default class CounterContractBenchmark extends Benchmark {
         wallet: { proverEnabled: false },
       });
 
-    const counterContract = await CounterContract.deploy(wallet)
-      .send({ from: deployer })
-      .deployed();
+    const counterContract = await CounterContract.deploy(wallet).send({
+      from: deployer,
+    });
 
     // Deploy and fund Metered FPC
     const meteredFpc = await deployMeteredContract(wallet);
@@ -141,8 +141,7 @@ export default class CounterContractBenchmark extends Benchmark {
     // Mint internal balance for deployer
     await meteredFpc.methods
       .mint(deployer, 10_000_000_000_000_000_000n)
-      .send({ from: deployer })
-      .wait();
+      .send({ from: deployer });
 
     const meteredPaymentMethod = new MeteredFeePaymentMethod(
       meteredFpc.address,

@@ -93,12 +93,11 @@ import {
 const fpc = await deployMeteredContract(wallet);
 
 // Mint balance for user
-await fpc.methods.mint(userAddress, 1_000_000_000_000n).send().wait();
+await fpc.methods.mint(userAddress, 1_000_000_000_000n).send();
 
 // Use it for transactions
 await myContract.methods.doSomething()
-  .send({ fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) } })
-  .wait();
+  .send({ fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) } });
 ```
 
 ## Benchmarks

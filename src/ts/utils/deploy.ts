@@ -9,7 +9,5 @@ export async function deployMeteredContract(
   deployer: Wallet,
 ): Promise<MeteredContract> {
   const deployerAddress = (await deployer.getAccounts())[0]!.item;
-  return MeteredContract.deploy(deployer)
-    .send({ from: deployerAddress })
-    .deployed();
+  return MeteredContract.deploy(deployer).send({ from: deployerAddress });
 }

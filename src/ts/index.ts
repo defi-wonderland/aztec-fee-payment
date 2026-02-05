@@ -15,14 +15,14 @@
  * const fpc = await deployMeteredContract(wallet);
  *
  * // Mint balance for user
- * await fpc.methods.mint(userAddress, 1_000_000_000_000n).send().wait();
+ * await fpc.methods.mint(userAddress, 1_000_000_000_000n).send();
  *
  * // Use sponsored payment
  * await someContract.methods.doSomething()
  *   .send({
  *     fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) }
  *   })
- *   .wait();
+ *   ;
  * ```
  */
 
