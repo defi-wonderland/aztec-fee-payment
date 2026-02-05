@@ -2,7 +2,7 @@
  * Unit tests for configuration validation
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { agentConfigSchema, authwitRequestSchema } from "../config/schema.js";
 
 describe("Configuration Schema", () => {

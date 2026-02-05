@@ -5,7 +5,7 @@
  * token transfer information.
  */
 
-import type { TransactionReceipt, Address, Hex, Log } from "viem";
+import type { TransactionReceipt, Address, Log } from "viem";
 import { decodeEventLog } from "viem";
 
 export interface ParsedTransfer {
