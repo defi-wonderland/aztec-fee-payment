@@ -24,14 +24,10 @@ export default defineConfig({
     globalSetup: "./vitest.setup.ts",
     fileParallelism: false,
     pool: "forks",
-    poolOptions: {
-      forks: {
-        singleFork: true,
-        isolate: false,
-        execArgv: ["--experimental-vm-modules"],
-      },
-    },
-    include: ["src/ts/test/**/*.test.ts"],
+    maxWorkers: 1,
+    isolate: false,
+    execArgv: ["--experimental-vm-modules"],
+    include: ["src/ts/test/**/*.test.ts", "src/ts/agent/test/**/*.test.ts"],
     // Use new API to inline dependencies through Vite's transform pipeline
     server: {
       deps: {

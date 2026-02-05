@@ -28,10 +28,21 @@
     "deploy:dry-run": "NODE_NO_WARNINGS=1 tsx scripts/deploy.ts --dry-run",
     "upload:artifacts": "tsx scripts/upload-artifact.ts",
     "fund-fpc": "NODE_NO_WARNINGS=1 tsx scripts/fund-fpc.ts",
-    "fund-fpc:devnet": "NODE_NO_WARNINGS=1 tsx scripts/fund-fpc.ts --network devnet"
+    "fund-fpc:devnet": "NODE_NO_WARNINGS=1 tsx scripts/fund-fpc.ts --network devnet",
+    "agent:dev": "NODE_NO_WARNINGS=1 tsx --watch src/ts/agent/index.ts",
+    "agent:start": "NODE_NO_WARNINGS=1 tsx src/ts/agent/index.ts"
   },
   "lint-staged": {
     "*.{js,ts}": "prettier --write -u"
+  },
+  "dependencies": {
+    "fastify": "^5.2.2",
+    "@fastify/cors": "^11.0.0",
+    "@fastify/rate-limit": "^10.2.2",
+    "zod": "^3.24.2",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "@noble/curves": "^1.8.2"
   },
   "devDependencies": {
     "@aztec/accounts": "3.0.0-devnet.6-patch.1",
