@@ -14,7 +14,6 @@ import {
   type HttpTransport,
   type Chain,
 } from "viem";
-import * as chains from "viem/chains";
 import type { ChainConfig } from "../../types/index.js";
 import type { Logger } from "../../middleware/logger.js";
 
@@ -32,17 +31,7 @@ function createClient(
   chainId: number,
   rpcUrl: string,
 ): PublicClient<HttpTransport, Chain> {
-  // Try to find the chain in viem's known chains
-  const viemChain = Object.values(chains).find(
-    (c) =>
-      typeof c === "object" &&
-      c !== null &&
-      "id" in c &&
-      (c as Chain).id === chainId,
-  ) as Chain | undefined;
-
-  // If not found, create a custom chain
-  const chain: Chain = viemChain ?? {
+  const chain: Chain = {
     id: chainId,
     name: `Chain ${chainId}`,
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
