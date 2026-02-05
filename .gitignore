@@ -18,5 +18,6 @@ testnet-*/
 local-network-*/
 *-fpc-store-*/
 deployments/*/pending-claims.json
-# TODO: deprecate when released as package
-# src/ts/dist/
+
+src/ts/dist
+src/ts/artifacts
