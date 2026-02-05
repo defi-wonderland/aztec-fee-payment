@@ -93,33 +93,4 @@ export function loadConfig(): AgentConfig {
   return result.data as AgentConfig;
 }
 
-/**
- * Validate that all required environment variables are set
- */
-export function validateEnvironment(): string[] {
-  const errors: string[] = [];
-
-  if (!process.env.SP_SIGNING_KEY) {
-    errors.push("SP_SIGNING_KEY is required");
-  }
-  if (!process.env.FPC_ADDRESS) {
-    errors.push("FPC_ADDRESS is required");
-  }
-  if (!process.env.OWNER_ADDRESS) {
-    errors.push("OWNER_ADDRESS is required");
-  }
-
-  // Check for at least one chain configuration
-  const hasChainConfig = Object.keys(process.env).some((key) =>
-    key.match(/^CHAIN_\d+_RPC_URL$/),
-  );
-  if (!hasChainConfig) {
-    errors.push(
-      "At least one chain configuration is required (CHAIN_{ID}_RPC_URL)",
-    );
-  }
-
-  return errors;
-}
-
 export { agentConfigSchema, authwitRequestSchema } from "./schema.js";

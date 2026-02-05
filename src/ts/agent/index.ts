@@ -22,18 +22,10 @@
  *   CHAIN_{ID}_CONFIRMATIONS   - Required confirmations (optional)
  */
 
-import { loadConfig, validateEnvironment } from "./config/index.js";
+import { loadConfig } from "./config/index.js";
 import { createServer, startServer } from "./server.js";
 
 async function main() {
-  // Validate environment variables
-  const envErrors = validateEnvironment();
-  if (envErrors.length > 0) {
-    console.error("Environment validation failed:");
-    envErrors.forEach((e) => console.error(`  - ${e}`));
-    process.exit(1);
-  }
-
   // Load and validate configuration
   let config;
   try {
@@ -55,7 +47,7 @@ main().catch((error) => {
 });
 
 // Export for testing
-export { loadConfig, validateEnvironment } from "./config/index.js";
+export { loadConfig } from "./config/index.js";
 export { createServer, startServer } from "./server.js";
 export * from "./types/index.js";
 export * from "./services/evm/index.js";
