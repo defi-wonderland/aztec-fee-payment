@@ -51,15 +51,4 @@ export function createLogger(config: Pick<AgentConfig, "logLevel">) {
   });
 }
 
-/**
- * Create a child logger with request context
- */
-export function createRequestLogger(
-  logger: pino.Logger,
-  requestId: string,
-  extra?: Record<string, unknown>,
-) {
-  return logger.child({ requestId, ...extra });
-}
-
 export type Logger = pino.Logger;

@@ -4,8 +4,6 @@
 
 import { z } from "zod";
 
-const hexString = z.string().regex(/^0x[0-9a-fA-F]+$/, "Invalid hex string");
-
 const hex32Bytes = z
   .string()
   .regex(/^0x[0-9a-fA-F]{64}$/, "Must be 32-byte hex string with 0x prefix");

@@ -2,12 +2,8 @@
  * Middleware exports
  */
 
-export { createLogger, createRequestLogger, type Logger } from "./logger.js";
-export {
-  createValidationPreHandler,
-  isValidHex,
-  isValid32ByteHex,
-} from "./validation.js";
+export { createLogger, type Logger } from "./logger.js";
+export { createValidationPreHandler } from "./validation.js";
 export {
   AppError,
   createErrorHandler,

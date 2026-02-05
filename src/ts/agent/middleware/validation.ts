@@ -35,37 +35,3 @@ export function createValidationPreHandler<T>(schema: ZodSchema<T>) {
     }
   };
 }
-
-/**
- * Validate hex string format
- */
-export function isValidHex(value: string, expectedLength?: number): boolean {
-  if (!value.startsWith("0x")) return false;
-  const hex = value.slice(2);
-  if (!/^[0-9a-fA-F]*$/.test(hex)) return false;
-  if (expectedLength !== undefined && hex.length !== expectedLength * 2) {
-    return false;
-  }
-  return true;
-}
-
-/**
- * Validate that a hex string is exactly 32 bytes
- */
-export function isValid32ByteHex(value: string): boolean {
-  return isValidHex(value, 32);
-}
-
-/**
- * Validate that a hex string is exactly 65 bytes (EIP-712 signature)
- */
-export function isValid65ByteHex(value: string): boolean {
-  return isValidHex(value, 65);
-}
-
-/**
- * Validate Ethereum address format
- */
-export function isValidEthereumAddress(value: string): boolean {
-  return isValidHex(value, 20);
-}

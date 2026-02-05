@@ -123,4 +123,3 @@ export function validateEnvironment(): string[] {
 }
 
 export { agentConfigSchema, authwitRequestSchema } from "./schema.js";
-export { DEFAULT_CHAINS } from "./chains.js";
