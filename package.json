@@ -10,7 +10,7 @@
     "src/ts"
   ],
   "scripts": {
-    "clean": "rm -rf ./src/ts/artifacts/Counter.ts ./src/ts/artifacts/FeePayment.ts ./target ./src/ts/dist/target codegenCache.json",
+    "clean": "rm -rf ./src/ts/artifacts/* ./target codegenCache.json",
     "codegen": "aztec codegen target --outdir src/ts/artifacts -f",
     "compile": "aztec compile",
     "build": "yarn compile && yarn codegen && yarn workspace @defi-wonderland/aztec-fee-payment build",
