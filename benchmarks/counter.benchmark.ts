@@ -151,7 +151,7 @@ export default class CounterContractBenchmark extends Benchmark {
     );
 
     // Gas settings
-    const baseFees: any = await (aztecNode as any).getCurrentBaseFees();
+    const baseFees: any = await (aztecNode as any).getCurrentMinFees();
     const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
 
     const gasSettingsNoTeardown = {
