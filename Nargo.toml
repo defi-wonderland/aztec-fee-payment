@@ -3,6 +3,3 @@ members = [
     "src/nr/counter_contract",
     "src/nr/metered_contract",
 ]
-
-[benchmark]
-counter = "benchmarks/counter.benchmark.ts"
