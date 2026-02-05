@@ -52,9 +52,7 @@ export class AuthwitGenerator {
     this.ownerAddress = AztecAddress.fromString(config.ownerAddress);
 
     // Parse the signing key as Fq (Grumpkin scalar field)
-    const keyHex = config.ownerSigningKey.startsWith("0x")
-      ? config.ownerSigningKey.slice(2)
-      : config.ownerSigningKey;
+    const keyHex = config.ownerSigningKey.replace(/^0x/, "");
     this.ownerSigningKey = GrumpkinScalar.fromBuffer(
       Buffer.from(keyHex, "hex"),
     );

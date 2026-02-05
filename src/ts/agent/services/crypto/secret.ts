@@ -15,6 +15,10 @@ import { keccak_256 } from "@noble/hashes/sha3";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
 import type { Hex } from "viem";
 
+function stripHexPrefix(hex: string): string {
+  return hex.startsWith("0x") ? hex.slice(2) : hex;
+}
+
 // Aztec BN254 field modulus (Fr)
 // This is the scalar field of the BN254 curve used by Aztec
 const BN254_FR_MODULUS = BigInt(
@@ -32,9 +36,7 @@ export class SecretGenerator {
 
   constructor(spSigningKeyHex: Hex) {
     // Remove 0x prefix and convert to bytes
-    const keyHex = spSigningKeyHex.startsWith("0x")
-      ? spSigningKeyHex.slice(2)
-      : spSigningKeyHex;
+    const keyHex = stripHexPrefix(spSigningKeyHex);
     this.signingKey = hexToBytes(keyHex);
 
     // Validate key length
@@ -62,9 +64,7 @@ export class SecretGenerator {
    */
   generateSecret(txHash: Hex, chainId: number): Hex {
     // Step 1: Construct the message with domain separator and chainId
-    const txHashBytes = hexToBytes(
-      txHash.startsWith("0x") ? txHash.slice(2) : txHash,
-    );
+    const txHashBytes = hexToBytes(stripHexPrefix(txHash));
 
     // Encode chainId as 32-byte big-endian
     const chainIdBytes = new Uint8Array(32);
