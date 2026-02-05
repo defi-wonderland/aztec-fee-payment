@@ -101,15 +101,3 @@ export class SecretGenerator {
     return `0x${secretHex}` as Hex;
   }
 }
-
-/**
- * Convert a hex secret string to Aztec Fr type
- * This is a utility for integration with Aztec.js
- */
-export function secretToFr(secret: Hex): { toString: () => string } {
-  // Return an object that mimics Fr's toString method
-  // The actual conversion to Fr happens in the authwit generator
-  return {
-    toString: () => secret,
-  };
-}

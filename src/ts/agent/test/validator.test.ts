@@ -129,7 +129,6 @@ function createMockEVMClient(overrides?: Partial<EVMClient>): EVMClient {
         ]),
       ),
     getBlockNumber: vi.fn().mockResolvedValue(110n),
-    isFinalized: vi.fn().mockResolvedValue(true),
     ...overrides,
   };
 }

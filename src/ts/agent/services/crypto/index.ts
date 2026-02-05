@@ -9,6 +9,6 @@ export {
   getTypedDataForSigning,
 } from "./eip712.js";
 
-export { SecretGenerator, secretToFr } from "./secret.js";
+export { SecretGenerator } from "./secret.js";
 
 export { AuthwitGenerator, formatAuthwitResponse } from "./authwit.js";

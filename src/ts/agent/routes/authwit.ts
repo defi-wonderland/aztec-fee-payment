@@ -19,7 +19,7 @@ import {
   MultiChainEVMClient,
   validateTransaction,
 } from "../services/evm/index.js";
-import { recoverClaimRequestSigner } from "../services/crypto/eip712.js";
+import { verifyClaimRequestSignature } from "../services/crypto/eip712.js";
 import { SecretGenerator } from "../services/crypto/secret.js";
 import {
   AuthwitGenerator,
@@ -85,27 +85,7 @@ export async function registerAuthwitRoutes(
         );
       }
 
-      // 2. Verify EIP-712 signature and recover signer
-      let signer: Address;
-      try {
-        signer = await recoverClaimRequestSigner(
-          { txHash: evmTxHash },
-          signature as Hex,
-          evmChainId,
-        );
-        requestLogger.debug({ signer }, "Recovered signer from signature");
-      } catch (error) {
-        requestLogger.warn(
-          { error },
-          "Failed to recover signer from signature",
-        );
-        throw new AppError(
-          "INVALID_SIGNATURE",
-          "Failed to recover signer from signature",
-        );
-      }
-
-      // 3. Validate the EVM transaction
+      // 2. Validate the EVM transaction
       const txResult = await validateTransaction({
         client,
         txHash: evmTxHash as Hex,
@@ -122,27 +102,45 @@ export async function registerAuthwitRoutes(
         );
       }
 
-      // 4. Validate that signer matches transaction sender
-      if (signer.toLowerCase() !== txResult.transaction!.from.toLowerCase()) {
-        // Log details server-side for debugging, but don't expose in response
+      // 3. Verify EIP-712 signature matches transaction sender
+      let signatureValid: boolean;
+      try {
+        signatureValid = await verifyClaimRequestSignature(
+          { txHash: evmTxHash },
+          signature as Hex,
+          txResult.transaction!.from as Address,
+          evmChainId,
+        );
+      } catch (error) {
         requestLogger.warn(
-          { signer, txSender: txResult.transaction!.from },
-          "Signer does not match transaction sender",
+          { error },
+          "Failed to verify claim request signature",
         );
         throw new AppError(
           "INVALID_SIGNATURE",
-          "Signer does not match transaction sender",
+          "Failed to verify claim request signature",
         );
       }
 
-      // 5. Generate deterministic secret (includes chainId to prevent cross-chain replay)
+      if (!signatureValid) {
+        requestLogger.warn(
+          { txSender: txResult.transaction!.from },
+          "Signature does not match transaction sender",
+        );
+        throw new AppError(
+          "INVALID_SIGNATURE",
+          "Signature does not match transaction sender",
+        );
+      }
+
+      // 4. Generate deterministic secret (includes chainId to prevent cross-chain replay)
       const secret = secretGenerator.generateSecret(
         evmTxHash as Hex,
         evmChainId,
       );
       requestLogger.debug("Generated deterministic secret");
 
-      // 6. Generate authwit
+      // 5. Generate authwit
       const authwit = await authwitGenerator.generateMintAuthwit(
         txResult.transaction!.amount,
         secret,
@@ -152,7 +150,7 @@ export async function registerAuthwitRoutes(
         "Generated authwit successfully",
       );
 
-      // 7. Return response
+      // 6. Return response
       const response: AuthwitResponse = formatAuthwitResponse(authwit);
       return reply.status(200).send(response);
     },

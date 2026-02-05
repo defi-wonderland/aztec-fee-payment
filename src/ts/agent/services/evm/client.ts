@@ -23,7 +23,6 @@ export interface EVMClient {
   getTransaction(txHash: Hex): Promise<Transaction | null>;
   getTransactionReceipt(txHash: Hex): Promise<TransactionReceipt | null>;
   getBlockNumber(): Promise<bigint>;
-  isFinalized(txHash: Hex, requiredConfirmations: number): Promise<boolean>;
 }
 
 /**
@@ -97,18 +96,6 @@ function createEVMClientWrapper(
 
     async getBlockNumber(): Promise<bigint> {
       return client.getBlockNumber();
-    },
-
-    async isFinalized(
-      txHash: Hex,
-      requiredConfirmations: number,
-    ): Promise<boolean> {
-      const receipt = await this.getTransactionReceipt(txHash);
-      if (!receipt || !receipt.blockNumber) return false;
-
-      const currentBlock = await this.getBlockNumber();
-      const confirmations = currentBlock - receipt.blockNumber + 1n;
-      return confirmations >= BigInt(requiredConfirmations);
     },
   };
 }

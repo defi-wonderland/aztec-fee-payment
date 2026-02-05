@@ -358,13 +358,5 @@ function createMockEVMClient(): EVMClient {
     async getBlockNumber() {
       return CURRENT_BLOCK_NUMBER;
     },
-
-    async isFinalized(txHash: Hex, requiredConfirmations: number) {
-      if (txHash === MOCK_TX_HASH) {
-        const confirmations = CURRENT_BLOCK_NUMBER - MOCK_BLOCK_NUMBER + 1n;
-        return confirmations >= BigInt(requiredConfirmations);
-      }
-      return false;
-    },
   };
 }
