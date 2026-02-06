@@ -105,26 +105,48 @@ pub contract Metered {
         self.context.end_setup();
     }
 
-    /// Mints tokens and pays fee in a single optimized transaction.
+    /// Mints tokens and pays fee in a single transaction.
     /// Verifies ECDSA signature, mints the specified amount, then deducts max gas cost.
-    /// If minted amount >= max_gas_cost, no existing balance is needed.
-    /// If minted amount < max_gas_cost, the difference is deducted from existing balance.
+    /// The minted amount must be >= max_gas_cost.
+    /// @param account The address to mint tokens to
     /// @param amount The amount to mint
     /// @param secret The secret used for signature verification
     #[external("private")]
     #[nophasecheck]
-    fn mint_and_pay_fee(amount: u128, secret: Field) {
+    fn mint_and_pay_fee(account: AztecAddress, amount: u128, secret: Field) {
+        self.internal._verify_ecdsa_signature(secret, amount);
+
+        // Calculate the max gas cost from transaction settings.
+        let max_gas_cost = get_max_gas_cost(self.context);
+
+        self.storage.balances.at(account).add(amount - max_gas_cost).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+
+        // Set the FPC as the fee payer of the tx.
+        self.context.set_as_fee_payer();
+        // End the setup phase
+        self.context.end_setup();
+    }
+
+    /// Mints tokens and pays fee, with fallback to existing balance.
+    /// Verifies ECDSA signature, mints the specified amount, then deducts max gas cost.
+    /// If minted amount >= max_gas_cost, no existing balance is needed.
+    /// If minted amount < max_gas_cost, the difference is deducted from existing balance.
+    /// @param account The address to mint tokens to
+    /// @param amount The amount to mint
+    /// @param secret The secret used for signature verification
+    #[external("private")]
+    #[nophasecheck]
+    fn mint_and_pay_fee_with_balance(account: AztecAddress, amount: u128, secret: Field) {
         // Verify the signature authorizing this mint
         self.internal._verify_ecdsa_signature(secret, amount);
 
-        let sender = self.context.msg_sender().unwrap();
-        let balance_set = self.storage.balances.at(sender);
+        let balance_set = self.storage.balances.at(account);
 
         // Calculate the max gas cost from transaction settings.
         let max_gas_cost = get_max_gas_cost(self.context);
 
         if max_gas_cost > amount {
-            // Need to deduct additional from sender's existing balance
+            // Need to deduct additional from account's existing balance
             let deficit = max_gas_cost - amount;
             let subtracted = balance_set.try_sub(deficit, 1);
 
@@ -151,7 +173,7 @@ pub contract Metered {
     #[external("private")]
     fn mint(account: AztecAddress, amount: u128, secret: Field) {
         self.internal._verify_ecdsa_signature(secret, amount);
-        self.storage.balances.at(account).add(amount).deliver(MessageDelivery.CONSTRAINED_ONCHAIN);
+        self.storage.balances.at(account).add(amount).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
     }
 
     /// Teardown function to refund unused gas.

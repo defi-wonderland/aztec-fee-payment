@@ -91,13 +91,14 @@ export class MeteredExactFeePaymentMethod implements FeePaymentMethod {
 }
 
 /**
- * Fee payment method that mints and pays fee in a single optimized transaction.
+ * Fee payment method that mints and pays fee in a single transaction.
  * Verifies ECDSA signature, mints the specified amount, then deducts max gas cost.
- * If minted amount >= max_gas_cost, no existing balance is needed.
+ * The minted amount must be >= max_gas_cost.
  */
 export class MeteredMintAndPayFeePaymentMethod implements FeePaymentMethod {
   constructor(
     private readonly fpcAddress: AztecAddress,
+    private readonly account: AztecAddress,
     private readonly amount: bigint,
     private readonly secret: Fr,
     private readonly authWitness: AuthWitness,
@@ -118,12 +119,63 @@ export class MeteredMintAndPayFeePaymentMethod implements FeePaymentMethod {
           name: "mint_and_pay_fee",
           to: this.fpcAddress,
           selector: await FunctionSelector.fromSignature(
-            "mint_and_pay_fee(u128,Field)",
+            "mint_and_pay_fee((Field),u128,Field)",
           ),
           type: FunctionType.PRIVATE,
           hideMsgSender: false,
           isStatic: false,
-          args: [new Fr(this.amount), this.secret],
+          args: [this.account.toField(), new Fr(this.amount), this.secret],
+          returnTypes: [],
+        },
+      ],
+      [this.authWitness],
+      [],
+      [],
+      this.fpcAddress,
+    );
+  }
+
+  getGasSettings(): GasSettings | undefined {
+    return;
+  }
+}
+
+/**
+ * Fee payment method that mints and pays fee, with fallback to existing balance.
+ * Verifies ECDSA signature, mints the specified amount, then deducts max gas cost.
+ * If minted amount >= max_gas_cost, no existing balance is needed.
+ * If minted amount < max_gas_cost, the difference is deducted from existing balance.
+ */
+export class MeteredMintAndPayFeeWithBalancePaymentMethod implements FeePaymentMethod {
+  constructor(
+    private readonly fpcAddress: AztecAddress,
+    private readonly account: AztecAddress,
+    private readonly amount: bigint,
+    private readonly secret: Fr,
+    private readonly authWitness: AuthWitness,
+  ) {}
+
+  getAsset(): Promise<AztecAddress> {
+    throw new Error("Asset is not required for metered fee payment.");
+  }
+
+  getFeePayer() {
+    return Promise.resolve(this.fpcAddress);
+  }
+
+  async getExecutionPayload(): Promise<ExecutionPayload> {
+    return new ExecutionPayload(
+      [
+        {
+          name: "mint_and_pay_fee_with_balance",
+          to: this.fpcAddress,
+          selector: await FunctionSelector.fromSignature(
+            "mint_and_pay_fee_with_balance((Field),u128,Field)",
+          ),
+          type: FunctionType.PRIVATE,
+          hideMsgSender: false,
+          isStatic: false,
+          args: [this.account.toField(), new Fr(this.amount), this.secret],
           returnTypes: [],
         },
       ],

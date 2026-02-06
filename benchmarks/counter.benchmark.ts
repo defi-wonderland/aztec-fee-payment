@@ -19,6 +19,7 @@ import {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
   MeteredMintAndPayFeePaymentMethod,
+  MeteredMintAndPayFeeWithBalancePaymentMethod,
   MeteredMintThenPayFeePaymentMethod,
 } from "../src/ts/fee-payment-methods/index.js";
 import {
@@ -153,8 +154,9 @@ interface CounterBenchmarkContext extends BenchmarkContext {
   meteredPaymentMethod: MeteredFeePaymentMethod;
   meteredExactPaymentMethod: MeteredExactFeePaymentMethod;
   // New payment methods with signature verification
-  mintAndPayFeeSingleNoteMethod: MeteredMintAndPayFeePaymentMethod;
-  mintAndPayFeeTwoNotesMethod: MeteredMintAndPayFeePaymentMethod;
+  mintAndPayFeeSingleNoteMethod: MeteredMintAndPayFeeWithBalancePaymentMethod;
+  mintAndPayFeeTwoNotesMethod: MeteredMintAndPayFeeWithBalancePaymentMethod;
+  mintAndPayFeeMethod: MeteredMintAndPayFeePaymentMethod;
   mintThenPayFeeMethod: MeteredMintThenPayFeePaymentMethod;
   // Gas settings
   gasSettingsNoTeardown: {
@@ -235,7 +237,23 @@ export default class CounterContractBenchmark extends Benchmark {
     // Amount to mint in fee payment - should cover gas costs
     const mintAmount = 1_000_000_000_000_000n;
 
-    // MintAndPayFee (single note) - mints enough to cover gas, no existing notes needed
+    // MintAndPayFee - mints to account and pays fee (simple, no existing notes consumed)
+    const mintAndPayFeeSecret = Fr.random();
+    const mintAndPayFeeAuthWitness = await createEcdsaAuthWitness(
+      mintAndPayFeeSecret,
+      mintAmount,
+      meteredFpc.address,
+      chainId,
+    );
+    const mintAndPayFeeMethod = new MeteredMintAndPayFeePaymentMethod(
+      meteredFpc.address,
+      deployer,
+      mintAmount,
+      mintAndPayFeeSecret,
+      mintAndPayFeeAuthWitness,
+    );
+
+    // MintAndPayFeeWithBalance (single note) - mints enough to cover gas, no existing notes needed
     const mintAndPayFeeSingleSecret = Fr.random();
     const mintAndPayFeeSingleAuthWitness = await createEcdsaAuthWitness(
       mintAndPayFeeSingleSecret,
@@ -243,16 +261,18 @@ export default class CounterContractBenchmark extends Benchmark {
       meteredFpc.address,
       chainId,
     );
-    const mintAndPayFeeSingleNoteMethod = new MeteredMintAndPayFeePaymentMethod(
-      meteredFpc.address,
-      mintAmount,
-      mintAndPayFeeSingleSecret,
-      mintAndPayFeeSingleAuthWitness,
-    );
+    const mintAndPayFeeSingleNoteMethod =
+      new MeteredMintAndPayFeeWithBalancePaymentMethod(
+        meteredFpc.address,
+        deployer,
+        mintAmount,
+        mintAndPayFeeSingleSecret,
+        mintAndPayFeeSingleAuthWitness,
+      );
 
-    // MintAndPayFee (two notes) - mints small amount, needs to consume existing note too
+    // MintAndPayFeeWithBalance (two notes) - mints small amount, needs to consume existing note too
     // The pre-minted balance from above will be used to cover the deficit
-    const smallMintAmount = 1n; // Very small, so mint_and_pay_fee must use pre-minted note too
+    const smallMintAmount = 1n; // Very small, so mint_and_pay_fee_with_balance must use pre-minted note too
     const mintAndPayFeeTwoNotesSecret = Fr.random();
     const mintAndPayFeeTwoNotesAuthWitness = await createEcdsaAuthWitness(
       mintAndPayFeeTwoNotesSecret,
@@ -260,12 +280,14 @@ export default class CounterContractBenchmark extends Benchmark {
       meteredFpc.address,
       chainId,
     );
-    const mintAndPayFeeTwoNotesMethod = new MeteredMintAndPayFeePaymentMethod(
-      meteredFpc.address,
-      smallMintAmount,
-      mintAndPayFeeTwoNotesSecret,
-      mintAndPayFeeTwoNotesAuthWitness,
-    );
+    const mintAndPayFeeTwoNotesMethod =
+      new MeteredMintAndPayFeeWithBalancePaymentMethod(
+        meteredFpc.address,
+        deployer,
+        smallMintAmount,
+        mintAndPayFeeTwoNotesSecret,
+        mintAndPayFeeTwoNotesAuthWitness,
+      );
 
     // MintThenPayFee - two-step flow: mint creates note, then pay_fee consumes it
     const mintThenPayFeeSecret = Fr.random();
@@ -310,6 +332,7 @@ export default class CounterContractBenchmark extends Benchmark {
       chainId,
       meteredPaymentMethod,
       meteredExactPaymentMethod,
+      mintAndPayFeeMethod,
       mintAndPayFeeSingleNoteMethod,
       mintAndPayFeeTwoNotesMethod,
       mintThenPayFeeMethod,
@@ -328,6 +351,7 @@ export default class CounterContractBenchmark extends Benchmark {
       deployer,
       meteredPaymentMethod,
       meteredExactPaymentMethod,
+      mintAndPayFeeMethod,
       mintAndPayFeeSingleNoteMethod,
       mintAndPayFeeTwoNotesMethod,
       mintThenPayFeeMethod,
@@ -370,9 +394,21 @@ export default class CounterContractBenchmark extends Benchmark {
           ),
         },
       },
-      // MintAndPayFee (single note): mints enough to cover gas, no existing notes needed
+      // MintAndPayFee: simple mint + pay, no existing notes consumed
       {
-        name: "increment_metered_mint_and_pay_fee_single_note",
+        name: "increment_metered_mint_and_pay_fee",
+        interaction: {
+          caller: deployer,
+          action: new FeeWrappedInteraction(
+            counterContract.withWallet(wallet).methods.increment(),
+            mintAndPayFeeMethod,
+            gasSettingsNoTeardown,
+          ),
+        },
+      },
+      // MintAndPayFeeWithBalance (single note): mints enough to cover gas, no existing notes needed
+      {
+        name: "increment_metered_mint_and_pay_fee_with_balance_single_note",
         interaction: {
           caller: deployer,
           action: new FeeWrappedInteraction(
@@ -382,9 +418,9 @@ export default class CounterContractBenchmark extends Benchmark {
           ),
         },
       },
-      // MintAndPayFee (two notes): mints small amount, consumes existing note too
+      // MintAndPayFeeWithBalance (two notes): mints small amount, consumes existing note too
       {
-        name: "increment_metered_mint_and_pay_fee_two_notes",
+        name: "increment_metered_mint_and_pay_fee_with_balance_two_notes",
         interaction: {
           caller: deployer,
           action: new FeeWrappedInteraction(
