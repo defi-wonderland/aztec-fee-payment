@@ -23,6 +23,11 @@ pub contract Metered {
     use dep::balance_set::BalanceSet;
     use dep::uint_note::uint_note::{PartialUintNote, UintNote};
 
+    // gas-optimized max notes for initial transfer call
+    global INITIAL_TRANSFER_CALL_MAX_NOTES: u32 = 2;
+    // max notes transfer for recursive transfer call if initial max notes are exceeded
+    global RECURSIVE_TRANSFER_CALL_MAX_NOTES: u32 = 8;
+
     #[storage]
     struct Storage<Context> {
         balances: Owned<BalanceSet<Context>, Context>,
@@ -49,13 +54,9 @@ pub contract Metered {
 
         // Deduct from sender's balance (reverts if insufficient).
         // This happens in setup phase - if it fails, tx is invalid.
-        let balance_set = self.storage.balances.at(sender);
-        let subtracted = balance_set.try_sub(max_gas_cost, 1);
-
-        // try_sub may have subtracted more or less than amount. We must ensure that we subtracted at least as much as
-        // we needed, and then create a new note for the owner for the change (if any).
-        assert(subtracted >= max_gas_cost, "Balance too low or note insufficient");
-        balance_set.add(subtracted - max_gas_cost).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+        let change =
+            self.internal._subtract_balance(sender, max_gas_cost, INITIAL_TRANSFER_CALL_MAX_NOTES);
+        self.storage.balances.at(sender).add(change).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
 
         // Set the FPC as the fee payer of the tx.
         self.context.set_as_fee_payer();
@@ -75,13 +76,9 @@ pub contract Metered {
 
         // Deduct from sender's balance using single note optimization (reverts if insufficient).
         // Use try_sub with max_notes = 1 to only read a single note, reducing proof generation time.
-        let balance_set = self.storage.balances.at(sender);
-        let subtracted = balance_set.try_sub(max_gas_cost, 1);
-
-        // try_sub may have subtracted more or less than amount. We must ensure that we subtracted at least as much as
-        // we needed, and then create a new note for the owner for the change (if any).
-        assert(subtracted >= max_gas_cost, "Balance too low or note insufficient");
-        balance_set.add(subtracted - max_gas_cost).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+        let change =
+            self.internal._subtract_balance(sender, max_gas_cost, INITIAL_TRANSFER_CALL_MAX_NOTES);
+        self.storage.balances.at(sender).add(change).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
 
         // Prepare the partial note for the refund.
         let partial_note = UintNote::partial(
@@ -146,12 +143,9 @@ pub contract Metered {
         if max_gas_cost > amount {
             // Need to deduct additional from account's existing balance
             let deficit = max_gas_cost - amount;
-            let subtracted = balance_set.try_sub(deficit, 1);
-
-            // Ensure we subtracted enough
-            assert(subtracted >= deficit, "Balance too low or note insufficient");
-            // Return any excess from the subtraction
-            balance_set.add(subtracted - deficit).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+            let change =
+                self.internal._subtract_balance(account, deficit, INITIAL_TRANSFER_CALL_MAX_NOTES);
+            balance_set.add(change).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
         } else {
             // Minted amount covers gas, add the surplus to balance
             balance_set.add(amount - max_gas_cost).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
@@ -220,6 +214,53 @@ pub contract Metered {
 
         // Nullify message_hash so that the same signature cannot be used twice
         self.context.push_nullifier(message_hash);
+    }
+
+    /// @notice Decreases the private balance of `account` by `amount` and emits a private balance note with the change to account
+    /// @param account The address of the account to decrease the balance of
+    /// @param amount The amount of tokens to decrease the balance by
+    /// @param max_notes The maximum number of notes to process in a single call
+    #[internal("private")]
+    fn _decrease_private_balance(account: AztecAddress, amount: u128, max_notes: u32) {
+        // Subtracts `amount` from the private balance of `account`
+        let change = self.internal._subtract_balance(account, amount, max_notes);
+        // Increases `change` to the private balance of `account`, and emits a private balance note to account
+        self.storage.balances.at(account).add(change).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+    }
+
+    /// @notice Subtracts balance from private balance
+    /// @dev Subtracts amount from private balance and returns the change to the owner, recursively if necessary
+    /// @param account The address of the account to subtract the balance from
+    /// @param amount The amount of tokens to subtract
+    /// @param max_notes The maximum number of notes to process in a single call
+    /// @return The change to return to the owner
+    #[internal("private")]
+    fn _subtract_balance(account: AztecAddress, amount: u128, max_notes: u32) -> u128 {
+        let subtracted = self.storage.balances.at(account).try_sub(amount, max_notes);
+        if subtracted >= amount {
+            // We have achieved our goal of nullifying notes that add up to more than amount, so we return the change.
+            subtracted - amount
+        } else {
+            // Failing to subtract any amount means that the owner was unable to produce more notes that could be nullified.
+            assert(subtracted > 0, "Balance too low");
+
+            // try_sub failed to nullify enough notes to reach the target amount, so we compute the amount remaining
+            // and try again.
+            let remaining = amount - subtracted;
+
+            self.call_self.recurse_subtract_balance_internal(account, remaining)
+        }
+    }
+
+    /// @notice Recursively subtracts balance from private balance
+    /// @dev Used to subtract private balances that exceed the max notes limit
+    /// @param account The address of the account to subtract the balance from
+    /// @param amount The amount of tokens to subtract
+    /// @return The change to return to the owner
+    #[external("private")]
+    #[only_self]
+    fn recurse_subtract_balance_internal(account: AztecAddress, amount: u128) -> u128 {
+        self.internal._subtract_balance(account, amount, RECURSIVE_TRANSFER_CALL_MAX_NOTES)
     }
 
     /// Returns the internal balance of an account.
