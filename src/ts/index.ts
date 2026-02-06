@@ -12,8 +12,8 @@
  *   deployMeteredContract,
  * } from '@defi-wonderland/aztec-fee-payment';
  *
- * // Deploy FPC with ECDSA public key
- * const fpc = await deployMeteredContract(wallet, ecdsaPubKeyX, ecdsaPubKeyY);
+ * // Deploy FPC with owner and ECDSA public key
+ * const fpc = await deployMeteredContract(wallet, owner, ecdsaPubKeyX, ecdsaPubKeyY);
  *
  * // Option 1: Pre-mint balance and use MeteredFeePaymentMethod
  * // (requires ECDSA signature verification - see docs for createEcdsaAuthWitness)

@@ -18,22 +18,41 @@ pub contract Metered {
         messages::message_delivery::MessageDelivery,
         oracle::auth_witness::get_auth_witness,
         protocol_types::{address::AztecAddress, traits::{FromField, ToField}},
-        state_vars::{Owned, PublicImmutable, state_variable::StateVariable},
+        state_vars::{DelayedPublicMutable, Owned, PublicImmutable, state_variable::StateVariable},
     };
     use dep::balance_set::BalanceSet;
     use dep::uint_note::uint_note::{PartialUintNote, UintNote};
 
+    global CONFIG_DELAY: u64 = 172800; // 2 days = 60 * 60 * 24 * 2
+
     #[storage]
     struct Storage<Context> {
         balances: Owned<BalanceSet<Context>, Context>,
-        ecdsa_public_key: PublicImmutable<EcdsaPublicKey, Context>,
+        ecdsa_public_key: DelayedPublicMutable<EcdsaPublicKey, CONFIG_DELAY, Context>,
+        owner: PublicImmutable<AztecAddress, Context>,
     }
 
     #[external("public")]
     #[initializer]
-    fn constructor(ecdsa_public_key_x: [u8; 32], ecdsa_public_key_y: [u8; 32]) {
+    fn constructor(
+        owner: AztecAddress,
+        ecdsa_public_key_x: [u8; 32],
+        ecdsa_public_key_y: [u8; 32],
+    ) {
         let key = EcdsaPublicKey { x: ecdsa_public_key_x, y: ecdsa_public_key_y };
-        self.storage.ecdsa_public_key.initialize(key);
+        self.storage.ecdsa_public_key.schedule_value_change(key);
+        self.storage.owner.initialize(owner);
+    }
+
+    #[external("public")]
+    fn update_public_keys(ecdsa_public_key_x: [u8; 32], ecdsa_public_key_y: [u8; 32]) {
+        assert(
+            self.context.msg_sender().unwrap() == self.storage.owner.read(),
+            "caller is not owner",
+        );
+
+        let new_key = EcdsaPublicKey { x: ecdsa_public_key_x, y: ecdsa_public_key_y };
+        self.storage.ecdsa_public_key.schedule_value_change(new_key);
     }
 
     /// Sponsors the transaction by deducting max gas cost from sender's balance.
@@ -207,7 +226,7 @@ pub contract Metered {
         // Verify signature of the payload bytes
         let message_hash_bytes: [u8; 32] = message_hash.to_be_bytes();
         let hashed_message: [u8; 32] = sha256::digest(message_hash_bytes);
-        let ecdsa_key = self.storage.ecdsa_public_key.read();
+        let ecdsa_key = self.storage.ecdsa_public_key.get_current_value();
         let ecdsa_public_key_x = ecdsa_key.x;
         let ecdsa_public_key_y = ecdsa_key.y;
         let is_valid_signature: bool = std::ecdsa_secp256k1::verify_signature(

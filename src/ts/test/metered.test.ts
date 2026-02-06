@@ -101,7 +101,12 @@ describe("Metered Fee Payment Contract", () => {
     // Deploy and fund the Metered FPC
     const { x: ecdsaPubKeyX, y: ecdsaPubKeyY } =
       getEcdsaPublicKey(ECDSA_PRIVATE_KEY);
-    fpc = await deployMeteredContract(wallet, ecdsaPubKeyX, ecdsaPubKeyY);
+    fpc = await deployMeteredContract(
+      wallet,
+      alice,
+      ecdsaPubKeyX,
+      ecdsaPubKeyY,
+    );
     const { balance } = await fundL2AddressWithFeeJuiceFromL1(
       aztecNode,
       wallet,
@@ -232,6 +237,7 @@ describe("Metered Fee Payment Contract", () => {
         getEcdsaPublicKey(ECDSA_PRIVATE_KEY);
       const freshFpc = await deployMeteredContract(
         wallet,
+        alice,
         ecdsaPubKeyX,
         ecdsaPubKeyY,
       );

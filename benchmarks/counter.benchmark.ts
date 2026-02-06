@@ -211,6 +211,7 @@ export default class CounterContractBenchmark extends Benchmark {
       getEcdsaPublicKey(ECDSA_PRIVATE_KEY);
     const meteredFpc = await deployMeteredContract(
       wallet,
+      deployer,
       ecdsaPubKeyX,
       ecdsaPubKeyY,
     );
