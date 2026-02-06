@@ -7,6 +7,7 @@ mod ecdsa_public_key;
 /// Users must have sufficient balance to cover estimated fees.
 #[aztec]
 pub contract Metered {
+    use crate::ecdsa_public_key::EcdsaPublicKey;
     use dep::aztec::{
         authwit::auth::compute_inner_authwit_hash,
         context::PrivateContext,
@@ -21,7 +22,6 @@ pub contract Metered {
     };
     use dep::balance_set::BalanceSet;
     use dep::uint_note::uint_note::{PartialUintNote, UintNote};
-    use crate::ecdsa_public_key::EcdsaPublicKey;
 
     #[storage]
     struct Storage<Context> {
