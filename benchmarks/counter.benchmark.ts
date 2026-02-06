@@ -85,12 +85,14 @@ async function createEcdsaAuthWitness(
   amount: bigint,
   contractAddress: AztecAddress,
   chainId: number,
+  version: number,
 ): Promise<AuthWitness> {
   const messageHash = await computeInnerAuthWitHash([
     secret,
     new Fr(amount),
     contractAddress.toField(),
     new Fr(chainId),
+    new Fr(version),
   ]);
   const signatureBytes = signEcdsa(messageHash.toBuffer(), ECDSA_PRIVATE_KEY);
   const witnessData = Array.from(signatureBytes).map((b) => new Fr(b));
@@ -165,6 +167,7 @@ interface CounterBenchmarkContext extends BenchmarkContext {
   counterContract: CounterContract;
   meteredFpc: MeteredContract;
   chainId: number;
+  version: number;
   // Existing payment methods (require pre-minted balance)
   meteredPaymentMethod: MeteredFeePaymentMethod;
   meteredExactPaymentMethod: MeteredExactFeePaymentMethod;
@@ -225,6 +228,7 @@ export default class CounterContractBenchmark extends Benchmark {
     );
 
     const chainId = await aztecNode.getChainId();
+    const version = await aztecNode.getVersion();
 
     // =========================================================================
     // Pre-mint balance for MeteredFeePaymentMethod and MeteredExactFeePaymentMethod
@@ -237,6 +241,7 @@ export default class CounterContractBenchmark extends Benchmark {
       preMintAmount,
       meteredFpc.address,
       chainId,
+      version,
     );
 
     await meteredFpc.methods
@@ -265,6 +270,7 @@ export default class CounterContractBenchmark extends Benchmark {
       mintAmount,
       meteredFpc.address,
       chainId,
+      version,
     );
     const mintAndPayFeeMethod = new MeteredMintAndPayFeePaymentMethod(
       meteredFpc.address,
@@ -281,6 +287,7 @@ export default class CounterContractBenchmark extends Benchmark {
       mintAmount,
       meteredFpc.address,
       chainId,
+      version,
     );
     const mintAndPayFeeSingleNoteMethod =
       new MeteredMintAndPayFeeWithBalancePaymentMethod(
@@ -300,6 +307,7 @@ export default class CounterContractBenchmark extends Benchmark {
       smallMintAmount,
       meteredFpc.address,
       chainId,
+      version,
     );
     const mintAndPayFeeTwoNotesMethod =
       new MeteredMintAndPayFeeWithBalancePaymentMethod(
@@ -317,6 +325,7 @@ export default class CounterContractBenchmark extends Benchmark {
       mintAmount,
       meteredFpc.address,
       chainId,
+      version,
     );
     const mintThenPayFeeMethod = new MeteredMintThenPayFeePaymentMethod(
       meteredFpc.address,
@@ -351,6 +360,7 @@ export default class CounterContractBenchmark extends Benchmark {
       counterContract,
       meteredFpc,
       chainId,
+      version,
       meteredPaymentMethod,
       meteredExactPaymentMethod,
       mintAndPayFeeMethod,
