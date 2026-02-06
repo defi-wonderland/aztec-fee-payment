@@ -10,6 +10,7 @@ pub contract Metered {
         context::PrivateContext,
         macros::{functions::{external, internal, nophasecheck, only_self}, storage::storage},
         messages::message_delivery::MessageDelivery,
+        oracle::auth_witness::get_auth_witness,
         protocol_types::{address::AztecAddress, traits::{FromField, ToField}},
         state_vars::{Owned, state_variable::StateVariable},
     };
@@ -20,15 +21,6 @@ pub contract Metered {
     // TEST KEYS - For benchmarking/testing only
     // These must match the private keys used in benchmarks/signature.benchmark.ts
     // ============================================================================
-
-    // Schnorr key pair (Grumpkin curve)
-    // Derived from private key = 1 using Grumpkin scalar multiplication
-    // G * 1 = G (generator point)
-    // Grumpkin generator: x = 1, y = 0x2cf135e7506a45d632d270d45f1181294833fc48d823f272c
-    global SCHNORR_PUBLIC_KEY_X: Field =
-        0x0000000000000000000000000000000000000000000000000000000000000001;
-    global SCHNORR_PUBLIC_KEY_Y: Field =
-        0x0000000000000002cf135e7506a45d632d270d45f1181294833fc48d823f272c;
 
     // ECDSA key pair (secp256k1) - derived from private key = 1
     // This is the generator point G of secp256k1
@@ -113,10 +105,52 @@ pub contract Metered {
         self.context.end_setup();
     }
 
-    /// Mints internal balance to an account.
-    /// NOTE: Currently permissionless for testing. Add access control in production.
+    /// Mints tokens and pays fee in a single optimized transaction.
+    /// Verifies ECDSA signature, mints the specified amount, then deducts max gas cost.
+    /// If minted amount >= max_gas_cost, no existing balance is needed.
+    /// If minted amount < max_gas_cost, the difference is deducted from existing balance.
+    /// @param amount The amount to mint
+    /// @param secret The secret used for signature verification
     #[external("private")]
-    fn mint(account: AztecAddress, amount: u128) {
+    #[nophasecheck]
+    fn mint_and_pay_fee(amount: u128, secret: Field) {
+        // Verify the signature authorizing this mint
+        self.internal._verify_ecdsa_signature(secret, amount);
+
+        let sender = self.context.msg_sender().unwrap();
+        let balance_set = self.storage.balances.at(sender);
+
+        // Calculate the max gas cost from transaction settings.
+        let max_gas_cost = get_max_gas_cost(self.context);
+
+        if max_gas_cost > amount {
+            // Need to deduct additional from sender's existing balance
+            let deficit = max_gas_cost - amount;
+            let subtracted = balance_set.try_sub(deficit, 1);
+
+            // Ensure we subtracted enough
+            assert(subtracted >= deficit, "Balance too low or note insufficient");
+            // Return any excess from the subtraction
+            balance_set.add(subtracted - deficit).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+        } else {
+            // Minted amount covers gas, add the surplus to balance
+            balance_set.add(amount - max_gas_cost).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+        }
+
+        // Set the FPC as the fee payer of the tx.
+        self.context.set_as_fee_payer();
+        // End the setup phase
+        self.context.end_setup();
+    }
+
+    /// Mints internal balance to an account.
+    /// Requires ECDSA signature verification.
+    /// @param account The address to mint tokens to
+    /// @param amount The amount to mint
+    /// @param secret The secret used for signature verification
+    #[external("private")]
+    fn mint(account: AztecAddress, amount: u128, secret: Field) {
+        self.internal._verify_ecdsa_signature(secret, amount);
         self.storage.balances.at(account).add(amount).deliver(MessageDelivery.CONSTRAINED_ONCHAIN);
     }
 
@@ -129,45 +163,25 @@ pub contract Metered {
         partial_note.complete(self.context, self.address, refund_amount);
     }
 
-    /// @notice Verify that the tx_hash and amount given to mint have been approved by the FPC
-    /// @param tx_hash Truncated L1 hash of the transaction containing the AZT transfer
-    /// @param amount The amount of wFJ to mint
-    /// @param signature The signature
+    /// @notice Verify ECDSA signature fetched via auth_witness oracle.
+    /// The signature is retrieved using message_hash as the lookup key.
+    /// @param secret The secret
+    /// @param amount The amount value
     #[internal("private")]
-    fn _verify_schnorr_signature(tx_hash: Field, amount: u128, signature: [u8; 64]) {
+    fn _verify_ecdsa_signature(secret: Field, amount: u128) {
         let message_hash = compute_inner_authwit_hash([
-            tx_hash,
+            secret,
             amount as Field,
             self.address.to_field(),
             self.context.chain_id(),
         ]);
 
-        let pub_key = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: SCHNORR_PUBLIC_KEY_X,
-            y: SCHNORR_PUBLIC_KEY_Y,
-            is_infinite: false,
-        };
-        // Verify signature of the payload bytes
-        let is_valid_signature: bool =
-            schnorr::verify_signature(pub_key, signature, message_hash.to_be_bytes::<32>());
-        assert(is_valid_signature, "Message not authorized by account");
-
-        // Nullify message_hash so that the same signature cannot be used twice
-        self.context.push_nullifier(message_hash);
-    }
-
-    /// @notice Verify that the tx_hash and amount given to mint have been approved by the FPC
-    /// @param tx_hash Truncated L1 hash of the transaction containing the AZT transfer
-    /// @param amount The amount of wFJ to mint
-    /// @param signature The signature
-    #[internal("private")]
-    fn _verify_ecdsa_signature(tx_hash: Field, amount: u128, signature: [u8; 64]) {
-        let message_hash = compute_inner_authwit_hash([
-            tx_hash,
-            amount as Field,
-            self.address.to_field(),
-            self.context.chain_id(),
-        ]);
+        // Fetch signature from auth witness oracle using message_hash as key
+        let witness: [Field; 64] = unsafe { get_auth_witness(message_hash) };
+        let mut signature: [u8; 64] = [0; 64];
+        for i in 0..64 {
+            signature[i] = witness[i] as u8;
+        }
 
         // Verify signature of the payload bytes
         let message_hash_bytes: [u8; 32] = message_hash.to_be_bytes();
@@ -182,24 +196,6 @@ pub contract Metered {
 
         // Nullify message_hash so that the same signature cannot be used twice
         self.context.push_nullifier(message_hash);
-    }
-
-    /// @notice External wrapper for benchmarking Schnorr signature verification
-    /// @param tx_hash Truncated L1 hash of the transaction
-    /// @param amount The amount value
-    /// @param signature The Schnorr signature (64 bytes)
-    #[external("private")]
-    fn verify_schnorr_signature(tx_hash: Field, amount: u128, signature: [u8; 64]) {
-        self.internal._verify_schnorr_signature(tx_hash, amount, signature);
-    }
-
-    /// @notice External wrapper for benchmarking ECDSA signature verification
-    /// @param tx_hash Truncated L1 hash of the transaction
-    /// @param amount The amount value
-    /// @param signature The ECDSA signature (64 bytes: r || s)
-    #[external("private")]
-    fn verify_ecdsa_signature(tx_hash: Field, amount: u128, signature: [u8; 64]) {
-        self.internal._verify_ecdsa_signature(tx_hash, amount, signature);
     }
 
     /// Returns the internal balance of an account.
