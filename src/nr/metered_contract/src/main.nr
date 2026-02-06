@@ -198,6 +198,7 @@ pub contract Metered {
             amount as Field,
             self.address.to_field(),
             self.context.chain_id(),
+            self.context.version(),
         ]);
 
         // Fetch signature from auth witness oracle using message_hash as key
