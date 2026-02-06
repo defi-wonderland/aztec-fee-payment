@@ -119,7 +119,9 @@ pub contract Metered {
         // Calculate the max gas cost from transaction settings.
         let max_gas_cost = get_max_gas_cost(self.context);
 
-        self.storage.balances.at(account).add(amount - max_gas_cost).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+        self.storage.balances.at(account).add(amount - max_gas_cost).deliver(
+            MessageDelivery.UNCONSTRAINED_ONCHAIN,
+        );
 
         // Set the FPC as the fee payer of the tx.
         self.context.set_as_fee_payer();
