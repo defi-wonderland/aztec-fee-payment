@@ -42,6 +42,21 @@ import { deployMeteredContract } from "../src/ts/utils/deploy.js";
 const ECDSA_PRIVATE_KEY = 1n;
 
 /**
+ * Derive the ECDSA public key (uncompressed) from the private key.
+ * Returns { x, y } as number arrays (32 bytes each).
+ */
+function getEcdsaPublicKey(privateKey: bigint): {
+  x: number[];
+  y: number[];
+} {
+  const uncompressed = secp256k1.getPublicKey(privateKey, false);
+  // First byte is 0x04 (uncompressed marker), next 32 = X, next 32 = Y
+  const x = Array.from(uncompressed.slice(1, 33));
+  const y = Array.from(uncompressed.slice(33, 65));
+  return { x, y };
+}
+
+/**
  * Signs a message with ECDSA (secp256k1).
  * The contract hashes with sha256 before verification.
  */
@@ -189,7 +204,13 @@ export default class CounterContractBenchmark extends Benchmark {
       .deployed();
 
     // Deploy and fund Metered FPC
-    const meteredFpc = await deployMeteredContract(wallet);
+    const { x: ecdsaPubKeyX, y: ecdsaPubKeyY } =
+      getEcdsaPublicKey(ECDSA_PRIVATE_KEY);
+    const meteredFpc = await deployMeteredContract(
+      wallet,
+      ecdsaPubKeyX,
+      ecdsaPubKeyY,
+    );
     await fundL2AddressWithFeeJuiceFromL1(
       aztecNode,
       wallet,

@@ -12,8 +12,8 @@
  *   deployMeteredContract,
  * } from '@defi-wonderland/aztec-fee-payment';
  *
- * // Deploy FPC
- * const fpc = await deployMeteredContract(wallet);
+ * // Deploy FPC with ECDSA public key
+ * const fpc = await deployMeteredContract(wallet, ecdsaPubKeyX, ecdsaPubKeyY);
  *
  * // Option 1: Pre-mint balance and use MeteredFeePaymentMethod
  * // (requires ECDSA signature verification - see docs for createEcdsaAuthWitness)
@@ -45,6 +45,7 @@ export {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
   MeteredMintAndPayFeePaymentMethod,
+  MeteredMintAndPayFeeWithBalancePaymentMethod,
   MeteredMintThenPayFeePaymentMethod,
 } from "./fee-payment-methods/index.js";
 

@@ -1,5 +1,7 @@
 use dep::aztec::macros::aztec;
 
+mod ecdsa_public_key;
+
 /// Metered Fee Payment Contract
 /// Tracks internal balances and deducts max gas cost per transaction.
 /// Users must have sufficient balance to cover estimated fees.
@@ -8,36 +10,30 @@ pub contract Metered {
     use dep::aztec::{
         authwit::auth::compute_inner_authwit_hash,
         context::PrivateContext,
-        macros::{functions::{external, internal, nophasecheck, only_self}, storage::storage},
+        macros::{
+            functions::{external, initializer, internal, nophasecheck, only_self},
+            storage::storage,
+        },
         messages::message_delivery::MessageDelivery,
         oracle::auth_witness::get_auth_witness,
         protocol_types::{address::AztecAddress, traits::{FromField, ToField}},
-        state_vars::{Owned, state_variable::StateVariable},
+        state_vars::{Owned, PublicImmutable, state_variable::StateVariable},
     };
     use dep::balance_set::BalanceSet;
     use dep::uint_note::uint_note::{PartialUintNote, UintNote};
-
-    // ============================================================================
-    // TEST KEYS - For benchmarking/testing only
-    // These must match the private keys used in benchmarks/signature.benchmark.ts
-    // ============================================================================
-
-    // ECDSA key pair (secp256k1) - derived from private key = 1
-    // This is the generator point G of secp256k1
-    global ECDSA_PUBLIC_KEY_X: [u8; 32] = [
-        0x79, 0xBE, 0x66, 0x7E, 0xF9, 0xDC, 0xBB, 0xAC, 0x55, 0xA0, 0x62, 0x95, 0xCE, 0x87, 0x0B,
-        0x07, 0x02, 0x9B, 0xFC, 0xDB, 0x2D, 0xCE, 0x28, 0xD9, 0x59, 0xF2, 0x81, 0x5B, 0x16, 0xF8,
-        0x17, 0x98,
-    ];
-    global ECDSA_PUBLIC_KEY_Y: [u8; 32] = [
-        0x48, 0x3A, 0xDA, 0x77, 0x26, 0xA3, 0xC4, 0x65, 0x5D, 0xA4, 0xFB, 0xFC, 0x0E, 0x11, 0x08,
-        0xA8, 0xFD, 0x17, 0xB4, 0x48, 0xA6, 0x85, 0x54, 0x19, 0x9C, 0x47, 0xD0, 0x8F, 0xFB, 0x10,
-        0xD4, 0xB8,
-    ];
+    use crate::ecdsa_public_key::EcdsaPublicKey;
 
     #[storage]
     struct Storage<Context> {
         balances: Owned<BalanceSet<Context>, Context>,
+        ecdsa_public_key: PublicImmutable<EcdsaPublicKey, Context>,
+    }
+
+    #[external("public")]
+    #[initializer]
+    fn constructor(ecdsa_public_key_x: [u8; 32], ecdsa_public_key_y: [u8; 32]) {
+        let key = EcdsaPublicKey { x: ecdsa_public_key_x, y: ecdsa_public_key_y };
+        self.storage.ecdsa_public_key.initialize(key);
     }
 
     /// Sponsors the transaction by deducting max gas cost from sender's balance.
@@ -210,9 +206,12 @@ pub contract Metered {
         // Verify signature of the payload bytes
         let message_hash_bytes: [u8; 32] = message_hash.to_be_bytes();
         let hashed_message: [u8; 32] = sha256::digest(message_hash_bytes);
+        let ecdsa_key = self.storage.ecdsa_public_key.read();
+        let ecdsa_public_key_x = ecdsa_key.x;
+        let ecdsa_public_key_y = ecdsa_key.y;
         let is_valid_signature: bool = std::ecdsa_secp256k1::verify_signature(
-            ECDSA_PUBLIC_KEY_X,
-            ECDSA_PUBLIC_KEY_Y,
+            ecdsa_public_key_x,
+            ecdsa_public_key_y,
             signature,
             hashed_message,
         );
