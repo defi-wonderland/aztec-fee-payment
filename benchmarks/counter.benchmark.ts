@@ -23,9 +23,11 @@ import {
   MeteredMintThenPayFeePaymentMethod,
 } from "../src/ts/fee-payment-methods/index.js";
 import {
+  advanceTime,
   createLocalNetworkContext,
   fundL2AddressWithFeeJuiceFromL1,
   LOCAL_AZTEC_NODE_URL,
+  METERED_CONFIG_DELAY,
 } from "../src/ts/test/harness.js";
 import { deployCounter } from "../src/ts/test/utils.js";
 import {
@@ -227,6 +229,12 @@ export default class CounterContractBenchmark extends Benchmark {
         loggerName: "benchmark:metered",
       },
     );
+
+    // Advance time past the CONFIG_DELAY so the ECDSA public key becomes available
+    // (DelayedPublicMutable requires time to pass after schedule_value_change)
+    await advanceTime(METERED_CONFIG_DELAY + 1, async () => {
+      await deployCounter(wallet);
+    });
 
     const chainId = await aztecNode.getChainId();
     const version = await aztecNode.getVersion();

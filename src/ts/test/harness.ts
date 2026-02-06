@@ -15,6 +15,8 @@ import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 import { Fr } from "@aztec/foundation/curves/bn254";
 import { createLogger } from "@aztec/foundation/log";
 import { createExtendedL1Client } from "@aztec/ethereum/client";
+import { EthCheatCodes } from "@aztec/ethereum/test";
+import { DateProvider } from "@aztec/foundation/timer";
 
 export const LOCAL_AZTEC_NODE_URL = "http://localhost:8080";
 
@@ -130,4 +132,59 @@ export async function fundL2AddressWithFeeJuiceFromL1(
   const { getFeeJuiceBalance } = await import("@aztec/aztec.js/utils");
   const balance = await getFeeJuiceBalance(recipient, aztecNode as any);
   return { balance, messageBlock };
+}
+
+/**
+ * CONFIG_DELAY for DelayedPublicMutable in the Metered contract.
+ * Must match `global CONFIG_DELAY` in main.nr.
+ */
+export const METERED_CONFIG_DELAY = 30;
+
+/**
+ * Maximum time step for each warp iteration (in seconds).
+ * Must be small enough that the PXE's anchor block remains valid for
+ * transaction creation (well under MAX_INCLUDE_BY_TIMESTAMP_DURATION of 86400s).
+ * Using 10 seconds to be very conservative.
+ */
+const MAX_TIME_STEP = 10;
+
+/**
+ * Advances L1 and L2 time by the specified number of seconds.
+ * This is necessary for DelayedPublicMutable values to become available after scheduling.
+ *
+ * Uses EthCheatCodes from @aztec/ethereum/test with incremental time warping:
+ * advances time in small steps (MAX_TIME_STEP seconds), producing an L2 block
+ * after each step. This keeps the PXE's anchor block synchronized and avoids
+ * "Invalid expiration timestamp" errors.
+ *
+ * NOTE: The official `CheatCodes.warpL2TimeAtLeastBy()` from @aztec/aztec/testing
+ * requires direct access to a SequencerClient to set `minTxsPerBlock: 0` for empty
+ * block production. Since we connect to a remote sandbox via RPC, we use this
+ * incremental approach instead.
+ *
+ * @param seconds - The total number of seconds to advance time
+ * @param produceL2Block - Function that produces an L2 block (e.g., by deploying a contract)
+ * @param l1RpcUrl - The L1 RPC URL (default: http://127.0.0.1:8545)
+ */
+export async function advanceTime(
+  seconds: number,
+  produceL2Block: () => Promise<void>,
+  l1RpcUrl: string = "http://127.0.0.1:8545",
+): Promise<void> {
+  const ethCheatCodes = new EthCheatCodes([l1RpcUrl], new DateProvider());
+
+  let remaining = seconds;
+  while (remaining > 0) {
+    const step = Math.min(remaining, MAX_TIME_STEP);
+    const currentTimestamp = await ethCheatCodes.timestamp();
+
+    // Warp L1 time by a small step
+    await ethCheatCodes.warp(currentTimestamp + step);
+
+    // Produce an L2 block to sync the PXE with the new L1 timestamp.
+    // This updates the PXE's anchor block for the next iteration.
+    await produceL2Block();
+
+    remaining -= step;
+  }
 }

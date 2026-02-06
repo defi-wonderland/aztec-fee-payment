@@ -19,9 +19,11 @@ import {
 import { deployMeteredContract } from "../utils/deploy.js";
 
 import {
+  advanceTime,
   LOCAL_AZTEC_NODE_URL,
   createLocalNetworkContext,
   fundL2AddressWithFeeJuiceFromL1,
+  METERED_CONFIG_DELAY,
 } from "./harness.js";
 
 import {
@@ -120,6 +122,11 @@ describe("Metered Fee Payment Contract", () => {
       },
     );
     expect(balance).toBeGreaterThan(0n);
+
+    // Advance time past the CONFIG_DELAY so the ECDSA public key becomes available
+    await advanceTime(METERED_CONFIG_DELAY + 1, async () => {
+      await deployCounter(wallet);
+    });
 
     chainId = await aztecNode.getChainId();
     paymentMethod = new MeteredFeePaymentMethod(fpc.address);
@@ -253,6 +260,11 @@ describe("Metered Fee Payment Contract", () => {
           loggerName: "test:metered-fresh",
         },
       );
+
+      // Advance time past the CONFIG_DELAY so the ECDSA public key becomes available
+      await advanceTime(METERED_CONFIG_DELAY + 1, async () => {
+        await deployCounter(wallet);
+      });
 
       const freshPaymentMethod = new MeteredFeePaymentMethod(freshFpc.address);
 

@@ -23,7 +23,7 @@ pub contract Metered {
     use dep::balance_set::BalanceSet;
     use dep::uint_note::uint_note::{PartialUintNote, UintNote};
 
-    global CONFIG_DELAY: u64 = 172800; // 2 days = 60 * 60 * 24 * 2
+    global CONFIG_DELAY: u64 = 30; // 1 hour
 
     #[storage]
     struct Storage<Context> {
