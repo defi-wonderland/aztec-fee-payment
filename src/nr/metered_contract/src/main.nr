@@ -34,13 +34,6 @@ pub contract Metered {
         ecdsa_public_key: PublicImmutable<EcdsaPublicKey, Context>,
     }
 
-    #[external("public")]
-    #[initializer]
-    fn constructor(ecdsa_public_key_x: [u8; 32], ecdsa_public_key_y: [u8; 32]) {
-        let key = EcdsaPublicKey { x: ecdsa_public_key_x, y: ecdsa_public_key_y };
-        self.storage.ecdsa_public_key.initialize(key);
-    }
-
     /// Initializes the Metered FPC contract.
     /// @param owner The address of the account contract that authorizes mints
     #[external("public")]
