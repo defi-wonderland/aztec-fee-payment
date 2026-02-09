@@ -1,6 +1,6 @@
 # Fee Payment Contract (FPC) — Product Requirements Document
 
-**Version**: 3.1
+**Version**: 3.2
 **Status**: Active
 **Current Phase**: Phase 2 (Authorized Mint with Authwit)
 **Target Aztec Version**: 3.0.0-devnet.6-patch.1
@@ -436,7 +436,7 @@ Response (Success - 200):
   "amount": "1000000000000000000",    # Total AZT amount (from txHash)
   "secret": "0x789abc...",            # sign(txHash, spKey).r % Fr.MODULUS (deterministic ECDSA)
   "authwit": {                        # Owner's authwit for mint(amount, secret)
-    "innerHash": "0x...",             # H(fpcAddress, selector, amount, secret)
+    "innerHash": "0x...",             # H(amount, secret)
     "outerHash": "0x...",             # H(consumer, chainId, version, innerHash)
     "witness": ["0x...", "0x..."]     # Schnorr signature fields
   }
@@ -502,7 +502,7 @@ HANDLE_AUTHWIT_REQUEST(evmTxHash, evmChainId, signature):
 | **Privacy-preserving** | SP never learns user's Aztec address |
 | **Stateless SP** | No database, horizontally scalable, crash-resilient |
 | **Deterministic** | Same txHash always produces same response |
-| **Custom authwit** | No caller binding allows any address to claim |
+| **Custom authwit** | Inner hash uses only `(amount, secret)` allows any address to claim |
 | **Replay prevention** | Authwit is pushed as nullifier after use on Aztec |
 
 ### Security Considerations (Phase 2)
@@ -511,7 +511,7 @@ HANDLE_AUTHWIT_REQUEST(evmTxHash, evmChainId, signature):
 2. **Recipient privacy**: `caller` is NOT in the authwit—tokens mint to `msg_sender`. SP never learns Aztec address.
 3. **Secret determinism**: `secret = sign(txHash, spKey).r % Fr.MODULUS` (deterministic ECDSA via RFC 6979, `r` component reduced mod BN254 Fr). Same txHash = same secret = same authwit.
 4. **Replay prevention**: The authwit itself is pushed as a nullifier after use. Same authwit cannot mint twice.
-5. **Custom authwit**: Modified authwit skips caller in inner_hash. Allows any address to claim.
+5. **Custom authwit**: Modified authwit inner_hash uses only `(amount, secret)` — no caller, fpcAddress, or selector. Allows any address to claim.
 6. **No revocation**: Once authwit is generated, it's valid until secret is used. Stateless means no revocation possible.
 7. **EIP-712 verification**: SP verifies signature recovers to txHash sender. Proves ownership of payment.
 8. **Stateless availability**: SP has no database. User can retry infinitely—deterministic response.
@@ -572,3 +572,4 @@ To avoid changing the FPC contract, Phase 1 can assume all ERC20 transfers come 
 | 2.0 | February 2026 | Updated to reflect Phase 1 implementation: permissionless `mint(account, amount)`, removed owner/initialization, documented `pay_fee_exact()` and `_refund()`, added SDK requirements, moved authwit system to Future Phase 2 section, updated test matrix to match actual tests, added AZT-only token acceptance |
 | 3.0 | February 2026 | Updated to Phase 2 as current target: `mint(amount, secret)` with authwit, aligned PRD with Agent Spec implementation, updated EVM payment flow to stateless authwit API, added agent configuration requirements (`FPC_ADDRESS`, `OWNER_ADDRESS`), marked agent-side items as Implemented and contract-side items as Planned |
 | 3.1 | February 2026 | Simplified secret generation: replaced `txHash % Fr.MODULUS` with deterministic ECDSA (RFC 6979) signing of txHash, extracting `r` component mod BN254 Fr. Removed domain separator and chainId from secret derivation. Updated API response shape to match implementation (`secret` field, structured `authwit` object with `innerHash`/`outerHash`/`witness`). Added `INVALID_AMOUNT` and `INVALID_CHAIN` error codes. |
+| 3.2 | February 2026 | Simplified inner_hash: removed `fpcAddress` and `selector` from inner_hash computation. Inner hash is now `H(amount, secret)` instead of `H(fpcAddress, selector, amount, secret)`. Custom authwit no longer binds to a specific FPC address or function selector. |

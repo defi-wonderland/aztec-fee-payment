@@ -1,7 +1,6 @@
 import { Fr } from "@aztec/foundation/curves/bn254";
 import { GrumpkinScalar } from "@aztec/foundation/curves/grumpkin";
 import { Schnorr } from "@aztec/foundation/crypto/schnorr";
-import { FunctionSelector } from "@aztec/stdlib/abi";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import {
   computeInnerAuthWitHash,
@@ -48,17 +47,8 @@ export class AuthwitGenerator {
     const amountFr = new Fr(amount);
     const secretFr = new Fr(BigInt(secretHex));
 
-    // Get selector for mint(Field, Field)
-    const selector = await FunctionSelector.fromSignature("mint(Field,Field)");
-    const selectorFr = selector.toField();
-
-    // Compute inner_hash = H(fpcAddress, selector, amount, secret)
-    const innerHash = await computeInnerAuthWitHash([
-      this.fpcAddress.toField(),
-      selectorFr,
-      amountFr,
-      secretFr,
-    ]);
+    // Compute inner_hash = H(amount, secret)
+    const innerHash = await computeInnerAuthWitHash([amountFr, secretFr]);
 
     // Compute outer_hash = H(consumer, chainId, version, inner_hash)
     const outerHash = await computeOuterAuthWitHash(

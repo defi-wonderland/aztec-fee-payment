@@ -57,16 +57,6 @@ describe("AuthwitGenerator", () => {
     expect(a1.innerHash).not.toBe(a2.innerHash);
   });
 
-  it("produces different innerHash for different fpcAddresses", async () => {
-    const gen2 = makeGenerator({
-      fpcAddress:
-        "0x0000000000000000000000000000000000000000000000000000000000000099",
-    });
-    const a1 = await generator.generateMintAuthwit(100n, SECRET);
-    const a2 = await gen2.generateMintAuthwit(100n, SECRET);
-    expect(a1.innerHash).not.toBe(a2.innerHash);
-  });
-
   it("produces different outerHash for different chainIds", async () => {
     const gen1 = makeGenerator({ chainId: 0n });
     const gen2 = makeGenerator({ chainId: 1n });
