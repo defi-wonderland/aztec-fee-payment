@@ -184,7 +184,6 @@ pub contract Metered {
     /// @notice Verifies authorization via the owner's account contract.
     /// Computes an inner hash from secret and amount, then delegates verification
     /// to the owner's account contract via verify_private_authwit.
-    /// The inner hash is nullified to prevent replay.
     /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
     /// @param amount The amount value
     #[internal("private")]
@@ -194,9 +193,6 @@ pub contract Metered {
         // Delegate signature verification to the owner's account contract
         let owner = self.storage.owner.read();
         assert_inner_hash_valid_authwit(self.context, owner, inner_hash);
-
-        // Nullify the inner hash to prevent replay attacks
-        self.context.push_nullifier(inner_hash);
     }
 
     /// Returns the internal balance of an account.
