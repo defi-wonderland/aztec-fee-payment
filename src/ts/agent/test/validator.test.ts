@@ -1,69 +1,71 @@
 import { describe, it, expect, vi } from "vitest";
 import type { Address } from "viem";
 import { validateTransaction } from "../services/evm/validator.js";
+import { AppError } from "../errors.js";
 import {
   FEE_COLLECTOR,
   AZT_TOKEN,
   USER,
-  TX_HASH,
   makeTransferLog,
   createMockClient,
   validatorOpts,
 } from "./helpers.js";
 
-function receiptWith(logs: ReturnType<typeof makeTransferLog>[]) {
-  return { status: "success", blockNumber: 100n, logs };
+function receiptWith(
+  logs: ReturnType<typeof makeTransferLog>[],
+  from: Address = USER,
+) {
+  return { status: "success", blockNumber: 100n, from, logs };
 }
 
 describe("Transaction Validator", () => {
   it("validates a legitimate transaction", async () => {
     const result = await validateTransaction(validatorOpts(createMockClient()));
-    expect(result.valid).toBe(true);
-    if (result.valid) {
-      expect(result.amount).toBe(1000000000000000000n);
-      expect(result.from.toLowerCase()).toBe(USER.toLowerCase());
-    }
+    expect(result.amount).toBe(1000000000000000000n);
+    expect(result.from.toLowerCase()).toBe(USER.toLowerCase());
   });
 
-  it("returns TX_NOT_FOUND when transaction is missing", async () => {
-    const client = createMockClient({
-      getTransaction: vi.fn().mockResolvedValue(null),
-    });
-    const result = await validateTransaction(validatorOpts(client));
-    expect(result.valid).toBe(false);
-    if (!result.valid) expect(result.error).toBe("TX_NOT_FOUND");
-  });
-
-  it("returns TX_NOT_FOUND when receipt is missing", async () => {
+  it("throws TX_NOT_FOUND when receipt is missing", async () => {
     const client = createMockClient({
       getTransactionReceipt: vi.fn().mockResolvedValue(null),
     });
-    const result = await validateTransaction(validatorOpts(client));
-    expect(result.valid).toBe(false);
-    if (!result.valid) expect(result.error).toBe("TX_NOT_FOUND");
+    await expect(validateTransaction(validatorOpts(client))).rejects.toThrow(
+      AppError,
+    );
+    await expect(
+      validateTransaction(validatorOpts(client)),
+    ).rejects.toMatchObject({ code: "TX_NOT_FOUND" });
   });
 
-  it("returns TX_NOT_FOUND when transaction failed", async () => {
+  it("throws TX_NOT_FOUND when transaction failed", async () => {
     const client = createMockClient({
       getTransactionReceipt: vi
         .fn()
         .mockResolvedValue({ status: "reverted", blockNumber: 100n, logs: [] }),
     });
-    const result = await validateTransaction(validatorOpts(client));
-    expect(result.valid).toBe(false);
-    if (!result.valid) expect(result.error).toBe("TX_NOT_FOUND");
+    await expect(validateTransaction(validatorOpts(client))).rejects.toThrow(
+      AppError,
+    );
+    await expect(
+      validateTransaction(validatorOpts(client)),
+    ).rejects.toMatchObject({ code: "TX_NOT_FOUND" });
   });
 
-  it("returns TX_NOT_FINALIZED when not enough confirmations", async () => {
+  it("throws TX_NOT_FINALIZED when not enough confirmations", async () => {
     const client = createMockClient({
       getBlockNumber: vi.fn().mockResolvedValue(103n),
     });
-    const result = await validateTransaction(validatorOpts(client));
-    expect(result.valid).toBe(false);
-    if (!result.valid) {
-      expect(result.error).toBe("TX_NOT_FINALIZED");
-      expect(result.details?.confirmations).toBe(3);
-      expect(result.details?.required).toBe(6);
+    await expect(validateTransaction(validatorOpts(client))).rejects.toThrow(
+      AppError,
+    );
+    try {
+      await validateTransaction(validatorOpts(client));
+    } catch (err) {
+      expect(err).toBeInstanceOf(AppError);
+      const appErr = err as AppError;
+      expect(appErr.code).toBe("TX_NOT_FINALIZED");
+      expect(appErr.details?.confirmations).toBe(3);
+      expect(appErr.details?.required).toBe(6);
     }
   });
 
@@ -73,7 +75,7 @@ describe("Transaction Validator", () => {
       getBlockNumber: vi.fn().mockResolvedValue(106n),
     });
     const result = await validateTransaction(validatorOpts(client));
-    expect(result.valid).toBe(true);
+    expect(result.amount).toBeDefined();
   });
 
   it("fails when confirmations are one less than required", async () => {
@@ -81,9 +83,9 @@ describe("Transaction Validator", () => {
     const client = createMockClient({
       getBlockNumber: vi.fn().mockResolvedValue(105n),
     });
-    const result = await validateTransaction(validatorOpts(client));
-    expect(result.valid).toBe(false);
-    if (!result.valid) expect(result.error).toBe("TX_NOT_FINALIZED");
+    await expect(
+      validateTransaction(validatorOpts(client)),
+    ).rejects.toMatchObject({ code: "TX_NOT_FINALIZED" });
   });
 
   it("does not call getBlockNumber if receipt is null", async () => {
@@ -92,21 +94,11 @@ describe("Transaction Validator", () => {
       getTransactionReceipt: vi.fn().mockResolvedValue(null),
       getBlockNumber,
     });
-    await validateTransaction(validatorOpts(client));
+    await expect(validateTransaction(validatorOpts(client))).rejects.toThrow();
     expect(getBlockNumber).not.toHaveBeenCalled();
   });
 
-  it("does not call getTransactionReceipt if transaction is null", async () => {
-    const getTransactionReceipt = vi.fn();
-    const client = createMockClient({
-      getTransaction: vi.fn().mockResolvedValue(null),
-      getTransactionReceipt,
-    });
-    await validateTransaction(validatorOpts(client));
-    expect(getTransactionReceipt).not.toHaveBeenCalled();
-  });
-
-  it("returns WRONG_RECIPIENT when no matching transfers", async () => {
+  it("throws WRONG_RECIPIENT when no matching transfers", async () => {
     const wrongToken = "0x9999999999999999999999999999999999999999" as Address;
     const client = createMockClient({
       getTransactionReceipt: vi
@@ -117,9 +109,9 @@ describe("Transaction Validator", () => {
           ]),
         ),
     });
-    const result = await validateTransaction(validatorOpts(client));
-    expect(result.valid).toBe(false);
-    if (!result.valid) expect(result.error).toBe("WRONG_RECIPIENT");
+    await expect(
+      validateTransaction(validatorOpts(client)),
+    ).rejects.toMatchObject({ code: "WRONG_RECIPIENT" });
   });
 
   it("sums multiple matching transfers", async () => {
@@ -134,11 +126,10 @@ describe("Transaction Validator", () => {
         ),
     });
     const result = await validateTransaction(validatorOpts(client));
-    expect(result.valid).toBe(true);
-    if (result.valid) expect(result.amount).toBe(800n);
+    expect(result.amount).toBe(800n);
   });
 
-  it("returns INVALID_AMOUNT when transfer amount is zero", async () => {
+  it("throws INVALID_AMOUNT when transfer amount is zero", async () => {
     const client = createMockClient({
       getTransactionReceipt: vi
         .fn()
@@ -146,12 +137,12 @@ describe("Transaction Validator", () => {
           receiptWith([makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 0n)]),
         ),
     });
-    const result = await validateTransaction(validatorOpts(client));
-    expect(result.valid).toBe(false);
-    if (!result.valid) expect(result.error).toBe("INVALID_AMOUNT");
+    await expect(
+      validateTransaction(validatorOpts(client)),
+    ).rejects.toMatchObject({ code: "INVALID_AMOUNT" });
   });
 
-  it("returns INVALID_AMOUNT when amount is below configured minimum", async () => {
+  it("throws INVALID_AMOUNT when amount is below configured minimum", async () => {
     const client = createMockClient({
       getTransactionReceipt: vi
         .fn()
@@ -159,14 +150,15 @@ describe("Transaction Validator", () => {
           receiptWith([makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 500n)]),
         ),
     });
-    const result = await validateTransaction(
-      validatorOpts(client, { minAmount: 1000n }),
-    );
-    expect(result.valid).toBe(false);
-    if (!result.valid) {
-      expect(result.error).toBe("INVALID_AMOUNT");
-      expect(result.details?.amount).toBe("500");
-      expect(result.details?.minAmount).toBe("1000");
+    try {
+      await validateTransaction(validatorOpts(client, { minAmount: 1000n }));
+      expect.unreachable("Should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(AppError);
+      const appErr = err as AppError;
+      expect(appErr.code).toBe("INVALID_AMOUNT");
+      expect(appErr.details?.amount).toBe("500");
+      expect(appErr.details?.minAmount).toBe("1000");
     }
   });
 
@@ -181,7 +173,6 @@ describe("Transaction Validator", () => {
     const result = await validateTransaction(
       validatorOpts(client, { minAmount: 1000n }),
     );
-    expect(result.valid).toBe(true);
-    if (result.valid) expect(result.amount).toBe(1000n);
+    expect(result.amount).toBe(1000n);
   });
 });

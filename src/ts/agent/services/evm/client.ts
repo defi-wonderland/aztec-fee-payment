@@ -4,7 +4,6 @@ import {
   type PublicClient,
   type Chain,
   type Hex,
-  type Transaction,
   type TransactionReceipt,
 } from "viem";
 import type { ChainConfig } from "../../types/index.js";
@@ -12,7 +11,6 @@ import type { Logger } from "../../middleware/logger.js";
 
 export interface EVMClient {
   chainId: number;
-  getTransaction(txHash: Hex): Promise<Transaction | null>;
   getTransactionReceipt(txHash: Hex): Promise<TransactionReceipt | null>;
   getBlockNumber(): Promise<bigint>;
 }
@@ -46,15 +44,6 @@ function createEVMClient(
 
   return {
     chainId,
-
-    async getTransaction(txHash: Hex): Promise<Transaction | null> {
-      try {
-        return await client.getTransaction({ hash: txHash });
-      } catch (err) {
-        logger.warn({ err, chainId, txHash }, "Failed to fetch transaction");
-        return null;
-      }
-    },
 
     async getTransactionReceipt(
       txHash: Hex,

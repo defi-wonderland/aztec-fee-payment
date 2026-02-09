@@ -14,17 +14,10 @@ export {
 } from "./middleware/index.js";
 export {
   AppError,
-  InvalidInputError,
-  InvalidSignatureError,
-  InvalidAmountError,
-  InvalidChainError,
-  TxNotFinalizedError,
-  WrongRecipientError,
-  NotFoundError,
-  TxNotFoundError,
-  RateLimitedError,
-  InternalError,
-  fromErrorCode,
+  invalidInput,
+  notFound,
+  rateLimited,
+  internal,
 } from "./errors.js";
 export { MultiChainEVMClient } from "./services/evm/index.js";
 export {

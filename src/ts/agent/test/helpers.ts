@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { Address, Hex, Transaction, TransactionReceipt, Log } from "viem";
+import type { Address, Hex, TransactionReceipt, Log } from "viem";
 import { encodeEventTopics, encodeAbiParameters } from "viem";
 import type { AgentConfig } from "../types/index.js";
 import type { EVMClient } from "../services/evm/client.js";
@@ -76,14 +76,10 @@ export function createMockClient(
 ): EVMClient {
   return {
     chainId: CHAIN_ID,
-    getTransaction: vi.fn().mockResolvedValue({
-      hash: TX_HASH,
-      from: USER,
-      blockNumber: 100n,
-    } as unknown as Transaction),
     getTransactionReceipt: vi.fn().mockResolvedValue({
       status: "success",
       blockNumber: 100n,
+      from: USER,
       logs: [
         makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 1000000000000000000n),
       ],

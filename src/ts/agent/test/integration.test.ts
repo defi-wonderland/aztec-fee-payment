@@ -19,7 +19,6 @@ const userAccount = privateKeyToAccount(OTHER_KEY);
 // Mock the EVM validator at service level (not viem itself)
 vi.mock("../services/evm/validator.js", () => ({
   validateTransaction: vi.fn().mockResolvedValue({
-    valid: true,
     amount: 1000000000000000000n,
     from: userAccount.address,
   }),

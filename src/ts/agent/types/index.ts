@@ -14,13 +14,7 @@ export type ErrorCode =
   | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
-// ── Request / Response ───────────────────────────────────────────────────────
-
-export interface AuthwitRequestBody {
-  evmTxHash: Hex;
-  evmChainId: number;
-  signature: Hex;
-}
+// ── Response types (no corresponding Zod schema) ────────────────────────────
 
 export interface AuthwitResponse {
   amount: string;
@@ -38,39 +32,6 @@ export interface ErrorResponse {
   details?: Record<string, unknown>;
 }
 
-// ── Configuration ────────────────────────────────────────────────────────────
-
-export interface ChainConfig {
-  name: string;
-  rpcUrl: string;
-  feeCollectorAddress: Address;
-  aztTokenAddress: Address;
-  requiredConfirmations: number;
-}
-
-export interface AgentConfig {
-  port: number;
-  host: string;
-  logLevel: "debug" | "info" | "warn" | "error";
-
-  chains: Record<number, ChainConfig>;
-
-  spSigningKey: Hex;
-
-  /** Minimum accepted transfer amount in wei. Defaults to 1. */
-  minAmount: bigint;
-
-  rateLimit: {
-    windowMs: number;
-    maxRequests: number;
-  };
-
-  aztec: {
-    fpcAddress: string;
-    ownerAddress: string;
-  };
-}
-
 // ── Zod Schemas ──────────────────────────────────────────────────────────────
 
 const hexPattern = /^0x[0-9a-fA-F]+$/;
@@ -78,12 +39,18 @@ const hexPattern = /^0x[0-9a-fA-F]+$/;
 /** 0x-prefixed 32-byte hex (66 chars) */
 const bytes32Hex = z
   .string()
-  .regex(/^0x[0-9a-fA-F]{64}$/, "Must be 0x-prefixed 32-byte hex");
+  .regex(
+    /^0x[0-9a-fA-F]{64}$/,
+    "Must be 0x-prefixed 32-byte hex",
+  ) as z.ZodType<Hex>;
 
 /** 0x-prefixed 65-byte hex (132 chars) */
 const signatureHex = z
   .string()
-  .regex(/^0x[0-9a-fA-F]{130}$/, "Must be 0x-prefixed 65-byte hex");
+  .regex(
+    /^0x[0-9a-fA-F]{130}$/,
+    "Must be 0x-prefixed 65-byte hex",
+  ) as z.ZodType<Hex>;
 
 export const authwitRequestSchema = z.object({
   evmTxHash: bytes32Hex,
@@ -92,7 +59,12 @@ export const authwitRequestSchema = z.object({
 });
 
 /** 0x-prefixed hex of any length (for keys, addresses) */
-const hexString = z.string().regex(hexPattern, "Must be 0x-prefixed hex");
+const hexAddress = z
+  .string()
+  .regex(hexPattern, "Must be 0x-prefixed hex") as z.ZodType<Address>;
+const hexKey = z
+  .string()
+  .regex(hexPattern, "Must be 0x-prefixed hex") as z.ZodType<Hex>;
 
 export const configSchema = z.object({
   port: z.number().int().min(1).max(65535).default(3000),
@@ -105,8 +77,8 @@ export const configSchema = z.object({
       z.object({
         name: z.string().min(1),
         rpcUrl: z.string().url(),
-        feeCollectorAddress: hexString,
-        aztTokenAddress: hexString,
+        feeCollectorAddress: hexAddress,
+        aztTokenAddress: hexAddress,
         requiredConfirmations: z.number().int().min(0).default(1),
       }),
     )
@@ -114,7 +86,7 @@ export const configSchema = z.object({
       message: "At least one chain must be configured",
     }),
 
-  spSigningKey: hexString,
+  spSigningKey: hexKey,
 
   minAmount: z.bigint().min(0n).default(1n),
 
@@ -126,7 +98,13 @@ export const configSchema = z.object({
     .default({}),
 
   aztec: z.object({
-    fpcAddress: hexString,
-    ownerAddress: hexString,
+    fpcAddress: z.string().min(1),
+    ownerAddress: z.string().min(1),
   }),
 });
+
+// ── Derived types from Zod schemas ──────────────────────────────────────────
+
+export type AuthwitRequestBody = z.infer<typeof authwitRequestSchema>;
+export type ChainConfig = z.infer<typeof configSchema>["chains"][number];
+export type AgentConfig = z.infer<typeof configSchema>;
