@@ -6,38 +6,31 @@ use dep::aztec::macros::aztec;
 #[aztec]
 pub contract Metered {
     use dep::aztec::{
-        authwit::auth::compute_inner_authwit_hash,
+        authwit::auth::{assert_inner_hash_valid_authwit, compute_inner_authwit_hash},
         context::PrivateContext,
-        macros::{functions::{external, internal, nophasecheck, only_self}, storage::storage},
+        macros::{
+            functions::{external, initializer, internal, nophasecheck, only_self},
+            storage::storage,
+        },
         messages::message_delivery::MessageDelivery,
-        oracle::auth_witness::get_auth_witness,
-        protocol_types::{address::AztecAddress, hash::poseidon2_hash, traits::{FromField, ToField}},
-        state_vars::{Owned, state_variable::StateVariable},
+        protocol_types::{address::AztecAddress, traits::{FromField, ToField}},
+        state_vars::{Owned, PublicImmutable, state_variable::StateVariable},
     };
     use dep::balance_set::BalanceSet;
     use dep::uint_note::uint_note::{PartialUintNote, UintNote};
 
-    // ============================================================================
-    // TEST KEYS - For benchmarking/testing only
-    // These must match the private keys used in benchmarks/signature.benchmark.ts
-    // ============================================================================
-
-    // ECDSA key pair (secp256k1) - derived from private key = 1
-    // This is the generator point G of secp256k1
-    global ECDSA_PUBLIC_KEY_X: [u8; 32] = [
-        0x79, 0xBE, 0x66, 0x7E, 0xF9, 0xDC, 0xBB, 0xAC, 0x55, 0xA0, 0x62, 0x95, 0xCE, 0x87, 0x0B,
-        0x07, 0x02, 0x9B, 0xFC, 0xDB, 0x2D, 0xCE, 0x28, 0xD9, 0x59, 0xF2, 0x81, 0x5B, 0x16, 0xF8,
-        0x17, 0x98,
-    ];
-    global ECDSA_PUBLIC_KEY_Y: [u8; 32] = [
-        0x48, 0x3A, 0xDA, 0x77, 0x26, 0xA3, 0xC4, 0x65, 0x5D, 0xA4, 0xFB, 0xFC, 0x0E, 0x11, 0x08,
-        0xA8, 0xFD, 0x17, 0xB4, 0x48, 0xA6, 0x85, 0x54, 0x19, 0x9C, 0x47, 0xD0, 0x8F, 0xFB, 0x10,
-        0xD4, 0xB8,
-    ];
-
     #[storage]
     struct Storage<Context> {
+        owner: PublicImmutable<AztecAddress, Context>,
         balances: Owned<BalanceSet<Context>, Context>,
+    }
+
+    /// Initializes the Metered FPC contract.
+    /// @param owner The address of the account contract that authorizes mints
+    #[external("public")]
+    #[initializer]
+    fn constructor(owner: AztecAddress) {
+        self.storage.owner.initialize(owner);
     }
 
     /// Sponsors the transaction by deducting max gas cost from sender's balance.
@@ -106,15 +99,15 @@ pub contract Metered {
     }
 
     /// Mints tokens and pays fee in a single transaction.
-    /// Verifies ECDSA signature, mints the specified amount, then deducts max gas cost.
-    /// The minted amount must be >= max_gas_cost.
+    /// Verifies authorization via the owner's account contract, mints the specified amount,
+    /// then deducts max gas cost. The minted amount must be >= max_gas_cost.
     /// @param account The address to mint tokens to
     /// @param amount The amount to mint
-    /// @param mint_id Unique identifier for this mint operation to enforce uniqueness
+    /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
     #[external("private")]
     #[nophasecheck]
-    fn mint_and_pay_fee(account: AztecAddress, amount: u128, mint_id: Field) {
-        self.internal._verify_ecdsa_signature(mint_id, amount);
+    fn mint_and_pay_fee(account: AztecAddress, amount: u128, secret: Field) {
+        self.internal._verify_authwit(secret, amount);
 
         // Calculate the max gas cost from transaction settings.
         let max_gas_cost = get_max_gas_cost(self.context);
@@ -130,17 +123,18 @@ pub contract Metered {
     }
 
     /// Mints tokens and pays fee, with fallback to existing balance.
-    /// Verifies ECDSA signature, mints the specified amount, then deducts max gas cost.
+    /// Verifies authorization via the owner's account contract, mints the specified amount,
+    /// then deducts max gas cost.
     /// If minted amount >= max_gas_cost, no existing balance is needed.
     /// If minted amount < max_gas_cost, the difference is deducted from existing balance.
     /// @param account The address to mint tokens to
     /// @param amount The amount to mint
-    /// @param mint_id Unique identifier for this mint operation to enforce uniqueness
+    /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
     #[external("private")]
     #[nophasecheck]
-    fn mint_and_pay_fee_with_balance(account: AztecAddress, amount: u128, mint_id: Field) {
-        // Verify the signature authorizing this mint
-        self.internal._verify_ecdsa_signature(mint_id, amount);
+    fn mint_and_pay_fee_with_balance(account: AztecAddress, amount: u128, secret: Field) {
+        // Verify authorization via the owner's account contract
+        self.internal._verify_authwit(secret, amount);
 
         let balance_set = self.storage.balances.at(account);
 
@@ -168,13 +162,13 @@ pub contract Metered {
     }
 
     /// Mints internal balance to an account.
-    /// Requires ECDSA signature verification.
+    /// Requires authorization via the owner's account contract.
     /// @param account The address to mint tokens to
     /// @param amount The amount to mint
-    /// @param mint_id Unique identifier for this mint operation to enforce uniqueness
+    /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
     #[external("private")]
-    fn mint(account: AztecAddress, amount: u128, mint_id: Field) {
-        self.internal._verify_ecdsa_signature(mint_id, amount);
+    fn mint(account: AztecAddress, amount: u128, secret: Field) {
+        self.internal._verify_authwit(secret, amount);
         self.storage.balances.at(account).add(amount).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
     }
 
@@ -187,41 +181,22 @@ pub contract Metered {
         partial_note.complete(self.context, self.address, refund_amount);
     }
 
-    /// @notice Verify ECDSA signature fetched via auth_witness oracle.
-    /// The signature is retrieved using message_hash as the lookup key.
-    /// The signature itself is nullified (via Poseidon2 hash) to prevent replay.
-    /// @param mint_id Unique identifier for this mint operation to enforce uniqueness
+    /// @notice Verifies authorization via the owner's account contract.
+    /// Computes an inner hash from secret and amount, then delegates verification
+    /// to the owner's account contract via verify_private_authwit.
+    /// The inner hash is nullified to prevent replay.
+    /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
     /// @param amount The amount value
     #[internal("private")]
-    fn _verify_ecdsa_signature(mint_id: Field, amount: u128) {
-        let message_hash = compute_inner_authwit_hash([
-            mint_id,
-            amount as Field,
-            self.address.to_field(),
-            self.context.chain_id(),
-            self.context.version(),
-        ]);
+    fn _verify_authwit(secret: Field, amount: u128) {
+        let inner_hash = compute_inner_authwit_hash([secret, amount as Field]);
 
-        // Fetch signature from auth witness oracle using message_hash as key
-        let witness: [Field; 64] = unsafe { get_auth_witness(message_hash) };
-        // Nullify the signature to prevent replay attacks
-        self.context.push_nullifier(poseidon2_hash(witness));
+        // Delegate signature verification to the owner's account contract
+        let owner = self.storage.owner.read();
+        assert_inner_hash_valid_authwit(self.context, owner, inner_hash);
 
-        let mut signature: [u8; 64] = [0; 64];
-        for i in 0..64 {
-            signature[i] = witness[i] as u8;
-        }
-
-        // Verify signature of the payload bytes
-        let message_hash_bytes: [u8; 32] = message_hash.to_be_bytes();
-        let hashed_message: [u8; 32] = sha256::digest(message_hash_bytes);
-        let is_valid_signature: bool = std::ecdsa_secp256k1::verify_signature(
-            ECDSA_PUBLIC_KEY_X,
-            ECDSA_PUBLIC_KEY_Y,
-            signature,
-            hashed_message,
-        );
-        assert(is_valid_signature, "Message not authorized by account");
+        // Nullify the inner hash to prevent replay attacks
+        self.context.push_nullifier(inner_hash);
     }
 
     /// Returns the internal balance of an account.

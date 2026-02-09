@@ -48,8 +48,8 @@ describe("Metered Fee Payment Contract", () => {
     // Deploy counter for testing
     counter = await deployCounter(wallet);
 
-    // Deploy and fund the Metered FPC
-    fpc = await deployMeteredContract(wallet);
+    // Deploy and fund the Metered FPC (alice is the owner who authorizes mints)
+    fpc = await deployMeteredContract(wallet, alice);
     const { balance } = await fundL2AddressWithFeeJuiceFromL1(
       aztecNode,
       wallet,
@@ -164,7 +164,7 @@ describe("Metered Fee Payment Contract", () => {
         await getGasSetup(aztecNode);
 
       // Create a fresh FPC without minting internal balance
-      const freshFpc = await deployMeteredContract(wallet);
+      const freshFpc = await deployMeteredContract(wallet, alice);
       await fundL2AddressWithFeeJuiceFromL1(
         aztecNode,
         wallet,
