@@ -100,7 +100,7 @@ export class MeteredMintAndPayFeePaymentMethod implements FeePaymentMethod {
     private readonly fpcAddress: AztecAddress,
     private readonly account: AztecAddress,
     private readonly amount: bigint,
-    private readonly secret: Fr,
+    private readonly mintId: Fr,
     private readonly authWitness: AuthWitness,
   ) {}
 
@@ -124,7 +124,7 @@ export class MeteredMintAndPayFeePaymentMethod implements FeePaymentMethod {
           type: FunctionType.PRIVATE,
           hideMsgSender: false,
           isStatic: false,
-          args: [this.account.toField(), new Fr(this.amount), this.secret],
+          args: [this.account.toField(), new Fr(this.amount), this.mintId],
           returnTypes: [],
         },
       ],
@@ -151,7 +151,7 @@ export class MeteredMintAndPayFeeWithBalancePaymentMethod implements FeePaymentM
     private readonly fpcAddress: AztecAddress,
     private readonly account: AztecAddress,
     private readonly amount: bigint,
-    private readonly secret: Fr,
+    private readonly mintId: Fr,
     private readonly authWitness: AuthWitness,
   ) {}
 
@@ -175,7 +175,7 @@ export class MeteredMintAndPayFeeWithBalancePaymentMethod implements FeePaymentM
           type: FunctionType.PRIVATE,
           hideMsgSender: false,
           isStatic: false,
-          args: [this.account.toField(), new Fr(this.amount), this.secret],
+          args: [this.account.toField(), new Fr(this.amount), this.mintId],
           returnTypes: [],
         },
       ],
@@ -201,7 +201,7 @@ export class MeteredMintThenPayFeePaymentMethod implements FeePaymentMethod {
     private readonly fpcAddress: AztecAddress,
     private readonly account: AztecAddress,
     private readonly amount: bigint,
-    private readonly secret: Fr,
+    private readonly mintId: Fr,
     private readonly authWitness: AuthWitness,
   ) {}
 
@@ -225,7 +225,7 @@ export class MeteredMintThenPayFeePaymentMethod implements FeePaymentMethod {
           type: FunctionType.PRIVATE,
           hideMsgSender: false,
           isStatic: false,
-          args: [this.account.toField(), new Fr(this.amount), this.secret],
+          args: [this.account.toField(), new Fr(this.amount), this.mintId],
           returnTypes: [],
         },
         {

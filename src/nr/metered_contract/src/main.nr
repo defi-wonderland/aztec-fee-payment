@@ -206,7 +206,7 @@ pub contract Metered {
         let witness: [Field; 64] = unsafe { get_auth_witness(message_hash) };
         // Nullify the signature to prevent replay attacks
         self.context.push_nullifier(poseidon2_hash(witness));
-        
+
         let mut signature: [u8; 64] = [0; 64];
         for i in 0..64 {
             signature[i] = witness[i] as u8;
@@ -222,7 +222,6 @@ pub contract Metered {
             hashed_message,
         );
         assert(is_valid_signature, "Message not authorized by account");
-
     }
 
     /// Returns the internal balance of an account.

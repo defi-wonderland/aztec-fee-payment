@@ -66,14 +66,14 @@ function signEcdsa(messageBytes: Uint8Array, privateKey: bigint): Uint8Array {
  * Creates an AuthWitness for ECDSA signature verification.
  */
 async function createEcdsaAuthWitness(
-  secret: Fr,
+  mintId: Fr,
   amount: bigint,
   contractAddress: AztecAddress,
   chainId: number,
   version: number,
 ): Promise<AuthWitness> {
   const messageHash = await computeInnerAuthWitHash([
-    secret,
+    mintId,
     new Fr(amount),
     contractAddress.toField(),
     new Fr(chainId),
@@ -214,9 +214,9 @@ export default class CounterContractBenchmark extends Benchmark {
     // These methods require existing balance in the contract
     // =========================================================================
     const preMintAmount = 10_000_000_000_000_000_000n;
-    const preMintSecret = Fr.random();
+    const preMintMintId = Fr.random();
     const preMintAuthWitness = await createEcdsaAuthWitness(
-      preMintSecret,
+      preMintMintId,
       preMintAmount,
       meteredFpc.address,
       chainId,
@@ -224,7 +224,7 @@ export default class CounterContractBenchmark extends Benchmark {
     );
 
     await meteredFpc.methods
-      .mint(deployer, preMintAmount, preMintSecret)
+      .mint(deployer, preMintAmount, preMintMintId)
       .with({ authWitnesses: [preMintAuthWitness] })
       .send({ from: deployer })
       .wait();
@@ -243,9 +243,9 @@ export default class CounterContractBenchmark extends Benchmark {
     const mintAmount = 1_000_000_000_000_000n;
 
     // MintAndPayFee - mints to account and pays fee (simple, no existing notes consumed)
-    const mintAndPayFeeSecret = Fr.random();
+    const mintAndPayFeeMintId = Fr.random();
     const mintAndPayFeeAuthWitness = await createEcdsaAuthWitness(
-      mintAndPayFeeSecret,
+      mintAndPayFeeMintId,
       mintAmount,
       meteredFpc.address,
       chainId,
@@ -255,14 +255,14 @@ export default class CounterContractBenchmark extends Benchmark {
       meteredFpc.address,
       deployer,
       mintAmount,
-      mintAndPayFeeSecret,
+      mintAndPayFeeMintId,
       mintAndPayFeeAuthWitness,
     );
 
     // MintAndPayFeeWithBalance (single note) - mints enough to cover gas, no existing notes needed
-    const mintAndPayFeeSingleSecret = Fr.random();
+    const mintAndPayFeeSingleMintId = Fr.random();
     const mintAndPayFeeSingleAuthWitness = await createEcdsaAuthWitness(
-      mintAndPayFeeSingleSecret,
+      mintAndPayFeeSingleMintId,
       mintAmount,
       meteredFpc.address,
       chainId,
@@ -273,16 +273,16 @@ export default class CounterContractBenchmark extends Benchmark {
         meteredFpc.address,
         deployer,
         mintAmount,
-        mintAndPayFeeSingleSecret,
+        mintAndPayFeeSingleMintId,
         mintAndPayFeeSingleAuthWitness,
       );
 
     // MintAndPayFeeWithBalance (two notes) - mints small amount, needs to consume existing note too
     // The pre-minted balance from above will be used to cover the deficit
     const smallMintAmount = 1n; // Very small, so mint_and_pay_fee_with_balance must use pre-minted note too
-    const mintAndPayFeeTwoNotesSecret = Fr.random();
+    const mintAndPayFeeTwoNotesMintId = Fr.random();
     const mintAndPayFeeTwoNotesAuthWitness = await createEcdsaAuthWitness(
-      mintAndPayFeeTwoNotesSecret,
+      mintAndPayFeeTwoNotesMintId,
       smallMintAmount,
       meteredFpc.address,
       chainId,
@@ -293,14 +293,14 @@ export default class CounterContractBenchmark extends Benchmark {
         meteredFpc.address,
         deployer,
         smallMintAmount,
-        mintAndPayFeeTwoNotesSecret,
+        mintAndPayFeeTwoNotesMintId,
         mintAndPayFeeTwoNotesAuthWitness,
       );
 
     // MintThenPayFee - two-step flow: mint creates note, then pay_fee consumes it
-    const mintThenPayFeeSecret = Fr.random();
+    const mintThenPayFeeMintId = Fr.random();
     const mintThenPayFeeAuthWitness = await createEcdsaAuthWitness(
-      mintThenPayFeeSecret,
+      mintThenPayFeeMintId,
       mintAmount,
       meteredFpc.address,
       chainId,
@@ -310,7 +310,7 @@ export default class CounterContractBenchmark extends Benchmark {
       meteredFpc.address,
       deployer,
       mintAmount,
-      mintThenPayFeeSecret,
+      mintThenPayFeeMintId,
       mintThenPayFeeAuthWitness,
     );
 
