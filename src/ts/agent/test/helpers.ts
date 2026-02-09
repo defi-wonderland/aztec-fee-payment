@@ -48,7 +48,7 @@ export function makeTransferLog(
   from: Address,
   to: Address,
   amount: bigint,
-): Log {
+): Log<bigint, number, false> {
   const topics = encodeEventTopics({
     abi: ERC20_TRANSFER_ABI,
     eventName: "Transfer",
@@ -57,7 +57,7 @@ export function makeTransferLog(
   const data = encodeAbiParameters([{ type: "uint256" }], [amount]);
   return {
     address: token,
-    topics: topics as [string, ...string[]],
+    topics: topics as [`0x${string}`, ...`0x${string}`[]],
     data,
     blockNumber: 100n,
     transactionHash: TX_HASH,

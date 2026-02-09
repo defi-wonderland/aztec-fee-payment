@@ -1,5 +1,9 @@
 import { Router } from "express";
-import { AppError } from "../middleware/errorHandler.js";
+import {
+  InvalidChainError,
+  InvalidSignatureError,
+  fromErrorCode,
+} from "../errors.js";
 import { createValidationMiddleware } from "../middleware/validation.js";
 import {
   authwitRequestSchema,
@@ -45,12 +49,9 @@ export function createAuthwitRouter(deps: AuthwitRouteDeps): Router {
       const chainConfig = config.chains[body.evmChainId];
       const client = evmClients.getClientForChain(body.evmChainId);
       if (!client || !chainConfig) {
-        throw new AppError(
-          "INVALID_CHAIN",
+        throw new InvalidChainError(
           `Chain ID ${body.evmChainId} is not supported`,
-          {
-            supportedChains: evmClients.getSupportedChains(),
-          },
+          { supportedChains: evmClients.getSupportedChains() },
         );
       }
 
@@ -67,7 +68,7 @@ export function createAuthwitRouter(deps: AuthwitRouteDeps): Router {
       });
 
       if (!txResult.valid) {
-        throw new AppError(txResult.error, txResult.message, txResult.details);
+        throw fromErrorCode(txResult.error, txResult.message, txResult.details);
       }
 
       // 3. Verify EIP-712 signature matches tx sender
@@ -80,8 +81,7 @@ export function createAuthwitRouter(deps: AuthwitRouteDeps): Router {
       );
 
       if (!signatureValid) {
-        throw new AppError(
-          "INVALID_SIGNATURE",
+        throw new InvalidSignatureError(
           "EIP-712 signature is invalid or signer does not match transaction sender",
         );
       }

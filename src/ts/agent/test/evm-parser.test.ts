@@ -9,7 +9,7 @@ import { FEE_COLLECTOR, USER, makeTransferLog } from "./helpers.js";
 const TOKEN_A = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" as Address;
 const TOKEN_B = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" as Address;
 
-function makeReceipt(logs: Log[]): TransactionReceipt {
+function makeReceipt(logs: Log<bigint, number, false>[]): TransactionReceipt {
   return {
     blockHash: "0x" as `0x${string}`,
     blockNumber: 1n,
@@ -52,7 +52,7 @@ describe("EVM Parser", () => {
     });
 
     it("ignores non-Transfer events", () => {
-      const badLog: Log = {
+      const badLog: Log<bigint, number, false> = {
         address: TOKEN_A,
         topics: [
           "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",

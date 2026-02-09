@@ -8,11 +8,24 @@ export { loadConfig } from "./config/index.js";
 export { createServer } from "./server.js";
 export {
   createAgentLogger,
-  AppError,
   createErrorHandler,
   createValidationMiddleware,
   createRateLimiter,
 } from "./middleware/index.js";
+export {
+  AppError,
+  InvalidInputError,
+  InvalidSignatureError,
+  InvalidAmountError,
+  InvalidChainError,
+  TxNotFinalizedError,
+  WrongRecipientError,
+  NotFoundError,
+  TxNotFoundError,
+  RateLimitedError,
+  InternalError,
+  fromErrorCode,
+} from "./errors.js";
 export { MultiChainEVMClient } from "./services/evm/index.js";
 export {
   SecretGenerator,
