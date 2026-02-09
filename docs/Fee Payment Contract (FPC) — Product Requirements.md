@@ -80,13 +80,13 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 | **Storage: User balance tracking** | `Owned<BalanceSet<Context>, Context>` maps `AztecAddress -> wFJ balance`; uses `UintNote` for private balance notes | Implemented |
 | **Method: `pay_fee()`** | Private, `#[nophasecheck]`. Deducts max gas cost from `msg_sender`'s wFJ balance using `try_sub` with `max_notes = 1`; handles change notes with `UNCONSTRAINED_ONCHAIN` delivery; calls `set_as_fee_payer()` then `end_setup()`. No refund of unused gas. | Implemented |
 | **Method: `pay_fee_exact()`** | Private, `#[nophasecheck]`. Deducts max gas cost upfront using same single-note optimization with `UNCONSTRAINED_ONCHAIN` delivery for change notes; creates `PartialUintNote` for refund; sets teardown to call `_refund()`; calls `set_as_fee_payer()` then `end_setup()`. Refunds `max_gas_cost - transaction_fee` in teardown. | Implemented |
-| **Method: `mint(amount, hash)`** | Private. `hash` is the EVM txHash reduced to a BN254 field element (`txHash % Fr.MODULUS`, losing ~2 bits from the 256-bit txHash). Validates custom authwit signed by owner, pushes nullifier from `(amount, hash)` for replay prevention, calls `set_as_fee_payer()` to self-sponsor the mint transaction, deducts gas cost from minted amount, credits `(amount - gas_cost)` to `msg_sender`'s balance. SP never learns user's Aztec address. | Planned |
+| **Method: `mint(amount, hash)`** | Private. `hash` is the EVM txHash reduced to a BN254 field element (`txHash % Fr.MODULUS`, losing ~2 bits from the 256-bit txHash). Validates custom authwit signed by owner, pushes the authwit itself as a nullifier for replay prevention, calls `set_as_fee_payer()` to self-sponsor the mint transaction, deducts gas cost from minted amount, credits `(amount - gas_cost)` to `msg_sender`'s balance. SP never learns user's Aztec address. | Planned |
 | **Method: `mint(account, amount)` (legacy)** | Private. Adds `amount` to `account`'s balance via `BalanceSet.add()` with `CONSTRAINED_ONCHAIN` delivery. Permissionless, no access control. | Implemented (Phase 1 — to be replaced) |
 | **Method: `_refund(max_gas_cost, partial_note)`** | Public, `#[only_self]`. Teardown function called by `pay_fee_exact()`. Calculates `refund_amount = max_gas_cost - transaction_fee` and completes the partial note. | Implemented |
 | **Method: `balance_of(account)`** | Unconstrained utility view. Returns the wFJ balance of an account. | Implemented |
 | **Library: `get_max_gas_cost(context)`** | `#[contract_library_method]`. Calculates max gas cost from transaction gas settings: `(DA limit + DA teardown) * max_fee_per_da_gas + (L2 limit + L2 teardown) * max_fee_per_l2_gas`. | Implemented |
 
-> **Note on `mint()` transition**: The contract currently implements `mint(account, amount)` (Phase 1, permissionless) for testing. This is being replaced by `mint(amount, hash)` (Phase 2) which adds custom authwit authorization, nullifier-based replay prevention, and self-sponsoring. The `hash` parameter is the EVM txHash reduced to a BN254 field element (`txHash % Fr.MODULUS`, ~2 bits lost). The off-chain agent already implements the Phase 2 flow (see [Phase 2](#phase-2--authorized-mint-with-custom-authwit) and the Off-Chain Agent Specification). The contract update is planned.
+> **Note on `mint()` transition**: The contract currently implements `mint(account, amount)` (Phase 1, permissionless) for testing. This is being replaced by `mint(amount, hash)` (Phase 2) which adds custom authwit authorization, replay prevention (the authwit itself is pushed as a nullifier), and self-sponsoring. The `hash` parameter is the EVM txHash reduced to a BN254 field element (`txHash % Fr.MODULUS`, ~2 bits lost). The off-chain agent already implements the Phase 2 flow (see [Phase 2](#phase-2--authorized-mint-with-custom-authwit) and the Off-Chain Agent Specification). The contract update is planned.
 
 ### TypeScript SDK
 
@@ -335,7 +335,7 @@ Phase 2 replaces the permissionless `mint(account, amount)` with an authorized `
 | **`mint()` signature** | `mint(account: AztecAddress, amount: u128)` | `mint(amount: u128, hash: Field)` | Contract: Planned |
 | **Authorization** | Permissionless | Custom authwit signed by SP | Agent: Implemented |
 | **Recipient** | Explicit `account` parameter | `msg_sender` (SP never learns Aztec address) | Contract: Planned |
-| **Replay prevention** | None (can mint multiple times) | Nullifier from `(amount, hash)` pair | Contract: Planned |
+| **Replay prevention** | None (can mint multiple times) | The authwit itself is pushed as a nullifier | Contract: Planned |
 | **Self-sponsoring** | No | Yes — FPC calls `set_as_fee_payer()` in mint, deducts gas from minted amount | Contract: Planned |
 | **Storage** | `balances` only | `balances` + `PublicImmutable<AztecAddress>` owner | Contract: Planned |
 | **Initialization** | None | `initialize(owner: AztecAddress)` | Contract: Planned |
@@ -356,7 +356,7 @@ Phase 2 replaces the permissionless `mint(account, amount)` with an authorized `
 
 ### Preventing Double-Spend
 
-**Hash tracking via nullifiers**: Instead of public storage, we use nullifiers. Each `(to, hash)` pair generates a unique nullifier. If the same pair is used twice, the nullifier already exists and the transaction fails.
+**Authwit as nullifier**: The authwit itself is pushed as a nullifier for replay prevention. If the same authwit is used twice, the nullifier already exists and the transaction fails.
 
 ### Griefing Attack Prevention
 
@@ -374,7 +374,7 @@ Phase 2 replaces the permissionless `mint(account, amount)` with an authorized `
 Secure Execution Order:
 1. validate authwit
 2. validate amount
-3. push_nullifier() <- FAILS if hash already used
+3. push_nullifier(authwit) <- FAILS if authwit already used
 4. set_as_fee_payer() <- FPC commits ONLY after validation
 5. end_setup()
 ```
@@ -499,14 +499,14 @@ HANDLE_AUTHWIT_REQUEST(evmTxHash, evmChainId, signature):
 | **Stateless SP** | No database, horizontally scalable, crash-resilient |
 | **Deterministic** | Same txHash always produces same response |
 | **Custom authwit** | No caller binding allows any address to claim |
-| **Replay prevention** | Hash is nullified after use on Aztec |
+| **Replay prevention** | Authwit is pushed as nullifier after use on Aztec |
 
 ### Security Considerations (Phase 2)
 
 1. **SP signing key security**: SP signing key signs Schnorr authwits. Compromise allows minting of wFJ.
 2. **Recipient privacy**: `caller` is NOT in the authwit—tokens mint to `msg_sender`. SP never learns Aztec address.
 3. **Hash determinism**: `hash = txHash % Fr.MODULUS` (256-bit txHash reduced to BN254 field element, ~2 bits lost). Same txHash = same hash = same authwit.
-4. **Replay prevention**: Hash is nullified after use. Same hash cannot mint twice.
+4. **Replay prevention**: The authwit itself is pushed as a nullifier after use. Same authwit cannot mint twice.
 5. **Custom authwit**: Modified authwit skips caller in inner_hash. Allows any address to claim.
 6. **No revocation**: Once authwit is generated, it's valid until hash is used. Stateless means no revocation possible.
 7. **EIP-712 verification**: SP verifies signature recovers to txHash sender. Proves ownership of payment.
@@ -537,7 +537,7 @@ sequenceDiagram
     User->>User: Store authwit witness in PXE
     User->>FPC: mint(amount, hash)
     FPC->>OAC: Verify custom authwit
-    FPC->>FPC: Push nullifier (replay prevention)
+    FPC->>FPC: Push authwit as nullifier (replay prevention)
     FPC->>FPC: set_as_fee_payer() (self-sponsor)
     FPC->>FPC: end_setup()
     FPC->>FPC: Mint (amount - gas_cost) to msg_sender
