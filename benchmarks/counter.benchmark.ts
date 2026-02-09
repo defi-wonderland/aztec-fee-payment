@@ -11,6 +11,7 @@ import {
   computeInnerAuthWitHash,
   type AuthWitness,
 } from "@aztec/stdlib/auth-witness";
+import { poseidon2Hash } from "@aztec/foundation/crypto/poseidon";
 
 import { CounterContract, MeteredContract } from "../src/ts/artifacts/index.js";
 import {
@@ -35,7 +36,7 @@ import { deployMeteredContract } from "../src/ts/utils/deploy.js";
 
 /**
  * Creates an AuthWitness for the owner's account contract via the wallet's
- * authwit mechanism. The inner hash is computed from [secret, amount].
+ * authwit mechanism. The inner hash is computed from [secret, amount, poseidon2Hash(userSecret)].
  * The wallet's account contract handles the actual signature verification.
  */
 async function createAuthWitness(
@@ -43,9 +44,15 @@ async function createAuthWitness(
   ownerAddress: AztecAddress,
   secret: Fr,
   amount: bigint,
+  userSecret: Fr,
   fpcAddress: AztecAddress,
 ): Promise<AuthWitness> {
-  const innerHash = await computeInnerAuthWitHash([secret, new Fr(amount)]);
+  const hashedUserSecret = await poseidon2Hash([userSecret]);
+  const innerHash = await computeInnerAuthWitHash([
+    secret,
+    new Fr(amount),
+    hashedUserSecret,
+  ]);
   const intent = { consumer: fpcAddress, innerHash };
   return wallet.createAuthWit(ownerAddress, intent);
 }
@@ -176,16 +183,18 @@ export default class CounterContractBenchmark extends Benchmark {
     // =========================================================================
     const preMintAmount = 10_000_000_000_000_000_000n;
     const preMintSecret = Fr.random();
+    const preMintUserSecret = Fr.random();
     const preMintAuthWitness = await createAuthWitness(
       wallet,
       deployer,
       preMintSecret,
       preMintAmount,
+      preMintUserSecret,
       meteredFpc.address,
     );
 
     await meteredFpc.methods
-      .mint(deployer, preMintAmount, preMintSecret)
+      .mint(deployer, preMintAmount, preMintSecret, preMintUserSecret)
       .with({ authWitnesses: [preMintAuthWitness] })
       .send({ from: deployer })
       .wait();
@@ -205,11 +214,13 @@ export default class CounterContractBenchmark extends Benchmark {
 
     // MintAndPayFee - mints to account and pays fee (simple, no existing notes consumed)
     const mintAndPayFeeSecret = Fr.random();
+    const mintAndPayFeeUserSecret = Fr.random();
     const mintAndPayFeeAuthWitness = await createAuthWitness(
       wallet,
       deployer,
       mintAndPayFeeSecret,
       mintAmount,
+      mintAndPayFeeUserSecret,
       meteredFpc.address,
     );
     const mintAndPayFeeMethod = new MeteredMintAndPayFeePaymentMethod(
@@ -217,16 +228,19 @@ export default class CounterContractBenchmark extends Benchmark {
       deployer,
       mintAmount,
       mintAndPayFeeSecret,
+      mintAndPayFeeUserSecret,
       mintAndPayFeeAuthWitness,
     );
 
     // MintAndPayFeeWithBalance (single note) - mints enough to cover gas, no existing notes needed
     const mintAndPayFeeSingleSecret = Fr.random();
+    const mintAndPayFeeSingleUserSecret = Fr.random();
     const mintAndPayFeeSingleAuthWitness = await createAuthWitness(
       wallet,
       deployer,
       mintAndPayFeeSingleSecret,
       mintAmount,
+      mintAndPayFeeSingleUserSecret,
       meteredFpc.address,
     );
     const mintAndPayFeeSingleNoteMethod =
@@ -235,6 +249,7 @@ export default class CounterContractBenchmark extends Benchmark {
         deployer,
         mintAmount,
         mintAndPayFeeSingleSecret,
+        mintAndPayFeeSingleUserSecret,
         mintAndPayFeeSingleAuthWitness,
       );
 
@@ -242,11 +257,13 @@ export default class CounterContractBenchmark extends Benchmark {
     // The pre-minted balance from above will be used to cover the deficit
     const smallMintAmount = 1n; // Very small, so mint_and_pay_fee_with_balance must use pre-minted note too
     const mintAndPayFeeTwoNotesSecret = Fr.random();
+    const mintAndPayFeeTwoNotesUserSecret = Fr.random();
     const mintAndPayFeeTwoNotesAuthWitness = await createAuthWitness(
       wallet,
       deployer,
       mintAndPayFeeTwoNotesSecret,
       smallMintAmount,
+      mintAndPayFeeTwoNotesUserSecret,
       meteredFpc.address,
     );
     const mintAndPayFeeTwoNotesMethod =
@@ -255,16 +272,19 @@ export default class CounterContractBenchmark extends Benchmark {
         deployer,
         smallMintAmount,
         mintAndPayFeeTwoNotesSecret,
+        mintAndPayFeeTwoNotesUserSecret,
         mintAndPayFeeTwoNotesAuthWitness,
       );
 
     // MintThenPayFee - two-step flow: mint creates note, then pay_fee consumes it
     const mintThenPayFeeSecret = Fr.random();
+    const mintThenPayFeeUserSecret = Fr.random();
     const mintThenPayFeeAuthWitness = await createAuthWitness(
       wallet,
       deployer,
       mintThenPayFeeSecret,
       mintAmount,
+      mintThenPayFeeUserSecret,
       meteredFpc.address,
     );
     const mintThenPayFeeMethod = new MeteredMintThenPayFeePaymentMethod(
@@ -272,6 +292,7 @@ export default class CounterContractBenchmark extends Benchmark {
       deployer,
       mintAmount,
       mintThenPayFeeSecret,
+      mintThenPayFeeUserSecret,
       mintThenPayFeeAuthWitness,
     );
 

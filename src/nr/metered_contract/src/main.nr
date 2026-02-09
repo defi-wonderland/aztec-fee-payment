@@ -6,14 +6,19 @@ use dep::aztec::macros::aztec;
 #[aztec]
 pub contract Metered {
     use dep::aztec::{
-        authwit::auth::{assert_inner_hash_valid_authwit, compute_inner_authwit_hash},
+        authwit::auth::{compute_inner_authwit_hash, IS_VALID_SELECTOR},
         context::PrivateContext,
         macros::{
             functions::{external, initializer, internal, nophasecheck, only_self},
             storage::storage,
         },
         messages::message_delivery::MessageDelivery,
-        protocol_types::{address::AztecAddress, traits::{FromField, ToField}},
+        protocol_types::{
+            abis::function_selector::FunctionSelector,
+            address::AztecAddress,
+            hash::poseidon2_hash,
+            traits::{FromField, ToField},
+        },
         state_vars::{Owned, PublicImmutable, state_variable::StateVariable},
     };
     use dep::balance_set::BalanceSet;
@@ -104,10 +109,11 @@ pub contract Metered {
     /// @param account The address to mint tokens to
     /// @param amount The amount to mint
     /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
+    /// @param user_secret A user-provided secret used for nullifier uniqueness
     #[external("private")]
     #[nophasecheck]
-    fn mint_and_pay_fee(account: AztecAddress, amount: u128, secret: Field) {
-        self.internal._verify_authwit(secret, amount);
+    fn mint_and_pay_fee(account: AztecAddress, amount: u128, secret: Field, user_secret: Field) {
+        self.internal._verify_authwit(secret, amount, user_secret);
 
         // Calculate the max gas cost from transaction settings.
         let max_gas_cost = get_max_gas_cost(self.context);
@@ -130,11 +136,17 @@ pub contract Metered {
     /// @param account The address to mint tokens to
     /// @param amount The amount to mint
     /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
+    /// @param user_secret A user-provided secret used for nullifier uniqueness
     #[external("private")]
     #[nophasecheck]
-    fn mint_and_pay_fee_with_balance(account: AztecAddress, amount: u128, secret: Field) {
+    fn mint_and_pay_fee_with_balance(
+        account: AztecAddress,
+        amount: u128,
+        secret: Field,
+        user_secret: Field,
+    ) {
         // Verify authorization via the owner's account contract
-        self.internal._verify_authwit(secret, amount);
+        self.internal._verify_authwit(secret, amount, user_secret);
 
         let balance_set = self.storage.balances.at(account);
 
@@ -166,9 +178,10 @@ pub contract Metered {
     /// @param account The address to mint tokens to
     /// @param amount The amount to mint
     /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
+    /// @param user_secret A user-provided secret used for nullifier uniqueness
     #[external("private")]
-    fn mint(account: AztecAddress, amount: u128, secret: Field) {
-        self.internal._verify_authwit(secret, amount);
+    fn mint(account: AztecAddress, amount: u128, secret: Field, user_secret: Field) {
+        self.internal._verify_authwit(secret, amount, user_secret);
         self.storage.balances.at(account).add(amount).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
     }
 
@@ -182,17 +195,33 @@ pub contract Metered {
     }
 
     /// @notice Verifies authorization via the owner's account contract.
-    /// Computes an inner hash from secret and amount, then delegates verification
-    /// to the owner's account contract via verify_private_authwit.
+    /// Computes an inner hash from secret, amount, and the poseidon2 hash of user_secret,
+    /// then delegates verification to the owner's account contract via verify_private_authwit.
+    /// A nullifier derived from the inner hash and the raw user_secret is pushed to prevent replay.
     /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
     /// @param amount The amount value
+    /// @param user_secret A user-provided secret used for nullifier uniqueness
     #[internal("private")]
-    fn _verify_authwit(secret: Field, amount: u128) {
-        let inner_hash = compute_inner_authwit_hash([secret, amount as Field]);
+    fn _verify_authwit(secret: Field, amount: u128, user_secret: Field) {
+        // Include the poseidon2 hash of user_secret in the inner hash
+        let user_secret_hash = poseidon2_hash([user_secret]);
+        let inner_hash = compute_inner_authwit_hash([secret, amount as Field, user_secret_hash]);
 
-        // Delegate signature verification to the owner's account contract
+        // Delegate signature verification to the owner's account contract via static call
         let owner = self.storage.owner.read();
-        assert_inner_hash_valid_authwit(self.context, owner, inner_hash);
+        let result: Field = self
+            .context
+            .static_call_private_function(
+                owner,
+                comptime { FunctionSelector::from_signature("verify_private_authwit(Field)") },
+                [inner_hash],
+            )
+            .get_preimage();
+        assert(result == IS_VALID_SELECTOR, "Message not authorized by account");
+
+        // Compute and push nullifier from inner_hash and the raw user_secret
+        let nullifier = poseidon2_hash([inner_hash, user_secret]);
+        self.context.push_nullifier(nullifier);
     }
 
     /// Returns the internal balance of an account.

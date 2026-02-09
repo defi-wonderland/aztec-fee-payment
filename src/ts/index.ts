@@ -17,7 +17,7 @@
  *
  * // Option 1: Pre-mint balance and use MeteredFeePaymentMethod
  * // (requires ECDSA signature verification - see docs for createEcdsaAuthWitness)
- * await fpc.methods.mint(userAddress, amount, secret)
+ * await fpc.methods.mint(userAddress, amount, secret, userSecret)
  *   .with({ authWitnesses: [authWitness] })
  *   .send().wait();
  *
@@ -29,7 +29,7 @@
  *
  * // Option 2: Mint and pay fee in one transaction
  * const paymentMethod = new MeteredMintAndPayFeePaymentMethod(
- *   fpc.address, amount, secret, authWitness
+ *   fpc.address, amount, secret, userSecret, authWitness
  * );
  * await someContract.methods.doSomething()
  *   .send({ fee: { paymentMethod } })
