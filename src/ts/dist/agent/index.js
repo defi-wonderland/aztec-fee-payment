@@ -1,0 +1,51 @@
+// Off-Chain Agent — Main entry point
+import { loadConfig } from "./config/index.js";
+import { createServer } from "./server.js";
+// Re-exports for library usage
+export { loadConfig } from "./config/index.js";
+export { createServer } from "./server.js";
+export {
+  createAgentLogger,
+  createErrorHandler,
+  createValidationMiddleware,
+  createRateLimiter,
+} from "./middleware/index.js";
+export {
+  AppError,
+  invalidInput,
+  notFound,
+  rateLimited,
+  internal,
+} from "./errors.js";
+export { MultiChainEVMClient } from "./services/evm/index.js";
+export {
+  SecretGenerator,
+  AuthwitGenerator,
+  formatAuthwitResponse,
+} from "./services/crypto/index.js";
+export { authwitRequestSchema, configSchema } from "./types/index.js";
+// Start server when run directly
+const isMainModule =
+  process.argv[1] &&
+  import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/"));
+if (isMainModule) {
+  const config = loadConfig();
+  const { app, logger } = createServer(config);
+  const server = app.listen(config.port, config.host, () => {
+    logger.info(
+      { port: config.port, host: config.host },
+      "Agent server started",
+    );
+  });
+  // Graceful shutdown
+  const shutdown = (signal) => {
+    logger.info({ signal }, "Shutdown signal received");
+    server.close(() => {
+      logger.info("Server closed");
+      process.exit(0);
+    });
+  };
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi9hZ2VudC9pbmRleC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxxQ0FBcUM7QUFFckMsT0FBTyxFQUFFLFVBQVUsRUFBRSxNQUFNLG1CQUFtQixDQUFDO0FBQy9DLE9BQU8sRUFBRSxZQUFZLEVBQUUsTUFBTSxhQUFhLENBQUM7QUFFM0MsK0JBQStCO0FBQy9CLE9BQU8sRUFBRSxVQUFVLEVBQUUsTUFBTSxtQkFBbUIsQ0FBQztBQUMvQyxPQUFPLEVBQUUsWUFBWSxFQUFFLE1BQU0sYUFBYSxDQUFDO0FBQzNDLE9BQU8sRUFDTCxpQkFBaUIsRUFDakIsa0JBQWtCLEVBQ2xCLDBCQUEwQixFQUMxQixpQkFBaUIsR0FDbEIsTUFBTSx1QkFBdUIsQ0FBQztBQUMvQixPQUFPLEVBQ0wsUUFBUSxFQUNSLFlBQVksRUFDWixRQUFRLEVBQ1IsV0FBVyxFQUNYLFFBQVEsR0FDVCxNQUFNLGFBQWEsQ0FBQztBQUNyQixPQUFPLEVBQUUsbUJBQW1CLEVBQUUsTUFBTSx5QkFBeUIsQ0FBQztBQUM5RCxPQUFPLEVBQ0wsZUFBZSxFQUNmLGdCQUFnQixFQUNoQixxQkFBcUIsR0FDdEIsTUFBTSw0QkFBNEIsQ0FBQztBQVFwQyxPQUFPLEVBQUUsb0JBQW9CLEVBQUUsWUFBWSxFQUFFLE1BQU0sa0JBQWtCLENBQUM7QUFFdEUsaUNBQWlDO0FBQ2pDLE1BQU0sWUFBWSxHQUNoQixPQUFPLENBQUMsSUFBSSxDQUFDLENBQUMsQ0FBQztJQUNmLE1BQU0sQ0FBQyxJQUFJLENBQUMsR0FBRyxDQUFDLFFBQVEsQ0FBQyxPQUFPLENBQUMsSUFBSSxDQUFDLENBQUMsQ0FBQyxDQUFDLE9BQU8sQ0FBQyxLQUFLLEVBQUUsR0FBRyxDQUFDLENBQUMsQ0FBQztBQUNoRSxJQUFJLFlBQVksRUFBRSxDQUFDO0lBQ2pCLE1BQU0sTUFBTSxHQUFHLFVBQVUsRUFBRSxDQUFDO0lBQzVCLE1BQU0sRUFBRSxHQUFHLEVBQUUsTUFBTSxFQUFFLEdBQUcsWUFBWSxDQUFDLE1BQU0sQ0FBQyxDQUFDO0lBRTdDLE1BQU0sTUFBTSxHQUFHLEdBQUcsQ0FBQyxNQUFNLENBQUMsTUFBTSxDQUFDLElBQUksRUFBRSxNQUFNLENBQUMsSUFBSSxFQUFFLEdBQUcsRUFBRTtRQUN2RCxNQUFNLENBQUMsSUFBSSxDQUNULEVBQUUsSUFBSSxFQUFFLE1BQU0sQ0FBQyxJQUFJLEVBQUUsSUFBSSxFQUFFLE1BQU0sQ0FBQyxJQUFJLEVBQUUsRUFDeEMsc0JBQXNCLENBQ3ZCLENBQUM7SUFDSixDQUFDLENBQUMsQ0FBQztJQUVILG9CQUFvQjtJQUNwQixNQUFNLFFBQVEsR0FBRyxDQUFDLE1BQWMsRUFBRSxFQUFFO1FBQ2xDLE1BQU0sQ0FBQyxJQUFJLENBQUMsRUFBRSxNQUFNLEVBQUUsRUFBRSwwQkFBMEIsQ0FBQyxDQUFDO1FBQ3BELE1BQU0sQ0FBQyxLQUFLLENBQUMsR0FBRyxFQUFFO1lBQ2hCLE1BQU0sQ0FBQyxJQUFJLENBQUMsZUFBZSxDQUFDLENBQUM7WUFDN0IsT0FBTyxDQUFDLElBQUksQ0FBQyxDQUFDLENBQUMsQ0FBQztRQUNsQixDQUFDLENBQUMsQ0FBQztJQUNMLENBQUMsQ0FBQztJQUVGLE9BQU8sQ0FBQyxFQUFFLENBQUMsU0FBUyxFQUFFLEdBQUcsRUFBRSxDQUFDLFFBQVEsQ0FBQyxTQUFTLENBQUMsQ0FBQyxDQUFDO0lBQ2pELE9BQU8sQ0FBQyxFQUFFLENBQUMsUUFBUSxFQUFFLEdBQUcsRUFBRSxDQUFDLFFBQVEsQ0FBQyxRQUFRLENBQUMsQ0FBQyxDQUFDO0FBQ2pELENBQUMifQ==
