@@ -100,7 +100,8 @@ export class MeteredMintAndPayFeePaymentMethod implements FeePaymentMethod {
     private readonly fpcAddress: AztecAddress,
     private readonly account: AztecAddress,
     private readonly amount: bigint,
-    private readonly secret: Fr,
+    private readonly secretId: Fr,
+    private readonly userSecret: Fr,
     private readonly authWitness: AuthWitness,
   ) {}
 
@@ -119,12 +120,17 @@ export class MeteredMintAndPayFeePaymentMethod implements FeePaymentMethod {
           name: "mint_and_pay_fee",
           to: this.fpcAddress,
           selector: await FunctionSelector.fromSignature(
-            "mint_and_pay_fee((Field),u128,Field)",
+            "mint_and_pay_fee((Field),u128,Field,Field)",
           ),
           type: FunctionType.PRIVATE,
           hideMsgSender: false,
           isStatic: false,
-          args: [this.account.toField(), new Fr(this.amount), this.secret],
+          args: [
+            this.account.toField(),
+            new Fr(this.amount),
+            this.secretId,
+            this.userSecret,
+          ],
           returnTypes: [],
         },
       ],
@@ -151,7 +157,8 @@ export class MeteredMintAndPayFeeWithBalancePaymentMethod implements FeePaymentM
     private readonly fpcAddress: AztecAddress,
     private readonly account: AztecAddress,
     private readonly amount: bigint,
-    private readonly secret: Fr,
+    private readonly secretId: Fr,
+    private readonly userSecret: Fr,
     private readonly authWitness: AuthWitness,
   ) {}
 
@@ -170,12 +177,17 @@ export class MeteredMintAndPayFeeWithBalancePaymentMethod implements FeePaymentM
           name: "mint_and_pay_fee_with_balance",
           to: this.fpcAddress,
           selector: await FunctionSelector.fromSignature(
-            "mint_and_pay_fee_with_balance((Field),u128,Field)",
+            "mint_and_pay_fee_with_balance((Field),u128,Field,Field)",
           ),
           type: FunctionType.PRIVATE,
           hideMsgSender: false,
           isStatic: false,
-          args: [this.account.toField(), new Fr(this.amount), this.secret],
+          args: [
+            this.account.toField(),
+            new Fr(this.amount),
+            this.secretId,
+            this.userSecret,
+          ],
           returnTypes: [],
         },
       ],
@@ -201,7 +213,8 @@ export class MeteredMintThenPayFeePaymentMethod implements FeePaymentMethod {
     private readonly fpcAddress: AztecAddress,
     private readonly account: AztecAddress,
     private readonly amount: bigint,
-    private readonly secret: Fr,
+    private readonly secretId: Fr,
+    private readonly userSecret: Fr,
     private readonly authWitness: AuthWitness,
   ) {}
 
@@ -220,12 +233,17 @@ export class MeteredMintThenPayFeePaymentMethod implements FeePaymentMethod {
           name: "mint",
           to: this.fpcAddress,
           selector: await FunctionSelector.fromSignature(
-            "mint((Field),u128,Field)",
+            "mint((Field),u128,Field,Field)",
           ),
           type: FunctionType.PRIVATE,
           hideMsgSender: false,
           isStatic: false,
-          args: [this.account.toField(), new Fr(this.amount), this.secret],
+          args: [
+            this.account.toField(),
+            new Fr(this.amount),
+            this.secretId,
+            this.userSecret,
+          ],
           returnTypes: [],
         },
         {
