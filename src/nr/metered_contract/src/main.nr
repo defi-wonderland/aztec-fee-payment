@@ -11,7 +11,7 @@ pub contract Metered {
         macros::{functions::{external, internal, nophasecheck, only_self}, storage::storage},
         messages::message_delivery::MessageDelivery,
         oracle::auth_witness::get_auth_witness,
-        protocol_types::{address::AztecAddress, traits::{FromField, ToField}},
+        protocol_types::{address::AztecAddress, hash::poseidon2_hash, traits::{FromField, ToField}},
         state_vars::{Owned, state_variable::StateVariable},
     };
     use dep::balance_set::BalanceSet;
@@ -110,11 +110,11 @@ pub contract Metered {
     /// The minted amount must be >= max_gas_cost.
     /// @param account The address to mint tokens to
     /// @param amount The amount to mint
-    /// @param secret The secret used for signature verification
+    /// @param mint_id Unique identifier for this mint operation to enforce uniqueness
     #[external("private")]
     #[nophasecheck]
-    fn mint_and_pay_fee(account: AztecAddress, amount: u128, secret: Field) {
-        self.internal._verify_ecdsa_signature(secret, amount);
+    fn mint_and_pay_fee(account: AztecAddress, amount: u128, mint_id: Field) {
+        self.internal._verify_ecdsa_signature(mint_id, amount);
 
         // Calculate the max gas cost from transaction settings.
         let max_gas_cost = get_max_gas_cost(self.context);
@@ -135,12 +135,12 @@ pub contract Metered {
     /// If minted amount < max_gas_cost, the difference is deducted from existing balance.
     /// @param account The address to mint tokens to
     /// @param amount The amount to mint
-    /// @param secret The secret used for signature verification
+    /// @param mint_id Unique identifier for this mint operation to enforce uniqueness
     #[external("private")]
     #[nophasecheck]
-    fn mint_and_pay_fee_with_balance(account: AztecAddress, amount: u128, secret: Field) {
+    fn mint_and_pay_fee_with_balance(account: AztecAddress, amount: u128, mint_id: Field) {
         // Verify the signature authorizing this mint
-        self.internal._verify_ecdsa_signature(secret, amount);
+        self.internal._verify_ecdsa_signature(mint_id, amount);
 
         let balance_set = self.storage.balances.at(account);
 
@@ -171,10 +171,10 @@ pub contract Metered {
     /// Requires ECDSA signature verification.
     /// @param account The address to mint tokens to
     /// @param amount The amount to mint
-    /// @param secret The secret used for signature verification
+    /// @param mint_id Unique identifier for this mint operation to enforce uniqueness
     #[external("private")]
-    fn mint(account: AztecAddress, amount: u128, secret: Field) {
-        self.internal._verify_ecdsa_signature(secret, amount);
+    fn mint(account: AztecAddress, amount: u128, mint_id: Field) {
+        self.internal._verify_ecdsa_signature(mint_id, amount);
         self.storage.balances.at(account).add(amount).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
     }
 
@@ -189,12 +189,13 @@ pub contract Metered {
 
     /// @notice Verify ECDSA signature fetched via auth_witness oracle.
     /// The signature is retrieved using message_hash as the lookup key.
-    /// @param secret The secret
+    /// The signature itself is nullified (via Poseidon2 hash) to prevent replay.
+    /// @param mint_id Unique identifier for this mint operation to enforce uniqueness
     /// @param amount The amount value
     #[internal("private")]
-    fn _verify_ecdsa_signature(secret: Field, amount: u128) {
+    fn _verify_ecdsa_signature(mint_id: Field, amount: u128) {
         let message_hash = compute_inner_authwit_hash([
-            secret,
+            mint_id,
             amount as Field,
             self.address.to_field(),
             self.context.chain_id(),
@@ -203,6 +204,9 @@ pub contract Metered {
 
         // Fetch signature from auth witness oracle using message_hash as key
         let witness: [Field; 64] = unsafe { get_auth_witness(message_hash) };
+        // Nullify the signature to prevent replay attacks
+        self.context.push_nullifier(poseidon2_hash(witness));
+        
         let mut signature: [u8; 64] = [0; 64];
         for i in 0..64 {
             signature[i] = witness[i] as u8;
@@ -219,8 +223,6 @@ pub contract Metered {
         );
         assert(is_valid_signature, "Message not authorized by account");
 
-        // Nullify message_hash so that the same signature cannot be used twice
-        self.context.push_nullifier(message_hash);
     }
 
     /// Returns the internal balance of an account.
