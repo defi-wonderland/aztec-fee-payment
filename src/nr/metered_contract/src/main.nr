@@ -140,7 +140,12 @@ pub contract Metered {
     /// @param user_secret A user-provided secret bound to the mint via Poseidon2 hash
     #[external("private")]
     #[nophasecheck]
-    fn mint_and_pay_fee_with_balance(account: AztecAddress, amount: u128, secret_id: Field, user_secret: Field) {
+    fn mint_and_pay_fee_with_balance(
+        account: AztecAddress,
+        amount: u128,
+        secret_id: Field,
+        user_secret: Field,
+    ) {
         // Verify the signature authorizing this mint
         self.internal._verify_ecdsa_signature(secret_id, user_secret, amount);
 
