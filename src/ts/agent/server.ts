@@ -14,6 +14,7 @@ import { createAuthwitRouter } from "./routes/authwit.js";
 export function createServer(config: AgentConfig) {
   const logger = createAgentLogger(config);
   const app = express();
+  app.set("trust proxy", true);
 
   // Body parsing
   app.use(express.json());

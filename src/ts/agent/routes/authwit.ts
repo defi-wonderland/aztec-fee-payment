@@ -37,7 +37,7 @@ export function createAuthwitRouter(deps: AuthwitRouteDeps): Router {
 
   router.post("/authwit/request", validate, async (req, res, next) => {
     const body = req.body as AuthwitRequestBody;
-    const requestId = req.headers["x-request-id"] ?? crypto.randomUUID();
+    const requestId = req.headers["x-request-id"] as string;
     const reqLogger = logger.child({
       requestId,
       chainId: body.evmChainId,
