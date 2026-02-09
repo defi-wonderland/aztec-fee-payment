@@ -7,6 +7,7 @@ import {
   createRateLimiter,
 } from "./middleware/index.js";
 import { MultiChainEVMClient } from "./services/evm/client.js";
+import { SecretGenerator } from "./services/crypto/secret.js";
 import { AuthwitGenerator } from "./services/crypto/authwit.js";
 import { createAuthwitRouter } from "./routes/authwit.js";
 
@@ -61,6 +62,7 @@ export function createServer(config: AgentConfig) {
 
   // Services
   const evmClients = new MultiChainEVMClient(config.chains, logger);
+  const secretGenerator = new SecretGenerator(config.spSigningKey);
   const authwitGenerator = new AuthwitGenerator({
     fpcAddress: config.aztec.fpcAddress,
     ownerAddress: config.aztec.ownerAddress,
@@ -71,6 +73,7 @@ export function createServer(config: AgentConfig) {
   const authwitRouter = createAuthwitRouter({
     config,
     evmClients,
+    secretGenerator,
     authwitGenerator,
     logger,
   });

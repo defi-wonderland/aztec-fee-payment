@@ -93,21 +93,21 @@ describe("Integration: Authwit Request Flow", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.amount).toBe("1000000000000000000");
-    expect(body.hash).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(body.secret).toMatch(/^0x[0-9a-f]{64}$/);
     expect(body.authwit.innerHash).toBeDefined();
     expect(body.authwit.outerHash).toBeDefined();
     expect(body.authwit.witness).toBeInstanceOf(Array);
     expect(body.authwit.witness.length).toBe(3);
   });
 
-  it("returns same hash and authwit hashes for same txHash (idempotent)", async () => {
+  it("returns same secret and hashes for same txHash (idempotent)", async () => {
     const signature = await signClaimRequest(TX_HASH, CHAIN_ID);
     const payload = { evmTxHash: TX_HASH, evmChainId: CHAIN_ID, signature };
 
     const body1 = await (await post(payload)).json();
     const body2 = await (await post(payload)).json();
 
-    expect(body1.hash).toBe(body2.hash);
+    expect(body1.secret).toBe(body2.secret);
     expect(body1.authwit.innerHash).toBe(body2.authwit.innerHash);
     expect(body1.authwit.outerHash).toBe(body2.authwit.outerHash);
   });

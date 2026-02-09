@@ -12,7 +12,7 @@ import type { AuthwitResponse } from "../../types/index.js";
 
 export interface MintAuthwit {
   amount: bigint;
-  hash: string;
+  secret: string;
   innerHash: string;
   outerHash: string;
   witness: string[];
@@ -43,21 +43,21 @@ export class AuthwitGenerator {
 
   async generateMintAuthwit(
     amount: bigint,
-    hashHex: Hex,
+    secretHex: Hex,
   ): Promise<MintAuthwit> {
     const amountFr = new Fr(amount);
-    const hashFr = new Fr(BigInt(hashHex) % Fr.MODULUS);
+    const secretFr = new Fr(BigInt(secretHex));
 
     // Get selector for mint(Field, Field)
     const selector = await FunctionSelector.fromSignature("mint(Field,Field)");
     const selectorFr = selector.toField();
 
-    // Compute inner_hash = H(fpcAddress, selector, amount, hash)
+    // Compute inner_hash = H(fpcAddress, selector, amount, secret)
     const innerHash = await computeInnerAuthWitHash([
       this.fpcAddress.toField(),
       selectorFr,
       amountFr,
-      hashFr,
+      secretFr,
     ]);
 
     // Compute outer_hash = H(consumer, chainId, version, inner_hash)
@@ -77,7 +77,7 @@ export class AuthwitGenerator {
 
     return {
       amount,
-      hash: hashHex,
+      secret: secretHex,
       innerHash: innerHash.toString(),
       outerHash: outerHash.toString(),
       witness: witnessFields.map((f) => f.toString()),
@@ -88,7 +88,7 @@ export class AuthwitGenerator {
 export function formatAuthwitResponse(authwit: MintAuthwit): AuthwitResponse {
   return {
     amount: authwit.amount.toString(),
-    hash: authwit.hash,
+    secret: authwit.secret,
     authwit: {
       innerHash: authwit.innerHash,
       outerHash: authwit.outerHash,

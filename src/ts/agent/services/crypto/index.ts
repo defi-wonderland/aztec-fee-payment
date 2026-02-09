@@ -4,6 +4,7 @@ export {
   getTypedDataForSigning,
   type ClaimRequestMessage,
 } from "./eip712.js";
+export { SecretGenerator } from "./secret.js";
 export {
   AuthwitGenerator,
   formatAuthwitResponse,

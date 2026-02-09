@@ -18,7 +18,7 @@ export type ErrorCode =
 
 export interface AuthwitResponse {
   amount: string;
-  hash: string;
+  secret: string;
   authwit: {
     innerHash: string;
     outerHash: string;

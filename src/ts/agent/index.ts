@@ -21,6 +21,7 @@ export {
 } from "./errors.js";
 export { MultiChainEVMClient } from "./services/evm/index.js";
 export {
+  SecretGenerator,
   AuthwitGenerator,
   formatAuthwitResponse,
 } from "./services/crypto/index.js";
