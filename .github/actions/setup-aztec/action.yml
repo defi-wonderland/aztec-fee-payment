@@ -70,7 +70,7 @@ runs:
     - name: Codegen wrappers
       if: inputs.run-codegen == 'true'
       shell: bash
-      run: aztec codegen target --outdir src/artifacts -f
+      run: aztec codegen target --outdir src/ts/artifacts -f
 
     - name: Start PXE node
       if: inputs.start-pxe == 'true'
