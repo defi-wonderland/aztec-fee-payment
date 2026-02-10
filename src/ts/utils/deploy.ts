@@ -1,6 +1,6 @@
 import { Wallet } from "@aztec/aztec.js/wallet";
 
-import { MeteredContract } from "../artifacts/index.js";
+import { MeteredContract } from "../artifacts/Metered.js";
 
 /**
  * Deploys the Metered FPC contract.

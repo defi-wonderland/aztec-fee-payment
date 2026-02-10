@@ -27,7 +27,10 @@
  */
 
 // Contract artifacts and type-safe wrappers
-export { MeteredContract, MeteredContractArtifact } from "./artifacts/index.js";
+export {
+  MeteredContract,
+  MeteredContractArtifact,
+} from "./artifacts/Metered.js";
 
 // Fee payment method implementations
 export {
