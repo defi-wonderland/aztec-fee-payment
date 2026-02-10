@@ -49,7 +49,7 @@ export async function validateTransaction(
 
   // 2. Verify success
   if (receipt.status !== "success") {
-    throw notFound("TX_NOT_FOUND", "Transaction failed");
+    throw invalidInput("TX_REVERTED", "Transaction reverted");
   }
 
   // 3. Check confirmations

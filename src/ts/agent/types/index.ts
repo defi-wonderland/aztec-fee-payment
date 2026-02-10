@@ -7,6 +7,7 @@ export type ErrorCode =
   | "INVALID_REQUEST"
   | "INVALID_SIGNATURE"
   | "TX_NOT_FOUND"
+  | "TX_REVERTED"
   | "TX_NOT_FINALIZED"
   | "WRONG_RECIPIENT"
   | "INVALID_AMOUNT"
