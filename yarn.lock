@@ -1643,6 +1643,10 @@
     tsx "4.19.4"
     typescript "5.8.3"
 
+"@defi-wonderland/fee-payment@https://github.com/defi-wonderland/aztec-fee-payment/releases/download/prerelease-e277145/defi-wonderland-aztec-fee-payment-4.0.0-nightly.20260204-prerelease.e277145.tgz":
+  version "4.0.0-nightly.20260204-prerelease.e277145"
+  resolved "https://github.com/defi-wonderland/aztec-fee-payment/releases/download/prerelease-e277145/defi-wonderland-aztec-fee-payment-4.0.0-nightly.20260204-prerelease.e277145.tgz#549cb0457731cbe25b2980e2b130822b632b45e1"
+
 "@esbuild/aix-ppc64@0.25.0":
   version "0.25.0"
   resolved "https://registry.yarnpkg.com/@esbuild/aix-ppc64/-/aix-ppc64-0.25.0.tgz#499600c5e1757a524990d5d92601f0ac3ce87f64"
