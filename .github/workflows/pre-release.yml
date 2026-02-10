@@ -1,0 +1,10 @@
+name: Pre-Release
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  pre-release:
+    uses: defi-wonderland/aztec-ci-actions/.github/workflows/pre-release.yml@feat/gh-prerelease
+    secrets: inherit
+    permissions:
+      contents: write
