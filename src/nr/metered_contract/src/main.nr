@@ -41,7 +41,7 @@ pub contract Metered {
     #[external("public")]
     fn update_owner(owner: AztecAddress) {
         assert(
-            self.context.msg_sender().unwrap() == self.storage.owner.read(),
+            self.context.msg_sender().unwrap() == self.storage.owner.get_current_value(),
             "caller is not owner",
         );
 
