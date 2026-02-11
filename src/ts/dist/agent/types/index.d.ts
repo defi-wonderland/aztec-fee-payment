@@ -3,6 +3,7 @@ export type ErrorCode =
   | "INVALID_REQUEST"
   | "INVALID_SIGNATURE"
   | "TX_NOT_FOUND"
+  | "TX_REVERTED"
   | "TX_NOT_FINALIZED"
   | "WRONG_RECIPIENT"
   | "INVALID_AMOUNT"
@@ -47,6 +48,9 @@ export declare const configSchema: z.ZodObject<
     port: z.ZodDefault<z.ZodNumber>;
     host: z.ZodDefault<z.ZodString>;
     logLevel: z.ZodDefault<z.ZodEnum<["debug", "info", "warn", "error"]>>;
+    trustProxy: z.ZodDefault<
+      z.ZodUnion<[z.ZodBoolean, z.ZodNumber, z.ZodString]>
+    >;
     chains: z.ZodEffects<
       z.ZodRecord<
         z.ZodNumber,
@@ -127,18 +131,21 @@ export declare const configSchema: z.ZodObject<
     >;
     aztec: z.ZodObject<
       {
-        fpcAddress: z.ZodString;
-        ownerAddress: z.ZodString;
+        fpcAddress: z.ZodType<`0x${string}`, z.ZodTypeDef, `0x${string}`>;
+        ownerAddress: z.ZodType<`0x${string}`, z.ZodTypeDef, `0x${string}`>;
+        chainId: z.ZodBigInt;
       },
       "strip",
       z.ZodTypeAny,
       {
-        fpcAddress: string;
-        ownerAddress: string;
+        fpcAddress: `0x${string}`;
+        ownerAddress: `0x${string}`;
+        chainId: bigint;
       },
       {
-        fpcAddress: string;
-        ownerAddress: string;
+        fpcAddress: `0x${string}`;
+        ownerAddress: `0x${string}`;
+        chainId: bigint;
       }
     >;
   },
@@ -148,6 +155,7 @@ export declare const configSchema: z.ZodObject<
     port: number;
     host: string;
     logLevel: "error" | "debug" | "info" | "warn";
+    trustProxy: string | number | boolean;
     chains: Record<
       number,
       {
@@ -165,8 +173,9 @@ export declare const configSchema: z.ZodObject<
       maxRequests: number;
     };
     aztec: {
-      fpcAddress: string;
-      ownerAddress: string;
+      fpcAddress: `0x${string}`;
+      ownerAddress: `0x${string}`;
+      chainId: bigint;
     };
   },
   {
@@ -182,12 +191,14 @@ export declare const configSchema: z.ZodObject<
     >;
     spSigningKey: `0x${string}`;
     aztec: {
-      fpcAddress: string;
-      ownerAddress: string;
+      fpcAddress: `0x${string}`;
+      ownerAddress: `0x${string}`;
+      chainId: bigint;
     };
     port?: number | undefined;
     host?: string | undefined;
     logLevel?: "error" | "debug" | "info" | "warn" | undefined;
+    trustProxy?: string | number | boolean | undefined;
     minAmount?: bigint | undefined;
     rateLimit?:
       | {
