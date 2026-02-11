@@ -37,7 +37,7 @@ describe("Transaction Validator", () => {
     ).rejects.toMatchObject({ code: "TX_NOT_FOUND" });
   });
 
-  it("throws TX_NOT_FOUND when transaction failed", async () => {
+  it("throws TX_REVERTED when transaction failed", async () => {
     const client = createMockClient({
       getTransactionReceipt: vi
         .fn()
@@ -48,7 +48,7 @@ describe("Transaction Validator", () => {
     );
     await expect(
       validateTransaction(validatorOpts(client)),
-    ).rejects.toMatchObject({ code: "TX_NOT_FOUND" });
+    ).rejects.toMatchObject({ code: "TX_REVERTED" });
   });
 
   it("throws TX_NOT_FINALIZED when not enough confirmations", async () => {
