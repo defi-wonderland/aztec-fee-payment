@@ -92,8 +92,8 @@ export class MeteredExactFeePaymentMethod implements FeePaymentMethod {
 
 /**
  * Fee payment method that mints and pays fee in a single transaction.
- * Verifies ECDSA signature, mints the specified amount, then deducts max gas cost.
- * The minted amount must be >= max_gas_cost.
+ * Verifies authorization via the owner's account contract, mints the specified amount,
+ * then deducts max gas cost. The minted amount must be >= max_gas_cost.
  */
 export class MeteredMintAndPayFeePaymentMethod implements FeePaymentMethod {
   constructor(
@@ -142,7 +142,8 @@ export class MeteredMintAndPayFeePaymentMethod implements FeePaymentMethod {
 
 /**
  * Fee payment method that mints and pays fee, with fallback to existing balance.
- * Verifies ECDSA signature, mints the specified amount, then deducts max gas cost.
+ * Verifies authorization via the owner's account contract, mints the specified amount,
+ * then deducts max gas cost.
  * If minted amount >= max_gas_cost, no existing balance is needed.
  * If minted amount < max_gas_cost, the difference is deducted from existing balance.
  */

@@ -7,11 +7,9 @@ import {
 } from "@defi-wonderland/aztec-benchmark";
 import { Gas, GasFees } from "@aztec/stdlib/gas";
 import { Fr } from "@aztec/aztec.js/fields";
-import { sha256 } from "@noble/hashes/sha256";
-import { secp256k1 } from "@noble/curves/secp256k1";
 import {
   computeInnerAuthWitHash,
-  AuthWitness,
+  type AuthWitness,
 } from "@aztec/stdlib/auth-witness";
 
 import { CounterContract, MeteredContract } from "../src/ts/artifacts/index.js";
@@ -38,67 +36,20 @@ import {
 import { deployMeteredContract } from "../src/ts/utils/deploy.js";
 
 /**
- * Test private key for ECDSA (secp256k1).
- * Private key = 1 corresponds to the generator point G.
+ * Creates an AuthWitness for the owner's account contract via the wallet's
+ * authwit mechanism. The inner hash is computed from [secret, amount].
+ * The wallet's account contract handles the actual signature verification.
  */
-const ECDSA_PRIVATE_KEY = 1n;
-
-/**
- * Derive the ECDSA public key (uncompressed) from the private key.
- * Returns { x, y } as number arrays (32 bytes each).
- */
-function getEcdsaPublicKey(privateKey: bigint): {
-  x: number[];
-  y: number[];
-} {
-  const uncompressed = secp256k1.getPublicKey(privateKey, false);
-  // First byte is 0x04 (uncompressed marker), next 32 = X, next 32 = Y
-  const x = Array.from(uncompressed.slice(1, 33));
-  const y = Array.from(uncompressed.slice(33, 65));
-  return { x, y };
-}
-
-/**
- * Signs a message with ECDSA (secp256k1).
- * The contract hashes with sha256 before verification.
- */
-function signEcdsa(messageBytes: Uint8Array, privateKey: bigint): Uint8Array {
-  const hashedMessage = sha256(messageBytes);
-  const signature = secp256k1.sign(hashedMessage, privateKey);
-
-  // Return r || s (64 bytes total, big-endian)
-  const sigBytes = new Uint8Array(64);
-  const rBytes = signature.r.toString(16).padStart(64, "0");
-  const sBytes = signature.s.toString(16).padStart(64, "0");
-
-  for (let i = 0; i < 32; i++) {
-    sigBytes[i] = parseInt(rBytes.slice(i * 2, i * 2 + 2), 16);
-    sigBytes[i + 32] = parseInt(sBytes.slice(i * 2, i * 2 + 2), 16);
-  }
-
-  return sigBytes;
-}
-
-/**
- * Creates an AuthWitness for ECDSA signature verification.
- */
-async function createEcdsaAuthWitness(
+async function createAuthWitness(
+  wallet: Wallet,
+  ownerAddress: AztecAddress,
   secret: Fr,
   amount: bigint,
-  contractAddress: AztecAddress,
-  chainId: number,
-  version: number,
+  fpcAddress: AztecAddress,
 ): Promise<AuthWitness> {
-  const messageHash = await computeInnerAuthWitHash([
-    secret,
-    new Fr(amount),
-    contractAddress.toField(),
-    new Fr(chainId),
-    new Fr(version),
-  ]);
-  const signatureBytes = signEcdsa(messageHash.toBuffer(), ECDSA_PRIVATE_KEY);
-  const witnessData = Array.from(signatureBytes).map((b) => new Fr(b));
-  return new AuthWitness(messageHash, witnessData);
+  const innerHash = await computeInnerAuthWitHash([secret, new Fr(amount)]);
+  const intent = { consumer: fpcAddress, innerHash };
+  return wallet.createAuthWit(ownerAddress, intent);
 }
 
 /**
@@ -168,12 +119,10 @@ interface CounterBenchmarkContext extends BenchmarkContext {
   accounts: AztecAddress[];
   counterContract: CounterContract;
   meteredFpc: MeteredContract;
-  chainId: number;
-  version: number;
   // Existing payment methods (require pre-minted balance)
   meteredPaymentMethod: MeteredFeePaymentMethod;
   meteredExactPaymentMethod: MeteredExactFeePaymentMethod;
-  // New payment methods with signature verification
+  // Payment methods with account contract authwit verification
   mintAndPayFeeSingleNoteMethod: MeteredMintAndPayFeeWithBalancePaymentMethod;
   mintAndPayFeeTwoNotesMethod: MeteredMintAndPayFeeWithBalancePaymentMethod;
   mintAndPayFeeMethod: MeteredMintAndPayFeePaymentMethod;
@@ -208,15 +157,8 @@ export default class CounterContractBenchmark extends Benchmark {
       .send({ from: deployer })
       .deployed();
 
-    // Deploy and fund Metered FPC
-    const { x: ecdsaPubKeyX, y: ecdsaPubKeyY } =
-      getEcdsaPublicKey(ECDSA_PRIVATE_KEY);
-    const meteredFpc = await deployMeteredContract(
-      wallet,
-      deployer,
-      ecdsaPubKeyX,
-      ecdsaPubKeyY,
-    );
+    // Deploy and fund Metered FPC (deployer is the owner who authorizes mints)
+    const meteredFpc = await deployMeteredContract(wallet, deployer);
     await fundL2AddressWithFeeJuiceFromL1(
       aztecNode,
       wallet,
@@ -230,27 +172,18 @@ export default class CounterContractBenchmark extends Benchmark {
       },
     );
 
-    // Advance time past the CONFIG_DELAY so the ECDSA public key becomes available
-    // (DelayedPublicMutable requires time to pass after schedule_value_change)
-    await advanceTime(METERED_CONFIG_DELAY + 1, async () => {
-      await deployCounter(wallet);
-    });
-
-    const chainId = await aztecNode.getChainId();
-    const version = await aztecNode.getVersion();
-
     // =========================================================================
     // Pre-mint balance for MeteredFeePaymentMethod and MeteredExactFeePaymentMethod
     // These methods require existing balance in the contract
     // =========================================================================
     const preMintAmount = 10_000_000_000_000_000_000n;
     const preMintSecret = Fr.random();
-    const preMintAuthWitness = await createEcdsaAuthWitness(
+    const preMintAuthWitness = await createAuthWitness(
+      wallet,
+      deployer,
       preMintSecret,
       preMintAmount,
       meteredFpc.address,
-      chainId,
-      version,
     );
 
     await meteredFpc.methods
@@ -274,12 +207,12 @@ export default class CounterContractBenchmark extends Benchmark {
 
     // MintAndPayFee - mints to account and pays fee (simple, no existing notes consumed)
     const mintAndPayFeeSecret = Fr.random();
-    const mintAndPayFeeAuthWitness = await createEcdsaAuthWitness(
+    const mintAndPayFeeAuthWitness = await createAuthWitness(
+      wallet,
+      deployer,
       mintAndPayFeeSecret,
       mintAmount,
       meteredFpc.address,
-      chainId,
-      version,
     );
     const mintAndPayFeeMethod = new MeteredMintAndPayFeePaymentMethod(
       meteredFpc.address,
@@ -291,12 +224,12 @@ export default class CounterContractBenchmark extends Benchmark {
 
     // MintAndPayFeeWithBalance (single note) - mints enough to cover gas, no existing notes needed
     const mintAndPayFeeSingleSecret = Fr.random();
-    const mintAndPayFeeSingleAuthWitness = await createEcdsaAuthWitness(
+    const mintAndPayFeeSingleAuthWitness = await createAuthWitness(
+      wallet,
+      deployer,
       mintAndPayFeeSingleSecret,
       mintAmount,
       meteredFpc.address,
-      chainId,
-      version,
     );
     const mintAndPayFeeSingleNoteMethod =
       new MeteredMintAndPayFeeWithBalancePaymentMethod(
@@ -311,12 +244,12 @@ export default class CounterContractBenchmark extends Benchmark {
     // The pre-minted balance from above will be used to cover the deficit
     const smallMintAmount = 1n; // Very small, so mint_and_pay_fee_with_balance must use pre-minted note too
     const mintAndPayFeeTwoNotesSecret = Fr.random();
-    const mintAndPayFeeTwoNotesAuthWitness = await createEcdsaAuthWitness(
+    const mintAndPayFeeTwoNotesAuthWitness = await createAuthWitness(
+      wallet,
+      deployer,
       mintAndPayFeeTwoNotesSecret,
       smallMintAmount,
       meteredFpc.address,
-      chainId,
-      version,
     );
     const mintAndPayFeeTwoNotesMethod =
       new MeteredMintAndPayFeeWithBalancePaymentMethod(
@@ -329,12 +262,12 @@ export default class CounterContractBenchmark extends Benchmark {
 
     // MintThenPayFee - two-step flow: mint creates note, then pay_fee consumes it
     const mintThenPayFeeSecret = Fr.random();
-    const mintThenPayFeeAuthWitness = await createEcdsaAuthWitness(
+    const mintThenPayFeeAuthWitness = await createAuthWitness(
+      wallet,
+      deployer,
       mintThenPayFeeSecret,
       mintAmount,
       meteredFpc.address,
-      chainId,
-      version,
     );
     const mintThenPayFeeMethod = new MeteredMintThenPayFeePaymentMethod(
       meteredFpc.address,
@@ -368,8 +301,6 @@ export default class CounterContractBenchmark extends Benchmark {
       accounts,
       counterContract,
       meteredFpc,
-      chainId,
-      version,
       meteredPaymentMethod,
       meteredExactPaymentMethod,
       mintAndPayFeeMethod,
