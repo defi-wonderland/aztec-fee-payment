@@ -71,9 +71,10 @@ describe("Integration: Authwit Request Flow", () => {
       baseUrl = `http://127.0.0.1:${addr.port}`;
   });
 
-  afterAll(
-    () => new Promise<void>((resolve) => server?.close(() => resolve())),
-  );
+  afterAll(() => {
+    server?.closeAllConnections();
+    return new Promise<void>((resolve) => server?.close(() => resolve()));
+  });
 
   const post = (body: unknown) =>
     fetch(`${baseUrl}/api/v1/authwit/request`, {
