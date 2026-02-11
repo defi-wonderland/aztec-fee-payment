@@ -3,6 +3,8 @@ import { TestWallet } from "@aztec/test-wallet/server";
 import type { AztecNode } from "@aztec/aztec.js/node";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { TxStatus } from "@aztec/aztec.js/tx";
+import { Fr } from "@aztec/aztec.js/fields";
+import { computeInnerAuthWitHash } from "@aztec/stdlib/auth-witness";
 
 import { CounterContract, MeteredContract } from "../artifacts/index.js";
 import {
@@ -70,7 +72,21 @@ describe("Metered Fee Payment Contract", () => {
 
   beforeEach(async () => {
     // Mint internal balance for alice before each test
-    await fpc.methods.mint(alice, MINT_AMOUNT).send({ from: alice }).wait();
+    const secret = Fr.random();
+    const innerHash = await computeInnerAuthWitHash([
+      secret,
+      new Fr(MINT_AMOUNT),
+    ]);
+    const authWitness = await wallet.createAuthWit(alice, {
+      consumer: fpc.address,
+      innerHash,
+    });
+
+    await fpc.methods
+      .mint(alice, MINT_AMOUNT, secret)
+      .with({ authWitnesses: [authWitness] })
+      .send({ from: alice })
+      .wait();
   });
 
   // --- pay_fee (no refund) tests ---
