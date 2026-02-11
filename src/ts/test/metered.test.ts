@@ -5,6 +5,7 @@ import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { TxStatus } from "@aztec/aztec.js/tx";
 import { Fr } from "@aztec/aztec.js/fields";
 import { computeInnerAuthWitHash } from "@aztec/stdlib/auth-witness";
+import { poseidon2Hash } from "@aztec/foundation/crypto/poseidon";
 
 import { CounterContract, MeteredContract } from "../artifacts/index.js";
 import {
@@ -73,9 +74,12 @@ describe("Metered Fee Payment Contract", () => {
   beforeEach(async () => {
     // Mint internal balance for alice before each test
     const secret = Fr.random();
+    const userSecret = Fr.random();
+    const hashedUserSecret = await poseidon2Hash([userSecret]);
     const innerHash = await computeInnerAuthWitHash([
       secret,
       new Fr(MINT_AMOUNT),
+      hashedUserSecret,
     ]);
     const authWitness = await wallet.createAuthWit(alice, {
       consumer: fpc.address,
@@ -83,7 +87,7 @@ describe("Metered Fee Payment Contract", () => {
     });
 
     await fpc.methods
-      .mint(alice, MINT_AMOUNT, secret)
+      .mint(alice, MINT_AMOUNT, secret, userSecret)
       .with({ authWitnesses: [authWitness] })
       .send({ from: alice })
       .wait();
