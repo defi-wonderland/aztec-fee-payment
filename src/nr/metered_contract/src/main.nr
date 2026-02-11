@@ -1,13 +1,10 @@
 use dep::aztec::macros::aztec;
 
-mod ecdsa_public_key;
-
 /// Metered Fee Payment Contract
 /// Tracks internal balances and deducts max gas cost per transaction.
 /// Users must have sufficient balance to cover estimated fees.
 #[aztec]
 pub contract Metered {
-    use crate::ecdsa_public_key::EcdsaPublicKey;
     use dep::aztec::{
         authwit::auth::{assert_inner_hash_valid_authwit, compute_inner_authwit_hash},
         context::PrivateContext,
@@ -31,7 +28,6 @@ pub contract Metered {
     struct Storage<Context> {
         owner: PublicImmutable<AztecAddress, Context>,
         balances: Owned<BalanceSet<Context>, Context>,
-        ecdsa_public_key: PublicImmutable<EcdsaPublicKey, Context>,
     }
 
     /// Initializes the Metered FPC contract.

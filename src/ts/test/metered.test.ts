@@ -4,12 +4,7 @@ import type { AztecNode } from "@aztec/aztec.js/node";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { TxStatus } from "@aztec/aztec.js/tx";
 import { Fr } from "@aztec/aztec.js/fields";
-import { sha256 } from "@noble/hashes/sha256";
-import { secp256k1 } from "@noble/curves/secp256k1";
-import {
-  computeInnerAuthWitHash,
-  AuthWitness,
-} from "@aztec/stdlib/auth-witness";
+import { computeInnerAuthWitHash } from "@aztec/stdlib/auth-witness";
 
 import { CounterContract, MeteredContract } from "../artifacts/index.js";
 import {
@@ -32,55 +27,12 @@ import {
   getBalance,
 } from "./utils.js";
 
-const ECDSA_PRIVATE_KEY = 1n;
-
-function getEcdsaPublicKey(privateKey: bigint): {
-  x: number[];
-  y: number[];
-} {
-  const uncompressed = secp256k1.getPublicKey(privateKey, false);
-  const x = Array.from(uncompressed.slice(1, 33));
-  const y = Array.from(uncompressed.slice(33, 65));
-  return { x, y };
-}
-
-function signEcdsa(messageBytes: Uint8Array, privateKey: bigint): Uint8Array {
-  const hashedMessage = sha256(messageBytes);
-  const signature = secp256k1.sign(hashedMessage, privateKey);
-  const sigBytes = new Uint8Array(64);
-  const rBytes = signature.r.toString(16).padStart(64, "0");
-  const sBytes = signature.s.toString(16).padStart(64, "0");
-  for (let i = 0; i < 32; i++) {
-    sigBytes[i] = parseInt(rBytes.slice(i * 2, i * 2 + 2), 16);
-    sigBytes[i + 32] = parseInt(sBytes.slice(i * 2, i * 2 + 2), 16);
-  }
-  return sigBytes;
-}
-
-async function createEcdsaAuthWitness(
-  secret: Fr,
-  amount: bigint,
-  contractAddress: AztecAddress,
-  chainId: number,
-): Promise<AuthWitness> {
-  const messageHash = await computeInnerAuthWitHash([
-    secret,
-    new Fr(amount),
-    contractAddress.toField(),
-    new Fr(chainId),
-  ]);
-  const signatureBytes = signEcdsa(messageHash.toBuffer(), ECDSA_PRIVATE_KEY);
-  const witnessData = Array.from(signatureBytes).map((b) => new Fr(b));
-  return new AuthWitness(messageHash, witnessData);
-}
-
 describe("Metered Fee Payment Contract", () => {
   let wallet: TestWallet;
   let alice: AztecAddress;
   let counter: CounterContract;
   let aztecNode: AztecNode;
   let fpc: MeteredContract;
-  let chainId: number;
   let paymentMethod: MeteredFeePaymentMethod;
   let exactPaymentMethod: MeteredExactFeePaymentMethod;
 
@@ -114,7 +66,6 @@ describe("Metered Fee Payment Contract", () => {
     );
     expect(balance).toBeGreaterThan(0n);
 
-    chainId = await aztecNode.getChainId();
     paymentMethod = new MeteredFeePaymentMethod(fpc.address);
     exactPaymentMethod = new MeteredExactFeePaymentMethod(fpc.address);
   });
@@ -122,12 +73,15 @@ describe("Metered Fee Payment Contract", () => {
   beforeEach(async () => {
     // Mint internal balance for alice before each test
     const secret = Fr.random();
-    const authWitness = await createEcdsaAuthWitness(
+    const innerHash = await computeInnerAuthWitHash([
       secret,
-      MINT_AMOUNT,
-      fpc.address,
-      chainId,
-    );
+      new Fr(MINT_AMOUNT),
+    ]);
+    const authWitness = await wallet.createAuthWit(alice, {
+      consumer: fpc.address,
+      innerHash,
+    });
+
     await fpc.methods
       .mint(alice, MINT_AMOUNT, secret)
       .with({ authWitnesses: [authWitness] })
