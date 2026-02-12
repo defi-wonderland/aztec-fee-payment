@@ -30,7 +30,15 @@ export function parseChainsFromEnv(
     const aztToken = env[`CHAIN_${chainId}_AZT_TOKEN`];
     const confirmations = env[`CHAIN_${chainId}_CONFIRMATIONS`];
 
-    if (!rpcUrl || !feeCollector || !aztToken) continue;
+    if (!rpcUrl || !feeCollector || !aztToken) {
+      const missing = [
+        !rpcUrl && "RPC_URL",
+        !feeCollector && "FEE_COLLECTOR",
+        !aztToken && "AZT_TOKEN",
+      ].filter(Boolean);
+      console.warn(`Chain ${chainId}: skipped — missing ${missing.join(", ")}`);
+      continue;
+    }
 
     chains[chainId] = {
       name: env[`CHAIN_${chainId}_NAME`] ?? `chain-${chainId}`,

@@ -438,7 +438,7 @@ Response (Success - 200):
   "authwit": {                        # Owner's authwit for mint(amount, secret)
     "innerHash": "0x...",             # H(amount, secret)
     "outerHash": "0x...",             # H(consumer, chainId, version, innerHash)
-    "witness": ["0x...", "0x..."]     # Schnorr signature fields
+    "witness": ["0x...", "0x...", "0x..."]     # Schnorr signature fields (3 elements)
   }
 }
 
@@ -446,7 +446,7 @@ Response (Success - 200):
 
 Response (Error - 400):
 {
-  "error": "INVALID_SIGNATURE" | "TX_NOT_FOUND" | "TX_NOT_FINALIZED" |
+  "error": "INVALID_SIGNATURE" | "TX_NOT_FOUND" | "TX_REVERTED" | "TX_NOT_FINALIZED" |
            "WRONG_RECIPIENT" | "INVALID_AMOUNT" | "INVALID_CHAIN"
 }
 ```

@@ -28,9 +28,6 @@ describe("Transaction Validator", () => {
     const client = createMockClient({
       getTransactionReceipt: vi.fn().mockResolvedValue(null),
     });
-    await expect(validateTransaction(validatorOpts(client))).rejects.toThrow(
-      AppError,
-    );
     await expect(
       validateTransaction(validatorOpts(client)),
     ).rejects.toMatchObject({ code: "TX_NOT_FOUND" });
@@ -42,9 +39,6 @@ describe("Transaction Validator", () => {
         .fn()
         .mockResolvedValue({ status: "reverted", blockNumber: 100n, logs: [] }),
     });
-    await expect(validateTransaction(validatorOpts(client))).rejects.toThrow(
-      AppError,
-    );
     await expect(
       validateTransaction(validatorOpts(client)),
     ).rejects.toMatchObject({ code: "TX_REVERTED" });
@@ -54,11 +48,9 @@ describe("Transaction Validator", () => {
     const client = createMockClient({
       getBlockNumber: vi.fn().mockResolvedValue(103n),
     });
-    await expect(validateTransaction(validatorOpts(client))).rejects.toThrow(
-      AppError,
-    );
     try {
       await validateTransaction(validatorOpts(client));
+      expect.unreachable("Should have thrown TX_NOT_FINALIZED");
     } catch (err) {
       expect(err).toBeInstanceOf(AppError);
       const appErr = err as AppError;

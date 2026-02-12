@@ -2,6 +2,14 @@ import "dotenv/config";
 import { configSchema, type AgentConfig } from "../types/index.js";
 import { parseChainsFromEnv } from "./schema.js";
 
+function safeParseBigInt(value: string): bigint | string {
+  try {
+    return BigInt(value);
+  } catch {
+    return value;
+  }
+}
+
 /**
  * Load and validate agent configuration from environment variables.
  *
@@ -19,7 +27,7 @@ export function loadConfig(
     logLevel: env.LOG_LEVEL,
     chains,
     spSigningKey: env.SP_SIGNING_KEY,
-    minAmount: env.MIN_AMOUNT ? BigInt(env.MIN_AMOUNT) : undefined,
+    minAmount: env.MIN_AMOUNT ? safeParseBigInt(env.MIN_AMOUNT) : undefined,
     rateLimit: {
       windowMs: env.RATE_LIMIT_WINDOW_MS
         ? Number(env.RATE_LIMIT_WINDOW_MS)

@@ -1,6 +1,7 @@
 import {
   createPublicClient,
   http,
+  TransactionReceiptNotFoundError,
   type PublicClient,
   type Chain,
   type Hex,
@@ -51,11 +52,14 @@ function createEVMClient(
       try {
         return await client.getTransactionReceipt({ hash: txHash });
       } catch (err) {
+        if (err instanceof TransactionReceiptNotFoundError) {
+          return null;
+        }
         logger.warn(
           { err, chainId, txHash },
           "Failed to fetch transaction receipt",
         );
-        return null;
+        throw err;
       }
     },
 

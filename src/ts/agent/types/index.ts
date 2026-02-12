@@ -59,10 +59,13 @@ export const authwitRequestSchema = z.object({
   signature: signatureHex,
 });
 
-/** 0x-prefixed hex of any length (for keys, addresses) */
+/** 0x-prefixed 20-byte EVM address (42 chars) */
 const hexAddress = z
   .string()
-  .regex(hexPattern, "Must be 0x-prefixed hex") as z.ZodType<Address>;
+  .regex(
+    /^0x[0-9a-fA-F]{40}$/,
+    "Must be 0x-prefixed 20-byte address",
+  ) as z.ZodType<Address>;
 const hexKey = z
   .string()
   .regex(hexPattern, "Must be 0x-prefixed hex") as z.ZodType<Hex>;
