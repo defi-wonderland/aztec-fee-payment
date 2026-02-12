@@ -25,6 +25,8 @@
 // |   +-- it reverts during authwit verification
 // |-- given an authwit registered on a non-owner account
 // |   +-- it reverts because the owner's account contract rejects it
+// |-- given the same authwit is replayed
+// |   +-- it reverts because the nullifier was already emitted
 // =============================================================================
 
 use crate::{Metered, test::utils};
@@ -138,4 +140,21 @@ unconstrained fn mint_reverts_authwit_on_non_owner() {
     // _verify_authwit reads owner from storage and verifies against owner,
     // not user -- so this should fail
     env.call_private(user, Metered::at(contract_address).mint(user, amount, secret));
+}
+
+/// Authwit replay: same (secret, amount) used twice should be rejected
+#[test(should_fail_with = "failed with duplicate nullifier")]
+unconstrained fn mint_reverts_authwit_replay() {
+    let (env, contract_address, owner, _) = utils::setup(true);
+
+    let secret = random();
+    let amount: u128 = 1000;
+
+    // First mint: register authwit and spend it successfully
+    utils::add_metered_authwit(env, contract_address, owner, secret, amount);
+    env.call_private(owner, Metered::at(contract_address).mint(owner, amount, secret));
+
+    // Second mint with the same parameters: the nullifier for this message hash
+    // was already emitted, so this must fail regardless of having a valid witness
+    env.call_private(owner, Metered::at(contract_address).mint(owner, amount, secret));
 }
