@@ -1,19 +1,19 @@
-use ::aztec::macros::aztec;
+use aztec::macros::aztec;
 
 /// Metered Fee Payment Contract
 /// Tracks internal balances and deducts max gas cost per transaction.
 /// Users must have sufficient balance to cover estimated fees.
 #[aztec]
 pub contract Metered {
-    use ::aztec::{
+    use aztec::{
         context::PrivateContext,
         macros::{functions::{allow_phase_change, external, only_self}, storage::storage},
         messages::message_delivery::MessageDelivery,
         protocol::address::AztecAddress,
         state_vars::{Owned, StateVariable},
     };
-    use ::balance_set::BalanceSet;
-    use ::uint_note::{PartialUintNote, UintNote};
+    use balance_set::BalanceSet;
+    use uint_note::{PartialUintNote, UintNote};
 
     #[storage]
     struct Storage<Context> {
