@@ -5,85 +5,16 @@ import {
   Benchmark,
   type BenchmarkContext,
 } from "@defi-wonderland/aztec-benchmark";
-import { Gas, GasFees } from "@aztec/stdlib/gas";
 
-import { CounterContract, MeteredContract } from "../src/ts/artifacts/index.js";
-import {
-  MeteredFeePaymentMethod,
-  MeteredExactFeePaymentMethod,
-} from "../src/ts/fee-payment-methods/index.js";
+import { CounterContract } from "../src/ts/artifacts/index.js";
+import { MeteredFeePaymentMethod } from "../src/ts/fee-payment-methods/index.js";
 import {
   createLocalNetworkContext,
   fundL2AddressWithFeeJuiceFromL1,
   LOCAL_AZTEC_NODE_URL,
 } from "../src/ts/test/harness.js";
 import { deployCounter } from "../src/ts/test/utils.js";
-import {
-  maxFeesPerGasFromBaseFees,
-  REASONABLE_GAS_LIMITS,
-  REASONABLE_TEARDOWN_GAS_LIMITS,
-} from "../src/ts/utils/gas.js";
 import { deployMeteredContract } from "../src/ts/utils/deploy.js";
-
-/**
- * Wraps a ContractFunctionInteraction so the benchmark runner's profiler (which calls
- * request/simulate/profile/send without fee options) always uses a custom FeePaymentMethod.
- */
-class FeeWrappedInteraction {
-  constructor(
-    private readonly inner: any,
-    private readonly paymentMethod?: FeePaymentMethod,
-    private readonly gasSettings?: {
-      gasLimits: Gas;
-      teardownGasLimits: Gas;
-      maxFeesPerGas: GasFees;
-    },
-  ) {}
-
-  async request(options: any = {}) {
-    const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
-    const gasSettings = this.gasSettings;
-    return paymentMethod
-      ? this.inner.request({
-          ...options,
-          fee: { ...(options.fee ?? {}), paymentMethod, gasSettings },
-        })
-      : this.inner.request(options);
-  }
-
-  async simulate(options: any) {
-    const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
-    const gasSettings = this.gasSettings;
-    return paymentMethod
-      ? this.inner.simulate({
-          ...options,
-          fee: { ...(options.fee ?? {}), paymentMethod, gasSettings },
-        })
-      : this.inner.simulate(options);
-  }
-
-  async profile(options: any) {
-    const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
-    const gasSettings = this.gasSettings;
-    return paymentMethod
-      ? this.inner.profile({
-          ...options,
-          fee: { ...(options.fee ?? {}), paymentMethod, gasSettings },
-        })
-      : this.inner.profile(options);
-  }
-
-  send(options: any) {
-    const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
-    const gasSettings = this.gasSettings;
-    return paymentMethod
-      ? this.inner.send({
-          ...options,
-          fee: { ...(options.fee ?? {}), paymentMethod, gasSettings },
-        })
-      : this.inner.send(options);
-  }
-}
 
 // Extend the BenchmarkContext from the new package
 interface CounterBenchmarkContext extends BenchmarkContext {
@@ -91,19 +22,7 @@ interface CounterBenchmarkContext extends BenchmarkContext {
   deployer: AztecAddress;
   accounts: AztecAddress[];
   counterContract: CounterContract;
-  meteredFpc: MeteredContract;
-  meteredPaymentMethod: MeteredFeePaymentMethod;
-  meteredExactPaymentMethod: MeteredExactFeePaymentMethod;
-  gasSettingsNoTeardown: {
-    gasLimits: Gas;
-    teardownGasLimits: Gas;
-    maxFeesPerGas: GasFees;
-  };
-  gasSettingsWithTeardown: {
-    gasLimits: Gas;
-    teardownGasLimits: Gas;
-    maxFeesPerGas: GasFees;
-  };
+  feePaymentMethod: FeePaymentMethod;
 }
 
 // Use export default class extending Benchmark
@@ -143,39 +62,14 @@ export default class CounterContractBenchmark extends Benchmark {
       .mint(deployer, 10_000_000_000_000_000_000n)
       .send({ from: deployer });
 
-    const meteredPaymentMethod = new MeteredFeePaymentMethod(
-      meteredFpc.address,
-    );
-    const meteredExactPaymentMethod = new MeteredExactFeePaymentMethod(
-      meteredFpc.address,
-    );
-
-    // Gas settings
-    const baseFees: any = await (aztecNode as any).getCurrentMinFees();
-    const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
-
-    const gasSettingsNoTeardown = {
-      gasLimits: REASONABLE_GAS_LIMITS,
-      teardownGasLimits: Gas.from({ l2Gas: 0, daGas: 0 }),
-      maxFeesPerGas,
-    };
-
-    const gasSettingsWithTeardown = {
-      gasLimits: REASONABLE_GAS_LIMITS,
-      teardownGasLimits: REASONABLE_TEARDOWN_GAS_LIMITS,
-      maxFeesPerGas,
-    };
+    const feePaymentMethod = new MeteredFeePaymentMethod(meteredFpc.address);
 
     return {
       wallet,
       deployer,
       accounts,
       counterContract,
-      meteredFpc,
-      meteredPaymentMethod,
-      meteredExactPaymentMethod,
-      gasSettingsNoTeardown,
-      gasSettingsWithTeardown,
+      feePaymentMethod,
     };
   }
 
@@ -183,51 +77,17 @@ export default class CounterContractBenchmark extends Benchmark {
    * Returns the list of CounterContract methods to be benchmarked.
    */
   getMethods(context: CounterBenchmarkContext): any[] {
-    const {
-      counterContract,
-      wallet,
-      deployer,
-      meteredPaymentMethod,
-      meteredExactPaymentMethod,
-      gasSettingsNoTeardown,
-      gasSettingsWithTeardown,
-    } = context;
+    const { counterContract, wallet, deployer } = context;
 
-    const methods = [
+    return [
       {
         name: "increment",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
-            counterContract.withWallet(wallet).methods.increment(),
-          ),
-        },
-      },
-      {
-        name: "increment_metered",
-        interaction: {
-          caller: deployer,
-          action: new FeeWrappedInteraction(
-            counterContract.withWallet(wallet).methods.increment(),
-            meteredPaymentMethod,
-            gasSettingsNoTeardown,
-          ),
-        },
-      },
-      {
-        name: "increment_metered_exact",
-        interaction: {
-          caller: deployer,
-          action: new FeeWrappedInteraction(
-            counterContract.withWallet(wallet).methods.increment(),
-            meteredExactPaymentMethod,
-            gasSettingsWithTeardown,
-          ),
+          action: counterContract.withWallet(wallet).methods.increment(),
         },
       },
     ];
-
-    return methods;
   }
 
   async teardown(context: BenchmarkContext): Promise<void> {

@@ -7,7 +7,7 @@ use dep::aztec::macros::aztec;
 pub contract Metered {
     use dep::aztec::{
         context::PrivateContext,
-        macros::{functions::{external, nophasecheck, only_self}, storage::storage},
+        macros::{functions::{allow_phase_change, external, only_self}, storage::storage},
         messages::message_delivery::MessageDelivery,
         protocol::address::AztecAddress,
         state_vars::{Owned, StateVariable},
@@ -24,7 +24,7 @@ pub contract Metered {
     /// If sender has insufficient balance, the transaction is invalid.
     /// NOTE: Does not refund unused gas - the full max_gas_cost is consumed.
     #[external("private")]
-    #[nophasecheck]
+    #[allow_phase_change]
     fn pay_fee() {
         let sender = self.context.maybe_msg_sender().unwrap();
 
@@ -50,7 +50,7 @@ pub contract Metered {
     /// Sponsors the transaction with exact fee refunds.
     /// Deducts max gas cost upfront, then refunds the difference in teardown.
     #[external("private")]
-    #[nophasecheck]
+    #[allow_phase_change]
     fn pay_fee_exact() {
         let sender = self.context.maybe_msg_sender().unwrap();
 
