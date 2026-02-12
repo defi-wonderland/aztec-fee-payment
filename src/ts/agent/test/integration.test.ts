@@ -16,13 +16,26 @@ import {
 
 const userAccount = privateKeyToAccount(OTHER_KEY);
 
-// Mock the EVM validator at service level (not viem itself)
-vi.mock("../services/evm/validator.js", () => ({
-  validateTransaction: vi.fn().mockResolvedValue({
-    amount: 1000000000000000000n,
-    from: userAccount.address,
-  }),
-}));
+// Mock the EVM validator — only succeeds when `from` matches the expected user
+vi.mock("../services/evm/validator.js", async () => {
+  const { privateKeyToAccount } = await import("viem/accounts");
+  const { invalidInput } = await import("../errors.js");
+  return {
+    validateTransaction: vi
+      .fn()
+      .mockImplementation((opts: { from: string }) => {
+        const expectedFrom =
+          privateKeyToAccount(OTHER_KEY).address.toLowerCase();
+        if (opts.from.toLowerCase() !== expectedFrom) {
+          throw invalidInput(
+            "WRONG_RECIPIENT",
+            "No AZT transfer to fee collector address found",
+          );
+        }
+        return { amount: 1000000000000000000n };
+      }),
+  };
+});
 
 // Mock the EVM client so the server doesn't try to connect to real RPCs
 vi.mock("../services/evm/client.js", () => ({
@@ -113,7 +126,7 @@ describe("Integration: Authwit Request Flow", () => {
     expect(body1.authwit.outerHash).toBe(body2.authwit.outerHash);
   });
 
-  it("rejects invalid signature", async () => {
+  it("rejects when recovered signer does not match transfer sender", async () => {
     const otherAccount = privateKeyToAccount(TEST_KEY);
     const badSignature = await otherAccount.signTypedData(
       getTypedDataForSigning(TX_HASH, CHAIN_ID),
@@ -125,7 +138,7 @@ describe("Integration: Authwit Request Flow", () => {
       signature: badSignature,
     });
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("INVALID_SIGNATURE");
+    expect((await res.json()).error).toBe("WRONG_RECIPIENT");
   });
 
   it("rejects unsupported chain", async () => {

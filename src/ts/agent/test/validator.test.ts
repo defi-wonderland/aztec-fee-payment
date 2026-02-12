@@ -22,7 +22,6 @@ describe("Transaction Validator", () => {
   it("validates a legitimate transaction", async () => {
     const result = await validateTransaction(validatorOpts(createMockClient()));
     expect(result.amount).toBe(1000000000000000000n);
-    expect(result.from.toLowerCase()).toBe(USER.toLowerCase());
   });
 
   it("throws TX_NOT_FOUND when receipt is missing", async () => {

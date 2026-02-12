@@ -84,6 +84,7 @@ describe("EVM Parser", () => {
         transfers,
         FEE_COLLECTOR,
         TOKEN_A,
+        USER,
       );
       expect(matching).toHaveLength(1);
       expect(matching[0].amount).toBe(100n);
@@ -95,7 +96,7 @@ describe("EVM Parser", () => {
         { token: TOKEN_A, from: USER, to: FEE_COLLECTOR, amount: 200n },
       ];
       expect(
-        findFeeCollectorTransfers(transfers, FEE_COLLECTOR, TOKEN_A),
+        findFeeCollectorTransfers(transfers, FEE_COLLECTOR, TOKEN_A, USER),
       ).toHaveLength(2);
     });
 
@@ -104,7 +105,7 @@ describe("EVM Parser", () => {
         { token: TOKEN_B, from: USER, to: FEE_COLLECTOR, amount: 100n },
       ];
       expect(
-        findFeeCollectorTransfers(transfers, FEE_COLLECTOR, TOKEN_A),
+        findFeeCollectorTransfers(transfers, FEE_COLLECTOR, TOKEN_A, USER),
       ).toHaveLength(0);
     });
 
@@ -118,7 +119,7 @@ describe("EVM Parser", () => {
         },
       ];
       expect(
-        findFeeCollectorTransfers(transfers, FEE_COLLECTOR, TOKEN_A),
+        findFeeCollectorTransfers(transfers, FEE_COLLECTOR, TOKEN_A, USER),
       ).toHaveLength(1);
     });
   });

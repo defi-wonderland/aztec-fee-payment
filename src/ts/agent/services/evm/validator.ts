@@ -7,16 +7,12 @@ import type { Logger } from "../../middleware/logger.js";
 export interface ValidateTransactionOptions {
   client: EVMClient;
   txHash: Hex;
+  from: Address;
   feeCollectorAddress: Address;
   aztTokenAddress: Address;
   requiredConfirmations: number;
   minAmount: bigint;
   logger: Logger;
-}
-
-export interface ValidatedTransaction {
-  amount: bigint;
-  from: Address;
 }
 
 /**
@@ -30,10 +26,11 @@ export interface ValidatedTransaction {
  */
 export async function validateTransaction(
   options: ValidateTransactionOptions,
-): Promise<ValidatedTransaction> {
+): Promise<{ amount: bigint }> {
   const {
     client,
     txHash,
+    from,
     feeCollectorAddress,
     aztTokenAddress,
     requiredConfirmations,
@@ -69,6 +66,7 @@ export async function validateTransaction(
     allTransfers,
     feeCollectorAddress,
     aztTokenAddress,
+    from,
   );
 
   if (matchingTransfers.length === 0) {
@@ -92,9 +90,9 @@ export async function validateTransaction(
   }
 
   logger.info(
-    { txHash, amount: totalAmount.toString(), from: receipt.from },
+    { txHash, amount: totalAmount.toString(), from },
     "Transaction validated",
   );
 
-  return { amount: totalAmount, from: receipt.from };
+  return { amount: totalAmount };
 }

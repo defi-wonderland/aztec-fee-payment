@@ -59,12 +59,15 @@ export function findFeeCollectorTransfers(
   transfers: ParsedTransfer[],
   feeCollectorAddress: Address,
   aztTokenAddress: Address,
+  from: Address,
 ): ParsedTransfer[] {
   const feeCollectorLower = feeCollectorAddress.toLowerCase();
   const aztTokenLower = aztTokenAddress.toLowerCase();
+  const fromLower = from.toLowerCase();
 
   return transfers.filter(
     (t) =>
+      t.from.toLowerCase() === fromLower &&
       t.to.toLowerCase() === feeCollectorLower &&
       t.token.toLowerCase() === aztTokenLower,
   );

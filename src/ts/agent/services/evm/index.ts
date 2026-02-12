@@ -7,5 +7,4 @@ export {
 export {
   validateTransaction,
   type ValidateTransactionOptions,
-  type ValidatedTransaction,
 } from "./validator.js";

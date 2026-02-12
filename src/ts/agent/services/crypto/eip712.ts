@@ -1,9 +1,4 @@
-import {
-  recoverTypedDataAddress,
-  verifyTypedData,
-  type Address,
-  type Hex,
-} from "viem";
+import { recoverTypedDataAddress, type Address, type Hex } from "viem";
 
 const EIP712_DOMAIN = {
   name: "Aztec FPC Claim",
@@ -32,25 +27,6 @@ export async function recoverClaimRequestSigner(
     primaryType: "ClaimRequest",
     message,
     signature,
-  });
-}
-
-/**
- * Verify that an EIP-712 ClaimRequest signature was produced by `expectedSigner`.
- */
-export async function verifyClaimRequestSignature(
-  message: ClaimRequestMessage,
-  signature: Hex,
-  expectedSigner: Address,
-  chainId: number,
-): Promise<boolean> {
-  return verifyTypedData({
-    domain: { ...EIP712_DOMAIN, chainId },
-    types: EIP712_TYPES,
-    primaryType: "ClaimRequest",
-    message,
-    signature,
-    address: expectedSigner,
   });
 }
 

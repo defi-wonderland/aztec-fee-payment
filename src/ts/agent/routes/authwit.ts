@@ -8,7 +8,7 @@ import {
 } from "../types/index.js";
 import { MultiChainEVMClient } from "../services/evm/client.js";
 import { validateTransaction } from "../services/evm/validator.js";
-import { verifyClaimRequestSignature } from "../services/crypto/eip712.js";
+import { recoverClaimRequestSigner } from "../services/crypto/eip712.js";
 import { SecretGenerator } from "../services/crypto/secret.js";
 import {
   AuthwitGenerator,
@@ -52,33 +52,34 @@ export function createAuthwitRouter(deps: AuthwitRouteDeps): Router {
         );
       }
 
-      // 2. Validate EVM transaction (throws AppError on failure)
+      // 2. Recover sender from EIP-712 signature
+      reqLogger.info("Recovering EIP-712 signer");
+      let from;
+      try {
+        from = await recoverClaimRequestSigner(
+          { txHash: body.evmTxHash },
+          body.signature,
+          body.evmChainId,
+        );
+      } catch {
+        throw invalidInput(
+          "INVALID_SIGNATURE",
+          "Could not recover signer from EIP-712 signature",
+        );
+      }
+
+      // 3. Validate EVM transaction (throws AppError on failure)
       reqLogger.info("Validating EVM transaction");
       const txResult = await validateTransaction({
         client,
         txHash: body.evmTxHash,
+        from,
         feeCollectorAddress: chainConfig.feeCollectorAddress,
         aztTokenAddress: chainConfig.aztTokenAddress,
         requiredConfirmations: chainConfig.requiredConfirmations,
         minAmount: config.minAmount,
         logger: reqLogger,
       });
-
-      // 3. Verify EIP-712 signature matches tx sender
-      reqLogger.info("Verifying EIP-712 signature");
-      const signatureValid = await verifyClaimRequestSignature(
-        { txHash: body.evmTxHash },
-        body.signature,
-        txResult.from,
-        body.evmChainId,
-      );
-
-      if (!signatureValid) {
-        throw invalidInput(
-          "INVALID_SIGNATURE",
-          "EIP-712 signature is invalid or signer does not match transaction sender",
-        );
-      }
 
       // 4. Generate deterministic secret from txHash
       const secret = secretGenerator.generateSecret(body.evmTxHash);

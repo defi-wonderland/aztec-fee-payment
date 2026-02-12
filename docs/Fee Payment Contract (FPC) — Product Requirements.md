@@ -1,6 +1,6 @@
 # Fee Payment Contract (FPC) — Product Requirements Document
 
-**Version**: 3.2
+**Version**: 3.5
 **Status**: Active
 **Current Phase**: Phase 2 (Authorized Mint with Authwit)
 **Target Aztec Version**: 3.0.0-devnet.6-patch.1
@@ -104,7 +104,7 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 
 | Requirement | Acceptance Criteria | Status |
 | --- | --- | --- |
-| **Payment verification** | Off-chain agent verifies EVM transactions on-demand (stateless); validates AZT transfer to fee collector, checks finality, filters by recipient address AND AZT token address | Implemented (Agent) |
+| **Payment verification** | Off-chain agent verifies EVM transactions on-demand (stateless); validates AZT transfer to fee collector, checks finality, filters by recipient address AND AZT token address, filters by sender (recovered from EIP-712 signature) | Implemented (Agent) |
 | **Authwit generation** | On verified AZT payment, agent generates deterministic `{ amount, secret, authwit }` and returns to user; user calls `mint(amount, secret)` on Aztec themselves | Implemented (Agent) |
 | **AZT-only acceptance** | Agent only processes AZT token transfers (not arbitrary ERC20s) to the designated fee collector address | Implemented (Agent) |
 | **Stateless API** | `POST /api/v1/authwit/request` endpoint; same request always returns same response; no database required | Implemented (Agent) |
@@ -302,7 +302,7 @@ The off-chain agent serves a stateless API that verifies AZT token transfers on 
 - **AZT-only**: Only AZT token transfers are accepted (filtered by both recipient AND token address)
 - **Stateless & deterministic**: Same `txHash` always returns the same `{ amount, secret, authwit }` — no database required
 - **Privacy-preserving**: Agent never learns the user's Aztec address; user calls `mint(amount, secret)` themselves
-- **EIP-712 verification**: User signs txHash to prove ownership of the EVM payment
+- **EIP-712 sender recovery**: User signs txHash; agent recovers signer address and uses it to filter Transfer events by `from` field
 
 ```
 EVM-Side Payment Flow:
@@ -311,7 +311,7 @@ EVM-Side Payment Flow:
 2. DEX transfers AZT to SP's fee collector address
 3. User signs EIP-712 message (txHash) to prove payment ownership
 4. User calls POST /api/v1/authwit/request with { evmTxHash, evmChainId, signature }
-5. Agent verifies: EIP-712 signature, tx finality, correct token, correct recipient
+5. Agent recovers sender from EIP-712 signature, validates tx finality, filters transfers by recovered sender + fee collector + AZT token
 6. Agent derives secret = sign(txHash, spKey).r % Fr.MODULUS (deterministic ECDSA via RFC 6979)
 7. Agent generates authwit for mint(amount, secret) and returns { amount, secret, authwit }
 8. User stores authwit in PXE and calls mint(amount, secret) on Aztec
@@ -339,7 +339,7 @@ Phase 2 replaces the permissionless `mint(account, amount)` with an authorized `
 | **Self-sponsoring** | No | Yes — FPC calls `set_as_fee_payer()` in mint, deducts gas from minted amount | Contract: Planned |
 | **Storage** | `balances` only | `balances` + `PublicImmutable<AztecAddress>` owner | Contract: Planned |
 | **Initialization** | None | `initialize(owner: AztecAddress)` | Contract: Planned |
-| **EIP-712 verification** | N/A | User signs txHash to prove EVM payment ownership | Agent: Implemented |
+| **EIP-712 verification** | N/A | User signs txHash to prove ownership as token sender (Transfer event `from`) | Agent: Implemented |
 | **Deterministic secrets** | N/A | `secret = sign(txHash, spKey).r % Fr.MODULUS` (deterministic ECDSA via RFC 6979) | Agent: Implemented |
 | **Authwit generation** | N/A | Authwit for `mint(amount, secret)` via Schnorr on Grumpkin | Agent: Implemented |
 | **Stateless API** | N/A | `POST /api/v1/authwit/request` | Agent: Implemented |
@@ -395,7 +395,7 @@ This specifies how users obtain authwits from the Service Provider (SP) after pa
 
 #### EIP-712 Typed Data Specification
 
-User signs the txHash to prove they control the EVM address that made the payment.
+User signs the txHash to prove they control the EVM address that sent the AZT tokens.
 
 ```typescript
 // EIP-712 Domain
@@ -456,32 +456,29 @@ Response (Error - 400):
 ```
 HANDLE_AUTHWIT_REQUEST(evmTxHash, evmChainId, signature):
 
-    1. VERIFY SIGNATURE
-       - Recover EVM address from EIP-712 signature
+    1. RECOVER SENDER FROM SIGNATURE
+       - Recover EVM address from EIP-712 signature (INVALID_SIGNATURE if malformed)
+       - Recovered address is used as `from` filter in subsequent validation
 
     2. FETCH & VALIDATE TRANSACTION
        - Transaction succeeded
        - Transaction is finalized (enough confirmations)
 
-    3. VALIDATE SENDER
-       - Signature signer == transaction sender
-       - Rejects requests from non-payers
+    3. FILTER & SUM TRANSFERS
+       - Parse ERC20 Transfer events from receipt
+       - Filter by: `from` (recovered signer), `to` (fee collector), `token` (AZT)
+       - Only transfers from the EIP-712 signer are counted
+       - If no matching transfers, WRONG_RECIPIENT (signer has no AZT transfers to fee collector)
+       - Sum matching transfer amounts, reject if below minimum (INVALID_AMOUNT)
 
-    4. VALIDATE RECIPIENT
-       - Transaction recipient == SP fee collector
-       - Rejects payments to wrong address
-
-    5. PARSE AMOUNT
-       - Extract AZT amount from transaction
-
-    6. DERIVE SECRET (DETERMINISTIC)
+    4. DERIVE SECRET (DETERMINISTIC)
        - secret = sign(txHash, spKey).r % Fr.MODULUS (deterministic ECDSA via RFC 6979)
        - Same txHash -> same secret, always
 
-    7. GENERATE AUTHWIT
+    5. GENERATE AUTHWIT
        - Custom authwit for mint(amount, secret)
 
-    8. RETURN
+    6. RETURN
        - { amount, secret, authwit }
        - Stateless: same request = same response
 ```
@@ -513,9 +510,10 @@ HANDLE_AUTHWIT_REQUEST(evmTxHash, evmChainId, signature):
 4. **Replay prevention**: The authwit itself is pushed as a nullifier after use. Same authwit cannot mint twice.
 5. **Custom authwit**: Modified authwit inner_hash uses only `(amount, secret)` — no caller, fpcAddress, or selector. Allows any address to claim.
 6. **No revocation**: Once authwit is generated, it's valid until secret is used. Stateless means no revocation possible.
-7. **EIP-712 verification**: SP verifies signature recovers to txHash sender. Proves ownership of payment.
+7. **EIP-712 verification**: SP recovers the signer address from the EIP-712 signature and uses it as the `from` filter when querying Transfer events. Only transfers sent by the recovered signer are counted, implicitly proving payment ownership.
 8. **Stateless availability**: SP has no database. User can retry infinitely—deterministic response.
 9. **Cross-chain replay prevention**: Different EVM chains produce different txHashes, so the derived secret is naturally unique per chain. EIP-712 domain also includes EVM `chainId` to bind signatures to a specific chain.
+10. **Cross-sender aggregation prevention**: The sender address is recovered from the EIP-712 signature and used as a filter parameter — only AZT transfers where the `from` field matches the recovered signer are counted. Prevents a multi-sender transaction from crediting all transfer amounts to a single signer.
 
 ### Complete End-to-End Flow (Phase 2)
 
@@ -532,8 +530,8 @@ sequenceDiagram
     User->>User: Sign EIP-712 message (txHash)
     User->>API: POST /api/v1/authwit/request
 
-    API->>API: Verify EIP-712 signature
-    API->>API: Validate tx: recipient, token, finality
+    API->>API: Recover sender from EIP-712 signature
+    API->>API: Validate tx: finality, filter by recovered sender + fee collector + AZT token
     API->>API: Derive: secret = sign(txHash, spKey).r % Fr.MODULUS
     API->>API: Generate: authwit for mint(amount, secret)
     API->>User: Return { amount, secret, authwit }
@@ -573,3 +571,6 @@ To avoid changing the FPC contract, Phase 1 can assume all ERC20 transfers come 
 | 3.0 | February 2026 | Updated to Phase 2 as current target: `mint(amount, secret)` with authwit, aligned PRD with Agent Spec implementation, updated EVM payment flow to stateless authwit API, added agent configuration requirements (`FPC_ADDRESS`, `OWNER_ADDRESS`), marked agent-side items as Implemented and contract-side items as Planned |
 | 3.1 | February 2026 | Simplified secret generation: replaced `txHash % Fr.MODULUS` with deterministic ECDSA (RFC 6979) signing of txHash, extracting `r` component mod BN254 Fr. Removed domain separator and chainId from secret derivation. Updated API response shape to match implementation (`secret` field, structured `authwit` object with `innerHash`/`outerHash`/`witness`). Added `INVALID_AMOUNT` and `INVALID_CHAIN` error codes. |
 | 3.2 | February 2026 | Simplified inner_hash: removed `fpcAddress` and `selector` from inner_hash computation. Inner hash is now `H(amount, secret)` instead of `H(fpcAddress, selector, amount, secret)`. Custom authwit no longer binds to a specific FPC address or function selector. |
+| 3.3 | 2026-02-11 | EIP-712 sender verification now checks against the token sender (Transfer event `from` field) instead of the transaction origin (`receipt.from` / `tx.origin`). Updated Backend Verification Logic, security considerations, EVM payment flow, and Phase 2 table to reflect this change. |
+| 3.4 | 2026-02-11 | Security hardening: validator now pins sender to first matching AZT transfer and sums only same-sender transfers, preventing cross-sender amount aggregation in multi-sender transactions. Updated payment verification acceptance criteria, Backend Verification Logic, EVM payment flow, sequence diagram, and security considerations. |
+| 3.5 | 2026-02-11 | Corrected sender filtering description: sender is recovered from EIP-712 signature (via `recoverClaimRequestSigner`) and passed as `from` filter to the validator — not "pinned to first matching transfer". Removed references to `verifyClaimRequestSignature` (only `recoverClaimRequestSigner` exists). Updated Backend Verification Logic, EVM payment flow, sequence diagram, security considerations #7 and #10, and payment verification acceptance criteria. |

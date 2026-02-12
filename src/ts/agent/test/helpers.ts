@@ -97,6 +97,7 @@ export function validatorOpts(
   return {
     client,
     txHash: TX_HASH,
+    from: USER,
     feeCollectorAddress: FEE_COLLECTOR,
     aztTokenAddress: AZT_TOKEN,
     requiredConfirmations: 6,
