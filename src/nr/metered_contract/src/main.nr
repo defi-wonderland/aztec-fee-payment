@@ -1,19 +1,19 @@
-use dep::aztec::macros::aztec;
+use ::aztec::macros::aztec;
 
 /// Metered Fee Payment Contract
 /// Tracks internal balances and deducts max gas cost per transaction.
 /// Users must have sufficient balance to cover estimated fees.
 #[aztec]
 pub contract Metered {
-    use dep::aztec::{
+    use ::aztec::{
         context::PrivateContext,
-        macros::{functions::{external, nophasecheck, only_self}, storage::storage},
+        macros::{functions::{allow_phase_change, external, only_self}, storage::storage},
         messages::message_delivery::MessageDelivery,
         protocol::address::AztecAddress,
         state_vars::{Owned, StateVariable},
     };
-    use dep::balance_set::BalanceSet;
-    use dep::uint_note::{PartialUintNote, UintNote};
+    use ::balance_set::BalanceSet;
+    use ::uint_note::{PartialUintNote, UintNote};
 
     #[storage]
     struct Storage<Context> {
@@ -24,7 +24,7 @@ pub contract Metered {
     /// If sender has insufficient balance, the transaction is invalid.
     /// NOTE: Does not refund unused gas - the full max_gas_cost is consumed.
     #[external("private")]
-    #[nophasecheck]
+    #[allow_phase_change]
     fn pay_fee() {
         let sender = self.context.maybe_msg_sender().unwrap();
 
@@ -50,7 +50,7 @@ pub contract Metered {
     /// Sponsors the transaction with exact fee refunds.
     /// Deducts max gas cost upfront, then refunds the difference in teardown.
     #[external("private")]
-    #[nophasecheck]
+    #[allow_phase_change]
     fn pay_fee_exact() {
         let sender = self.context.maybe_msg_sender().unwrap();
 
