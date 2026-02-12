@@ -1,75 +1,82 @@
 import express from "express";
 import cors from "cors";
-import { createAgentLogger, createErrorHandler, createRateLimiter, } from "./middleware/index.js";
+import {
+  createAgentLogger,
+  createErrorHandler,
+  createRateLimiter,
+} from "./middleware/index.js";
 import { MultiChainEVMClient } from "./services/evm/client.js";
 import { SecretGenerator } from "./services/crypto/secret.js";
 import { AuthwitGenerator } from "./services/crypto/authwit.js";
 import { createAuthwitRouter } from "./routes/authwit.js";
 export function createServer(config) {
-    const logger = createAgentLogger(config);
-    const app = express();
-    app.set("trust proxy", 1);
-    // Body parsing
-    app.use(express.json());
-    // CORS: all origins, GET/POST/OPTIONS
-    app.use(cors({ origin: true }));
-    // Request ID
-    app.use((req, _res, next) => {
-        if (!req.headers["x-request-id"]) {
-            req.headers["x-request-id"] = crypto.randomUUID();
-        }
-        next();
+  const logger = createAgentLogger(config);
+  const app = express();
+  app.set("trust proxy", 1);
+  // Body parsing
+  app.use(express.json());
+  // CORS: all origins, GET/POST/OPTIONS
+  app.use(cors({ origin: true }));
+  // Request ID
+  app.use((req, _res, next) => {
+    if (!req.headers["x-request-id"]) {
+      req.headers["x-request-id"] = crypto.randomUUID();
+    }
+    next();
+  });
+  // Request logging
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on("finish", () => {
+      logger.info(
+        {
+          method: req.method,
+          url: req.url,
+          statusCode: res.statusCode,
+          durationMs: Date.now() - start,
+          requestId: req.headers["x-request-id"],
+        },
+        "Request completed",
+      );
     });
-    // Request logging
-    app.use((req, res, next) => {
-        const start = Date.now();
-        res.on("finish", () => {
-            logger.info({
-                method: req.method,
-                url: req.url,
-                statusCode: res.statusCode,
-                durationMs: Date.now() - start,
-                requestId: req.headers["x-request-id"],
-            }, "Request completed");
-        });
-        next();
+    next();
+  });
+  // Rate limiting
+  app.use("/api/", createRateLimiter(config.rateLimit));
+  // Health check
+  app.get("/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      version: "1.0.0",
+      chains: Object.keys(config.chains).map(Number),
     });
-    // Rate limiting
-    app.use("/api/", createRateLimiter(config.rateLimit));
-    // Health check
-    app.get("/health", (_req, res) => {
-        res.json({
-            status: "ok",
-            version: "1.0.0",
-            chains: Object.keys(config.chains).map(Number),
-        });
+  });
+  // Services
+  const evmClients = new MultiChainEVMClient(config.chains, logger);
+  const secretGenerator = new SecretGenerator(config.spSigningKey);
+  const authwitGenerator = new AuthwitGenerator({
+    fpcAddress: config.aztec.fpcAddress,
+    ownerAddress: config.aztec.ownerAddress,
+    ownerSigningKey: config.spSigningKey,
+  });
+  // API routes
+  const authwitRouter = createAuthwitRouter({
+    config,
+    evmClients,
+    secretGenerator,
+    authwitGenerator,
+    logger,
+  });
+  app.use("/api/v1", authwitRouter);
+  // 404 handler
+  app.use((_req, res) => {
+    res.status(404).json({
+      error: "INVALID_REQUEST",
+      message: "Route not found",
     });
-    // Services
-    const evmClients = new MultiChainEVMClient(config.chains, logger);
-    const secretGenerator = new SecretGenerator(config.spSigningKey);
-    const authwitGenerator = new AuthwitGenerator({
-        fpcAddress: config.aztec.fpcAddress,
-        ownerAddress: config.aztec.ownerAddress,
-        ownerSigningKey: config.spSigningKey,
-    });
-    // API routes
-    const authwitRouter = createAuthwitRouter({
-        config,
-        evmClients,
-        secretGenerator,
-        authwitGenerator,
-        logger,
-    });
-    app.use("/api/v1", authwitRouter);
-    // 404 handler
-    app.use((_req, res) => {
-        res.status(404).json({
-            error: "INVALID_REQUEST",
-            message: "Route not found",
-        });
-    });
-    // Error handler (must be last)
-    app.use(createErrorHandler(logger));
-    return { app, logger };
+  });
+  // Error handler (must be last)
+  app.use(createErrorHandler(logger));
+  return { app, logger };
 }
 //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2VydmVyLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vYWdlbnQvc2VydmVyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE9BQU8sT0FBTyxNQUFNLFNBQVMsQ0FBQztBQUM5QixPQUFPLElBQUksTUFBTSxNQUFNLENBQUM7QUFFeEIsT0FBTyxFQUNMLGlCQUFpQixFQUNqQixrQkFBa0IsRUFDbEIsaUJBQWlCLEdBQ2xCLE1BQU0sdUJBQXVCLENBQUM7QUFDL0IsT0FBTyxFQUFFLG1CQUFtQixFQUFFLE1BQU0sMEJBQTBCLENBQUM7QUFDL0QsT0FBTyxFQUFFLGVBQWUsRUFBRSxNQUFNLDZCQUE2QixDQUFDO0FBQzlELE9BQU8sRUFBRSxnQkFBZ0IsRUFBRSxNQUFNLDhCQUE4QixDQUFDO0FBQ2hFLE9BQU8sRUFBRSxtQkFBbUIsRUFBRSxNQUFNLHFCQUFxQixDQUFDO0FBRTFELE1BQU0sVUFBVSxZQUFZLENBQUMsTUFBbUI7SUFDOUMsTUFBTSxNQUFNLEdBQUcsaUJBQWlCLENBQUMsTUFBTSxDQUFDLENBQUM7SUFDekMsTUFBTSxHQUFHLEdBQUcsT0FBTyxFQUFFLENBQUM7SUFDdEIsR0FBRyxDQUFDLEdBQUcsQ0FBQyxhQUFhLEVBQUUsQ0FBQyxDQUFDLENBQUM7SUFFMUIsZUFBZTtJQUNmLEdBQUcsQ0FBQyxHQUFHLENBQUMsT0FBTyxDQUFDLElBQUksRUFBRSxDQUFDLENBQUM7SUFFeEIsc0NBQXNDO0lBQ3RDLEdBQUcsQ0FBQyxHQUFHLENBQUMsSUFBSSxDQUFDLEVBQUUsTUFBTSxFQUFFLElBQUksRUFBRSxDQUFDLENBQUMsQ0FBQztJQUVoQyxhQUFhO0lBQ2IsR0FBRyxDQUFDLEdBQUcsQ0FBQyxDQUFDLEdBQUcsRUFBRSxJQUFJLEVBQUUsSUFBSSxFQUFFLEVBQUU7UUFDMUIsSUFBSSxDQUFDLEdBQUcsQ0FBQyxPQUFPLENBQUMsY0FBYyxDQUFDLEVBQUUsQ0FBQztZQUNqQyxHQUFHLENBQUMsT0FBTyxDQUFDLGNB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

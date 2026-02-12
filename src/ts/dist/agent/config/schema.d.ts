@@ -8,5 +8,7 @@ import type { ChainConfig } from "../types/index.js";
  *   CHAIN_8453_AZT_TOKEN=0x...
  *   CHAIN_8453_CONFIRMATIONS=12
  */
-export declare function parseChainsFromEnv(env: Record<string, string | undefined>): Record<number, ChainConfig>;
+export declare function parseChainsFromEnv(
+  env: Record<string, string | undefined>,
+): Record<number, ChainConfig>;
 //# sourceMappingURL=schema.d.ts.map

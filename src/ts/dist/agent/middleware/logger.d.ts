@@ -8,5 +8,7 @@ export type Logger = pino.Logger;
  * - ISO timestamps
  * - Sensitive field redaction
  */
-export declare function createAgentLogger(config: Pick<AgentConfig, "logLevel">): Logger;
+export declare function createAgentLogger(
+  config: Pick<AgentConfig, "logLevel">,
+): Logger;
 //# sourceMappingURL=logger.d.ts.map

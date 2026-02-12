@@ -3,50 +3,51 @@ import { z } from "zod";
 const hexPattern = /^0x[0-9a-fA-F]+$/;
 /** 0x-prefixed 32-byte hex (66 chars) */
 const bytes32Hex = z
-    .string()
-    .regex(/^0x[0-9a-fA-F]{64}$/, "Must be 0x-prefixed 32-byte hex");
+  .string()
+  .regex(/^0x[0-9a-fA-F]{64}$/, "Must be 0x-prefixed 32-byte hex");
 /** 0x-prefixed 65-byte hex (132 chars) */
 const signatureHex = z
-    .string()
-    .regex(/^0x[0-9a-fA-F]{130}$/, "Must be 0x-prefixed 65-byte hex");
+  .string()
+  .regex(/^0x[0-9a-fA-F]{130}$/, "Must be 0x-prefixed 65-byte hex");
 export const authwitRequestSchema = z.object({
-    evmTxHash: bytes32Hex,
-    evmChainId: z.number().int().positive(),
-    signature: signatureHex,
+  evmTxHash: bytes32Hex,
+  evmChainId: z.number().int().positive(),
+  signature: signatureHex,
 });
 /** 0x-prefixed 20-byte EVM address (42 chars) */
 const hexAddress = z
-    .string()
-    .regex(/^0x[0-9a-fA-F]{40}$/, "Must be 0x-prefixed 20-byte address");
-const hexKey = z
-    .string()
-    .regex(hexPattern, "Must be 0x-prefixed hex");
+  .string()
+  .regex(/^0x[0-9a-fA-F]{40}$/, "Must be 0x-prefixed 20-byte address");
+const hexKey = z.string().regex(hexPattern, "Must be 0x-prefixed hex");
 export const configSchema = z.object({
-    port: z.number().int().min(1).max(65535).default(3000),
-    host: z.string().min(1).default("0.0.0.0"),
-    logLevel: z.enum(["debug", "info", "warn", "error"]).default("info"),
-    chains: z
-        .record(z.coerce.number().int().positive(), z.object({
+  port: z.number().int().min(1).max(65535).default(3000),
+  host: z.string().min(1).default("0.0.0.0"),
+  logLevel: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  chains: z
+    .record(
+      z.coerce.number().int().positive(),
+      z.object({
         name: z.string().min(1),
         rpcUrl: z.string().url(),
         feeCollectorAddress: hexAddress,
         aztTokenAddress: hexAddress,
         requiredConfirmations: z.number().int().min(0).default(1),
-    }))
-        .refine((chains) => Object.keys(chains).length > 0, {
-        message: "At least one chain must be configured",
+      }),
+    )
+    .refine((chains) => Object.keys(chains).length > 0, {
+      message: "At least one chain must be configured",
     }),
-    spSigningKey: hexKey,
-    minAmount: z.bigint().min(0n).default(1n),
-    rateLimit: z
-        .object({
-        windowMs: z.number().int().positive().default(60000),
-        maxRequests: z.number().int().positive().default(100),
+  spSigningKey: hexKey,
+  minAmount: z.bigint().min(0n).default(1n),
+  rateLimit: z
+    .object({
+      windowMs: z.number().int().positive().default(60000),
+      maxRequests: z.number().int().positive().default(100),
     })
-        .default({}),
-    aztec: z.object({
-        fpcAddress: z.string().min(1),
-        ownerAddress: z.string().min(1),
-    }),
+    .default({}),
+  aztec: z.object({
+    fpcAddress: z.string().min(1),
+    ownerAddress: z.string().min(1),
+  }),
 });
 //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi9hZ2VudC90eXBlcy9pbmRleC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxPQUFPLEVBQUUsQ0FBQyxFQUFFLE1BQU0sS0FBSyxDQUFDO0FBbUN4QixnRkFBZ0Y7QUFFaEYsTUFBTSxVQUFVLEdBQUcsa0JBQWtCLENBQUM7QUFFdEMseUNBQXlDO0FBQ3pDLE1BQU0sVUFBVSxHQUFHLENBQUM7S0FDakIsTUFBTSxFQUFFO0tBQ1IsS0FBSyxDQUNKLHFCQUFxQixFQUNyQixpQ0FBaUMsQ0FDaEIsQ0FBQztBQUV0QiwwQ0FBMEM7QUFDMUMsTUFBTSxZQUFZLEdBQUcsQ0FBQztLQUNuQixNQUFNLEVBQUU7S0FDUixLQUFLLENBQ0osc0JBQXNCLEVBQ3RCLGlDQUFpQyxDQUNoQixDQUFDO0FBRXRCLE1BQU0sQ0FBQyxNQUFNLG9CQUFvQixHQUFHLENBQUMsQ0FBQyxNQUFNLENBQUM7SUFDM0MsU0FBUyxFQUFFLFVBQVU7SUFDckIsVUFBVSxFQUFFLENBQUMsQ0FBQyxNQUFNLEVBQUUsQ0FBQyxHQUFHLEVBQUUsQ0FBQyxRQUFRLEVBQUU7SUFDdkMsU0FBUyxFQUFFLFlBQVk7Q0FDeEIsQ0FBQyxDQUFDO0FBRUgsaURBQWlEO0FBQ2pELE1BQU0sVUFBVSxHQUFHLENBQUM7S0FDakIsTUFBTSxFQUFFO0tBQ1IsS0FBSyxDQUNKLHFCQUFxQixFQUNyQixxQ0FBcUMsQ0FDaEIsQ0FBQztBQUMxQixNQUFNLE1BQU0sR0FBRyxDQUFDO0tBQ2IsTUFBTSxFQUFFO0tBQ1IsS0FBSyxDQUFDLFVBQVUsRUFBRSx5QkFBeUIsQ0FBbUIsQ0FBQztBQUVsRSxNQUFNLENBQUMsTUFBTSxZQUFZLEdBQUcsQ0FBQyxDQUFDLE1BQU0sQ0FBQztJQUNuQyxJQUFJLEVBQUUsQ0FBQyxDQUFDLE1BQU0sRUFBRSxDQUFDLEdBQUcsRUFBRSxDQUFDLEdBQUcsQ0FBQyxDQUFDLENBQUMsQ0FBQyxHQUFHLENBQUMsS0FBSyxDQUFDLENBQUMsT0FBTyxDQUFDLElBQUksQ0FBQztJQUN0RCxJQUFJLEVBQUUsQ0FBQyxDQUFDLE1BQU0sRUFBRSxDQUFDLEdBQUcsQ0FBQyxDQUFDLENBQUMsQ0FBQyxPQUFPLENBQUMsU0FBUyxDQUFDO0lBQzFDLFFBQVEsRUFBRSxDQUFDLENBQUMsSUFBSSxDQUFDLENBQUMsT0FBTyxFQUFFLE1BQU0sRUFBRSxNQUFNLEVBQUUsT0FBTyxDQUFDLENBQUMsQ0FBQyxPQUFPLENBQUMsTUFBTSxDQUFDO0lBRXBFLE1BQU0sRUFBRSxDQUFDO1NBQ04sTUFBTSxDQUNMLENBQUMsQ0FBQyxNQUFNLENBQUMsTUFBTSxFQUFFLENBQUMsR0FBRyxFQUFFLENBQUMsUUFBUSxFQUFFLEVBQ2xDLENBQUMsQ0FBQyxNQUFNLENBQUM7UUFDUCxJQUFJLEVBQUUsQ0FBQyxDQUFDLE1BQU0sRUFBRSxDQUFDLEdBQUcsQ0FBQyxDQUFDLENBQUM7UUFDdkIsTUFBTSxFQUFFLENBQUMsQ0FBQyxNQUFNLEVBQUUsQ0FBQyxHQUFHLEVBQUU7UUFDeEIsbUJBQW1CLEVBQUUsVUFBVTtRQUMvQixlQUFlLEVBQUUsVUFBVTtRQUMzQixxQkFBcUIsRUFBRSxDQUFDLENBQUMsTUFBTSxFQUFFLENBQUMsR0FBRyxFQUFFLENBQUMsR0FBRyxDQUFDLENBQUMsQ0FBQyxDQUFDLE9BQU8sQ0FBQyxDQUFDLENBQUM7S0FDMUQsQ0FBQyxDQUNIO1NBQ0EsTUFBTSxDQUFDLENBQUMsTUFBTSxFQUFFLEVBQUUsQ0FBQyxNQUFNLENBQUMsSUFBSSxDQUFDLE1BQU0sQ0FBQyxDQUFDLE1BQU0sR0FBRyxDQUFDLEVBQUU7UUFDbEQsT0FBTyxFQUFFLHVDQUF1QztLQUNqRCxDQUFDO0lBRUosWUFBWSxFQUFFLE1BQU07SUFFcEIsU0FBUyxFQUFFLENBQUMsQ0FBQyxNQUFNLEVBQUUsQ0FBQyxHQUFHLENBQUMsRUFBRSxDQUFDLENBQUMsT0FBTyxDQUFDLEVBQUUsQ0FBQztJQUV6QyxTQUFTLEVBQUUsQ0FBQztTQUNULE1BQU0sQ0FBQztRQUNOLFFBQVEsRUFBRSxDQUFDLENBQUMsTUFBTSxFQUFFLENBQUMsR0FBRyxFQUFFLENBQUMsUUFBUSxFQUFFLENBQUMsT0FBTyxDQUFDLEtBQU0sQ0FBQztRQUNyRCxXQUFXLEVBQUUsQ0FBQyxDQUFDLE1BQU0sRUFBRSxDQUFDLEdBQUcsRUFBRSxDQUFDLFFBQVEsRUFBRSxDQUFDLE9BQU8sQ0FBQyxHQUFHLENBQUM7S0FDdEQsQ0FBQztTQUNELE9BQU8sQ0FBQyxFQUFFLENBQUM7SUFFZCxLQUFLLEVBQUUsQ0FBQyxDQUFDLE1BQU0sQ0FBQztRQUNkLFVBQVUsRUFBRSxDQUFDLENBQUMsTUFBTSxFQUFFLENBQUMsR0FBRyxDQUFDLENBQUMsQ0FBQztRQUM3QixZQUFZLEVBQUUsQ0FBQyxDQUFDLE1BQU0sRUFBRSxDQUFDLEdBQUcsQ0FBQyxDQUFDLENBQUM7S0FDaEMsQ0FBQztDQUNILENBQUMsQ0FBQyJ9

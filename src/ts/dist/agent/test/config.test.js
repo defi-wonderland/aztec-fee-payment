@@ -3,133 +3,134 @@ import { loadConfig } from "../config/index.js";
 import { parseChainsFromEnv } from "../config/schema.js";
 import { createTestEnv } from "./helpers.js";
 describe("Configuration", () => {
-    describe("loadConfig", () => {
-        it("loads a valid config from env vars", () => {
-            const env = createTestEnv();
-            const config = loadConfig(env);
-            expect(config.port).toBe(3000);
-            expect(config.host).toBe("0.0.0.0");
-            expect(config.logLevel).toBe("info");
-            expect(config.spSigningKey).toBe(env.SP_SIGNING_KEY);
-            expect(config.aztec.fpcAddress).toBe(env.FPC_ADDRESS);
-            expect(config.aztec.ownerAddress).toBe(env.OWNER_ADDRESS);
-        });
-        it("applies default values for optional fields", () => {
-            const env = createTestEnv();
-            delete env.PORT;
-            delete env.HOST;
-            delete env.LOG_LEVEL;
-            const config = loadConfig(env);
-            expect(config.port).toBe(3000);
-            expect(config.host).toBe("0.0.0.0");
-            expect(config.logLevel).toBe("info");
-            expect(config.rateLimit.windowMs).toBe(60000);
-            expect(config.rateLimit.maxRequests).toBe(100);
-        });
-        it("throws when SP_SIGNING_KEY is missing", () => {
-            const env = createTestEnv();
-            delete env.SP_SIGNING_KEY;
-            expect(() => loadConfig(env)).toThrow();
-        });
-        it("throws when FPC_ADDRESS is missing", () => {
-            const env = createTestEnv();
-            delete env.FPC_ADDRESS;
-            expect(() => loadConfig(env)).toThrow();
-        });
-        it("throws when OWNER_ADDRESS is missing", () => {
-            const env = createTestEnv();
-            delete env.OWNER_ADDRESS;
-            expect(() => loadConfig(env)).toThrow();
-        });
-        it("throws when no chains are configured", () => {
-            const env = createTestEnv();
-            // Remove all CHAIN_ vars
-            for (const key of Object.keys(env)) {
-                if (key.startsWith("CHAIN_"))
-                    delete env[key];
-            }
-            expect(() => loadConfig(env)).toThrow("At least one chain must be configured");
-        });
-        it("rejects an invalid SP_SIGNING_KEY (not hex)", () => {
-            const env = createTestEnv({ SP_SIGNING_KEY: "not-hex" });
-            expect(() => loadConfig(env)).toThrow();
-        });
-        it("rejects an invalid PORT", () => {
-            const env = createTestEnv({ PORT: "99999" });
-            expect(() => loadConfig(env)).toThrow();
-        });
-        it("rejects an invalid LOG_LEVEL", () => {
-            const env = createTestEnv({ LOG_LEVEL: "verbose" });
-            expect(() => loadConfig(env)).toThrow();
-        });
-        it("parses multiple chains", () => {
-            const env = createTestEnv({
-                CHAIN_8453_NAME: "base-mainnet",
-                CHAIN_8453_RPC_URL: "https://mainnet.base.org",
-                CHAIN_8453_FEE_COLLECTOR: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                CHAIN_8453_AZT_TOKEN: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-                CHAIN_8453_CONFIRMATIONS: "12",
-            });
-            const config = loadConfig(env);
-            expect(Object.keys(config.chains)).toHaveLength(2);
-            expect(config.chains[84532]).toBeDefined();
-            expect(config.chains[8453]).toBeDefined();
-            expect(config.chains[8453].name).toBe("base-mainnet");
-            expect(config.chains[8453].requiredConfirmations).toBe(12);
-        });
-        it("uses custom rate limit values", () => {
-            const env = createTestEnv({
-                RATE_LIMIT_WINDOW_MS: "30000",
-                RATE_LIMIT_MAX_REQUESTS: "50",
-            });
-            const config = loadConfig(env);
-            expect(config.rateLimit.windowMs).toBe(30000);
-            expect(config.rateLimit.maxRequests).toBe(50);
-        });
+  describe("loadConfig", () => {
+    it("loads a valid config from env vars", () => {
+      const env = createTestEnv();
+      const config = loadConfig(env);
+      expect(config.port).toBe(3000);
+      expect(config.host).toBe("0.0.0.0");
+      expect(config.logLevel).toBe("info");
+      expect(config.spSigningKey).toBe(env.SP_SIGNING_KEY);
+      expect(config.aztec.fpcAddress).toBe(env.FPC_ADDRESS);
+      expect(config.aztec.ownerAddress).toBe(env.OWNER_ADDRESS);
     });
-    describe("parseChainsFromEnv", () => {
-        it("parses chain env vars correctly", () => {
-            const env = {
-                CHAIN_84532_RPC_URL: "https://sepolia.base.org",
-                CHAIN_84532_FEE_COLLECTOR: "0x1111111111111111111111111111111111111111",
-                CHAIN_84532_AZT_TOKEN: "0x2222222222222222222222222222222222222222",
-                CHAIN_84532_CONFIRMATIONS: "6",
-            };
-            const chains = parseChainsFromEnv(env);
-            expect(chains[84532]).toBeDefined();
-            expect(chains[84532].rpcUrl).toBe("https://sepolia.base.org");
-            expect(chains[84532].requiredConfirmations).toBe(6);
-        });
-        it("uses default name when CHAIN_<id>_NAME is not set", () => {
-            const env = {
-                CHAIN_1_RPC_URL: "https://eth.rpc",
-                CHAIN_1_FEE_COLLECTOR: "0x1111111111111111111111111111111111111111",
-                CHAIN_1_AZT_TOKEN: "0x2222222222222222222222222222222222222222",
-            };
-            const chains = parseChainsFromEnv(env);
-            expect(chains[1].name).toBe("chain-1");
-        });
-        it("defaults confirmations to 1 when not set", () => {
-            const env = {
-                CHAIN_1_RPC_URL: "https://eth.rpc",
-                CHAIN_1_FEE_COLLECTOR: "0x1111111111111111111111111111111111111111",
-                CHAIN_1_AZT_TOKEN: "0x2222222222222222222222222222222222222222",
-            };
-            const chains = parseChainsFromEnv(env);
-            expect(chains[1].requiredConfirmations).toBe(1);
-        });
-        it("skips incomplete chain configs (missing RPC_URL)", () => {
-            const env = {
-                CHAIN_42_FEE_COLLECTOR: "0x1111111111111111111111111111111111111111",
-                CHAIN_42_AZT_TOKEN: "0x2222222222222222222222222222222222222222",
-            };
-            const chains = parseChainsFromEnv(env);
-            expect(chains[42]).toBeUndefined();
-        });
-        it("returns empty object when no chain vars are present", () => {
-            const chains = parseChainsFromEnv({ FOO: "bar" });
-            expect(Object.keys(chains)).toHaveLength(0);
-        });
+    it("applies default values for optional fields", () => {
+      const env = createTestEnv();
+      delete env.PORT;
+      delete env.HOST;
+      delete env.LOG_LEVEL;
+      const config = loadConfig(env);
+      expect(config.port).toBe(3000);
+      expect(config.host).toBe("0.0.0.0");
+      expect(config.logLevel).toBe("info");
+      expect(config.rateLimit.windowMs).toBe(60000);
+      expect(config.rateLimit.maxRequests).toBe(100);
     });
+    it("throws when SP_SIGNING_KEY is missing", () => {
+      const env = createTestEnv();
+      delete env.SP_SIGNING_KEY;
+      expect(() => loadConfig(env)).toThrow();
+    });
+    it("throws when FPC_ADDRESS is missing", () => {
+      const env = createTestEnv();
+      delete env.FPC_ADDRESS;
+      expect(() => loadConfig(env)).toThrow();
+    });
+    it("throws when OWNER_ADDRESS is missing", () => {
+      const env = createTestEnv();
+      delete env.OWNER_ADDRESS;
+      expect(() => loadConfig(env)).toThrow();
+    });
+    it("throws when no chains are configured", () => {
+      const env = createTestEnv();
+      // Remove all CHAIN_ vars
+      for (const key of Object.keys(env)) {
+        if (key.startsWith("CHAIN_")) delete env[key];
+      }
+      expect(() => loadConfig(env)).toThrow(
+        "At least one chain must be configured",
+      );
+    });
+    it("rejects an invalid SP_SIGNING_KEY (not hex)", () => {
+      const env = createTestEnv({ SP_SIGNING_KEY: "not-hex" });
+      expect(() => loadConfig(env)).toThrow();
+    });
+    it("rejects an invalid PORT", () => {
+      const env = createTestEnv({ PORT: "99999" });
+      expect(() => loadConfig(env)).toThrow();
+    });
+    it("rejects an invalid LOG_LEVEL", () => {
+      const env = createTestEnv({ LOG_LEVEL: "verbose" });
+      expect(() => loadConfig(env)).toThrow();
+    });
+    it("parses multiple chains", () => {
+      const env = createTestEnv({
+        CHAIN_8453_NAME: "base-mainnet",
+        CHAIN_8453_RPC_URL: "https://mainnet.base.org",
+        CHAIN_8453_FEE_COLLECTOR: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        CHAIN_8453_AZT_TOKEN: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        CHAIN_8453_CONFIRMATIONS: "12",
+      });
+      const config = loadConfig(env);
+      expect(Object.keys(config.chains)).toHaveLength(2);
+      expect(config.chains[84532]).toBeDefined();
+      expect(config.chains[8453]).toBeDefined();
+      expect(config.chains[8453].name).toBe("base-mainnet");
+      expect(config.chains[8453].requiredConfirmations).toBe(12);
+    });
+    it("uses custom rate limit values", () => {
+      const env = createTestEnv({
+        RATE_LIMIT_WINDOW_MS: "30000",
+        RATE_LIMIT_MAX_REQUESTS: "50",
+      });
+      const config = loadConfig(env);
+      expect(config.rateLimit.windowMs).toBe(30000);
+      expect(config.rateLimit.maxRequests).toBe(50);
+    });
+  });
+  describe("parseChainsFromEnv", () => {
+    it("parses chain env vars correctly", () => {
+      const env = {
+        CHAIN_84532_RPC_URL: "https://sepolia.base.org",
+        CHAIN_84532_FEE_COLLECTOR: "0x1111111111111111111111111111111111111111",
+        CHAIN_84532_AZT_TOKEN: "0x2222222222222222222222222222222222222222",
+        CHAIN_84532_CONFIRMATIONS: "6",
+      };
+      const chains = parseChainsFromEnv(env);
+      expect(chains[84532]).toBeDefined();
+      expect(chains[84532].rpcUrl).toBe("https://sepolia.base.org");
+      expect(chains[84532].requiredConfirmations).toBe(6);
+    });
+    it("uses default name when CHAIN_<id>_NAME is not set", () => {
+      const env = {
+        CHAIN_1_RPC_URL: "https://eth.rpc",
+        CHAIN_1_FEE_COLLECTOR: "0x1111111111111111111111111111111111111111",
+        CHAIN_1_AZT_TOKEN: "0x2222222222222222222222222222222222222222",
+      };
+      const chains = parseChainsFromEnv(env);
+      expect(chains[1].name).toBe("chain-1");
+    });
+    it("defaults confirmations to 1 when not set", () => {
+      const env = {
+        CHAIN_1_RPC_URL: "https://eth.rpc",
+        CHAIN_1_FEE_COLLECTOR: "0x1111111111111111111111111111111111111111",
+        CHAIN_1_AZT_TOKEN: "0x2222222222222222222222222222222222222222",
+      };
+      const chains = parseChainsFromEnv(env);
+      expect(chains[1].requiredConfirmations).toBe(1);
+    });
+    it("skips incomplete chain configs (missing RPC_URL)", () => {
+      const env = {
+        CHAIN_42_FEE_COLLECTOR: "0x1111111111111111111111111111111111111111",
+        CHAIN_42_AZT_TOKEN: "0x2222222222222222222222222222222222222222",
+      };
+      const chains = parseChainsFromEnv(env);
+      expect(chains[42]).toBeUndefined();
+    });
+    it("returns empty object when no chain vars are present", () => {
+      const chains = parseChainsFromEnv({ FOO: "bar" });
+      expect(Object.keys(chains)).toHaveLength(0);
+    });
+  });
 });
 //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY29uZmlnLnRlc3QuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi9hZ2VudC90ZXN0L2NvbmZpZy50ZXN0LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE9BQU8sRUFBRSxRQUFRLEVBQUUsRUFBRSxFQUFFLE1BQU0sRUFBRSxNQUFNLFFBQVEsQ0FBQztBQUM5QyxPQUFPLEVBQUUsVUFBVSxFQUFFLE1BQU0sb0JBQW9CLENBQUM7QUFDaEQsT0FBTyxFQUFFLGtCQUFrQixFQUFFLE1BQU0scUJBQXFCLENBQUM7QUFDekQsT0FBTyxFQUFFLGFBQWEsRUFBRSxNQUFNLGNBQWMsQ0FBQztBQUU3QyxRQUFRLENBQUMsZUFBZSxFQUFFLEdBQUcsRUFBRTtJQUM3QixRQUFRLENBQUMsWUFBWSxFQUFFLEdBQUcsRUFBRTtRQUMxQixFQUFFLENBQUMsb0NBQW9DLEVBQUUsR0FBRyxFQUFFO1lBQzVDLE1BQU0sR0FBRyxHQUFHLGFBQWEsRUFBRSxDQUFDO1lBQzVCLE1BQU0sTUFBTSxHQUFHLFVBQVUsQ0FBQyxHQUFHLENBQUMsQ0FBQztZQUUvQixNQUFNLENBQUMsTUFBTSxDQUFDLElBQUksQ0FBQyxDQUFDLElBQUksQ0FBQyxJQUFJLENBQUMsQ0FBQztZQUMvQixNQUFNLENBQUMsTUFBTSxDQUFDLElBQUksQ0FBQyxDQUFDLElBQUksQ0FBQyxTQUFTLENBQUMsQ0FBQztZQUNwQyxNQUFNLENBQUMsTUFBTSxDQUFDLFFBQVEsQ0FBQyxDQUFDLElBQUksQ0FBQyxNQUFNLENBQUMsQ0FBQztZQUNyQyxNQUFNLENBQUMsTUFBTSxDQUFDLFlBQVksQ0FBQyxDQUFDLElBQUksQ0FBQyxHQUFHLENBQUMsY0FBYyxDQUFDLENBQUM7WUFDckQsTUFBTSxDQUFDLE1BQU0sQ0FBQyxLQUFLLENBQUMsVUFBVSxDQUFDLENBQUMsSUFBSSxDQUFDLEdBQUcsQ0FBQyxXQUFXLENBQUMsQ0FBQztZQUN0RCxNQUFNLENBQUMsTUFBTSxDQUFDLEtBQUssQ0FB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
