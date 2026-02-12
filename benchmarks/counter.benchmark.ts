@@ -18,7 +18,6 @@ import {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
   MeteredMintAndPayFeePaymentMethod,
-  MeteredMintAndPayFeeWithBalancePaymentMethod,
   MeteredMintThenPayFeePaymentMethod,
 } from "../src/ts/fee-payment-methods/index.js";
 import {
@@ -128,8 +127,6 @@ interface CounterBenchmarkContext extends BenchmarkContext {
   meteredPaymentMethod: MeteredFeePaymentMethod;
   meteredExactPaymentMethod: MeteredExactFeePaymentMethod;
   // Payment methods with account contract authwit verification
-  mintAndPayFeeSingleNoteMethod: MeteredMintAndPayFeeWithBalancePaymentMethod;
-  mintAndPayFeeTwoNotesMethod: MeteredMintAndPayFeeWithBalancePaymentMethod;
   mintAndPayFeeMethod: MeteredMintAndPayFeePaymentMethod;
   mintThenPayFeeMethod: MeteredMintThenPayFeePaymentMethod;
   // Gas settings
@@ -232,50 +229,6 @@ export default class CounterContractBenchmark extends Benchmark {
       mintAndPayFeeAuthWitness,
     );
 
-    // MintAndPayFeeWithBalance (single note) - mints enough to cover gas, no existing notes needed
-    const mintAndPayFeeSingleSecret = Fr.random();
-    const mintAndPayFeeSingleUserSecret = Fr.random();
-    const mintAndPayFeeSingleAuthWitness = await createAuthWitness(
-      wallet,
-      deployer,
-      mintAndPayFeeSingleSecret,
-      mintAmount,
-      mintAndPayFeeSingleUserSecret,
-      meteredFpc.address,
-    );
-    const mintAndPayFeeSingleNoteMethod =
-      new MeteredMintAndPayFeeWithBalancePaymentMethod(
-        meteredFpc.address,
-        deployer,
-        mintAmount,
-        mintAndPayFeeSingleSecret,
-        mintAndPayFeeSingleUserSecret,
-        mintAndPayFeeSingleAuthWitness,
-      );
-
-    // MintAndPayFeeWithBalance (two notes) - mints small amount, needs to consume existing note too
-    // The pre-minted balance from above will be used to cover the deficit
-    const smallMintAmount = 1n; // Very small, so mint_and_pay_fee_with_balance must use pre-minted note too
-    const mintAndPayFeeTwoNotesSecret = Fr.random();
-    const mintAndPayFeeTwoNotesUserSecret = Fr.random();
-    const mintAndPayFeeTwoNotesAuthWitness = await createAuthWitness(
-      wallet,
-      deployer,
-      mintAndPayFeeTwoNotesSecret,
-      smallMintAmount,
-      mintAndPayFeeTwoNotesUserSecret,
-      meteredFpc.address,
-    );
-    const mintAndPayFeeTwoNotesMethod =
-      new MeteredMintAndPayFeeWithBalancePaymentMethod(
-        meteredFpc.address,
-        deployer,
-        smallMintAmount,
-        mintAndPayFeeTwoNotesSecret,
-        mintAndPayFeeTwoNotesUserSecret,
-        mintAndPayFeeTwoNotesAuthWitness,
-      );
-
     // MintThenPayFee - two-step flow: mint creates note, then pay_fee consumes it
     const mintThenPayFeeSecret = Fr.random();
     const mintThenPayFeeUserSecret = Fr.random();
@@ -323,8 +276,6 @@ export default class CounterContractBenchmark extends Benchmark {
       meteredPaymentMethod,
       meteredExactPaymentMethod,
       mintAndPayFeeMethod,
-      mintAndPayFeeSingleNoteMethod,
-      mintAndPayFeeTwoNotesMethod,
       mintThenPayFeeMethod,
       gasSettingsNoTeardown,
       gasSettingsWithTeardown,
@@ -342,8 +293,6 @@ export default class CounterContractBenchmark extends Benchmark {
       meteredPaymentMethod,
       meteredExactPaymentMethod,
       mintAndPayFeeMethod,
-      mintAndPayFeeSingleNoteMethod,
-      mintAndPayFeeTwoNotesMethod,
       mintThenPayFeeMethod,
       gasSettingsNoTeardown,
       gasSettingsWithTeardown,
@@ -392,30 +341,6 @@ export default class CounterContractBenchmark extends Benchmark {
           action: new FeeWrappedInteraction(
             counterContract.withWallet(wallet).methods.increment(),
             mintAndPayFeeMethod,
-            gasSettingsNoTeardown,
-          ),
-        },
-      },
-      // MintAndPayFeeWithBalance (single note): mints enough to cover gas, no existing notes needed
-      {
-        name: "increment_metered_mint_and_pay_fee_with_balance_single_note",
-        interaction: {
-          caller: deployer,
-          action: new FeeWrappedInteraction(
-            counterContract.withWallet(wallet).methods.increment(),
-            mintAndPayFeeSingleNoteMethod,
-            gasSettingsNoTeardown,
-          ),
-        },
-      },
-      // MintAndPayFeeWithBalance (two notes): mints small amount, consumes existing note too
-      {
-        name: "increment_metered_mint_and_pay_fee_with_balance_two_notes",
-        interaction: {
-          caller: deployer,
-          action: new FeeWrappedInteraction(
-            counterContract.withWallet(wallet).methods.increment(),
-            mintAndPayFeeTwoNotesMethod,
             gasSettingsNoTeardown,
           ),
         },

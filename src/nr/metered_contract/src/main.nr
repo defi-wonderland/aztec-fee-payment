@@ -128,51 +128,6 @@ pub contract Metered {
         self.context.end_setup();
     }
 
-    /// Mints tokens and pays fee, with fallback to existing balance.
-    /// Verifies authorization via the owner's account contract, mints the specified amount,
-    /// then deducts max gas cost.
-    /// If minted amount >= max_gas_cost, no existing balance is needed.
-    /// If minted amount < max_gas_cost, the difference is deducted from existing balance.
-    /// @param account The address to mint tokens to
-    /// @param amount The amount to mint
-    /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
-    /// @param user_secret A user-provided secret used for nullifier uniqueness
-    #[external("private")]
-    #[nophasecheck]
-    fn mint_and_pay_fee_with_balance(
-        account: AztecAddress,
-        amount: u128,
-        secret: Field,
-        user_secret: Field,
-    ) {
-        // Verify authorization via the owner's account contract
-        self.internal._verify_authwit(secret, amount, user_secret);
-
-        let balance_set = self.storage.balances.at(account);
-
-        // Calculate the max gas cost from transaction settings.
-        let max_gas_cost = get_max_gas_cost(self.context);
-
-        if max_gas_cost > amount {
-            // Need to deduct additional from account's existing balance
-            let deficit = max_gas_cost - amount;
-            let subtracted = balance_set.try_sub(deficit, 1);
-
-            // Ensure we subtracted enough
-            assert(subtracted >= deficit, "Balance too low or note insufficient");
-            // Return any excess from the subtraction
-            balance_set.add(subtracted - deficit).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
-        } else {
-            // Minted amount covers gas, add the surplus to balance
-            balance_set.add(amount - max_gas_cost).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
-        }
-
-        // Set the FPC as the fee payer of the tx.
-        self.context.set_as_fee_payer();
-        // End the setup phase
-        self.context.end_setup();
-    }
-
     /// Mints internal balance to an account.
     /// Requires authorization via the owner's account contract.
     /// @param account The address to mint tokens to
