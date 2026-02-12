@@ -81,8 +81,8 @@ export function createAuthwitRouter(deps: AuthwitRouteDeps): Router {
         logger: reqLogger,
       });
 
-      // 4. Generate deterministic secret from txHash
-      const secret = secretGenerator.generateSecret(body.evmTxHash);
+      // 4. Generate deterministic secret from txHash + sender
+      const secret = secretGenerator.generateSecret(body.evmTxHash, from);
 
       // 5. Generate authwit
       reqLogger.info("Generating authwit");

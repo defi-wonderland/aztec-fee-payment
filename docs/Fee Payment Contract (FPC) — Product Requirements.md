@@ -1,6 +1,6 @@
 # Fee Payment Contract (FPC) — Product Requirements Document
 
-**Version**: 3.5
+**Version**: 3.6
 **Status**: Active
 **Current Phase**: Phase 2 (Authorized Mint with Authwit)
 **Target Aztec Version**: 3.0.0-devnet.6-patch.1
@@ -80,13 +80,13 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 | **Storage: User balance tracking** | `Owned<BalanceSet<Context>, Context>` maps `AztecAddress -> wFJ balance`; uses `UintNote` for private balance notes | Implemented |
 | **Method: `pay_fee()`** | Private, `#[nophasecheck]`. Deducts max gas cost from `msg_sender`'s wFJ balance using `try_sub` with `max_notes = 1`; handles change notes with `UNCONSTRAINED_ONCHAIN` delivery; calls `set_as_fee_payer()` then `end_setup()`. No refund of unused gas. | Implemented |
 | **Method: `pay_fee_exact()`** | Private, `#[nophasecheck]`. Deducts max gas cost upfront using same single-note optimization with `UNCONSTRAINED_ONCHAIN` delivery for change notes; creates `PartialUintNote` for refund; sets teardown to call `_refund()`; calls `set_as_fee_payer()` then `end_setup()`. Refunds `max_gas_cost - transaction_fee` in teardown. | Implemented |
-| **Method: `mint(amount, secret)`** | Private. `secret` is a deterministic value derived by the SP's off-chain agent (secp256k1 ECDSA signature of the txHash via RFC 6979, `r` component reduced mod BN254 Fr). Validates custom authwit signed by owner, pushes the authwit itself as a nullifier for replay prevention, calls `set_as_fee_payer()` to self-sponsor the mint transaction, deducts gas cost from minted amount, credits `(amount - gas_cost)` to `msg_sender`'s balance. SP never learns user's Aztec address. | Planned |
+| **Method: `mint(amount, secret)`** | Private. `secret` is a deterministic value derived by the SP's off-chain agent (secp256k1 ECDSA signature of `sha256(txHash || sender)` via RFC 6979, where `sender` is the EVM address recovered from the EIP-712 signature; `r` component reduced mod BN254 Fr). Validates custom authwit signed by owner, pushes the authwit itself as a nullifier for replay prevention, calls `set_as_fee_payer()` to self-sponsor the mint transaction, deducts gas cost from minted amount, credits `(amount - gas_cost)` to `msg_sender`'s balance. SP never learns user's Aztec address. | Planned |
 | **Method: `mint(account, amount)` (legacy)** | Private. Adds `amount` to `account`'s balance via `BalanceSet.add()` with `CONSTRAINED_ONCHAIN` delivery. Permissionless, no access control. | Implemented (Phase 1 — to be replaced) |
 | **Method: `_refund(max_gas_cost, partial_note)`** | Public, `#[only_self]`. Teardown function called by `pay_fee_exact()`. Calculates `refund_amount = max_gas_cost - transaction_fee` and completes the partial note. | Implemented |
 | **Method: `balance_of(account)`** | Unconstrained utility view. Returns the wFJ balance of an account. | Implemented |
 | **Library: `get_max_gas_cost(context)`** | `#[contract_library_method]`. Calculates max gas cost from transaction gas settings: `(DA limit + DA teardown) * max_fee_per_da_gas + (L2 limit + L2 teardown) * max_fee_per_l2_gas`. | Implemented |
 
-> **Note on `mint()` transition**: The contract currently implements `mint(account, amount)` (Phase 1, permissionless) for testing. This is being replaced by `mint(amount, secret)` (Phase 2) which adds custom authwit authorization, replay prevention (the authwit itself is pushed as a nullifier), and self-sponsoring. The `secret` parameter is derived by the off-chain agent via deterministic ECDSA (RFC 6979) signing of the txHash, extracting the `r` component and reducing it mod BN254 Fr. The off-chain agent already implements the Phase 2 flow (see [Phase 2](#phase-2--authorized-mint-with-custom-authwit) and the Off-Chain Agent Specification). The contract update is planned.
+> **Note on `mint()` transition**: The contract currently implements `mint(account, amount)` (Phase 1, permissionless) for testing. This is being replaced by `mint(amount, secret)` (Phase 2) which adds custom authwit authorization, replay prevention (the authwit itself is pushed as a nullifier), and self-sponsoring. The `secret` parameter is derived by the off-chain agent via deterministic ECDSA (RFC 6979) signing of `sha256(txHash || sender)` (where `sender` is the EVM address recovered from the EIP-712 signature), extracting the `r` component and reducing it mod BN254 Fr. The off-chain agent already implements the Phase 2 flow (see [Phase 2](#phase-2--authorized-mint-with-custom-authwit) and the Off-Chain Agent Specification). The contract update is planned.
 
 ### TypeScript SDK
 
@@ -300,7 +300,7 @@ const balance = await fpc.methods.balance_of(userAddress).simulate({ from: userA
 The off-chain agent serves a stateless API that verifies AZT token transfers on EVM chains and returns authwits for users to mint wFJ on Aztec. Key characteristics:
 
 - **AZT-only**: Only AZT token transfers are accepted (filtered by both recipient AND token address)
-- **Stateless & deterministic**: Same `txHash` always returns the same `{ amount, secret, authwit }` — no database required
+- **Stateless & deterministic**: Same `txHash` + same `sender` always returns the same `{ amount, secret, authwit }` — no database required
 - **Privacy-preserving**: Agent never learns the user's Aztec address; user calls `mint(amount, secret)` themselves
 - **EIP-712 sender recovery**: User signs txHash; agent recovers signer address and uses it to filter Transfer events by `from` field
 
@@ -312,7 +312,7 @@ EVM-Side Payment Flow:
 3. User signs EIP-712 message (txHash) to prove payment ownership
 4. User calls POST /api/v1/authwit/request with { evmTxHash, evmChainId, signature }
 5. Agent recovers sender from EIP-712 signature, validates tx finality, filters transfers by recovered sender + fee collector + AZT token
-6. Agent derives secret = sign(txHash, spKey).r % Fr.MODULUS (deterministic ECDSA via RFC 6979)
+6. Agent derives secret = sign(sha256(txHash || sender), spKey).r % Fr.MODULUS (deterministic ECDSA via RFC 6979)
 7. Agent generates authwit for mint(amount, secret) and returns { amount, secret, authwit }
 8. User stores authwit in PXE and calls mint(amount, secret) on Aztec
 9. User can now sponsor transactions with their wFJ balance
@@ -340,7 +340,7 @@ Phase 2 replaces the permissionless `mint(account, amount)` with an authorized `
 | **Storage** | `balances` only | `balances` + `PublicImmutable<AztecAddress>` owner | Contract: Planned |
 | **Initialization** | None | `initialize(owner: AztecAddress)` | Contract: Planned |
 | **EIP-712 verification** | N/A | User signs txHash to prove ownership as token sender (Transfer event `from`) | Agent: Implemented |
-| **Deterministic secrets** | N/A | `secret = sign(txHash, spKey).r % Fr.MODULUS` (deterministic ECDSA via RFC 6979) | Agent: Implemented |
+| **Deterministic secrets** | N/A | `secret = sign(sha256(txHash \|\| sender), spKey).r % Fr.MODULUS` (deterministic ECDSA via RFC 6979) | Agent: Implemented |
 | **Authwit generation** | N/A | Authwit for `mint(amount, secret)` via Schnorr on Grumpkin | Agent: Implemented |
 | **Stateless API** | N/A | `POST /api/v1/authwit/request` | Agent: Implemented |
 
@@ -434,7 +434,7 @@ Request:
 Response (Success - 200):
 {
   "amount": "1000000000000000000",    # Total AZT amount (from txHash)
-  "secret": "0x789abc...",            # sign(txHash, spKey).r % Fr.MODULUS (deterministic ECDSA)
+  "secret": "0x789abc...",            # sign(sha256(txHash || sender), spKey).r % Fr.MODULUS (deterministic ECDSA)
   "authwit": {                        # Owner's authwit for mint(amount, secret)
     "innerHash": "0x...",             # H(amount, secret)
     "outerHash": "0x...",             # H(consumer, chainId, version, innerHash)
@@ -442,7 +442,7 @@ Response (Success - 200):
   }
 }
 
-# SP is STATELESS: same txHash always returns same response!
+# SP is STATELESS: same txHash + same sender always returns same response!
 
 Response (Error - 400):
 {
@@ -472,8 +472,9 @@ HANDLE_AUTHWIT_REQUEST(evmTxHash, evmChainId, signature):
        - Sum matching transfer amounts, reject if below minimum (INVALID_AMOUNT)
 
     4. DERIVE SECRET (DETERMINISTIC)
-       - secret = sign(txHash, spKey).r % Fr.MODULUS (deterministic ECDSA via RFC 6979)
-       - Same txHash -> same secret, always
+       - secret = sign(sha256(txHash || sender), spKey).r % Fr.MODULUS (deterministic ECDSA via RFC 6979)
+       - Input: 32-byte txHash concatenated with 20-byte sender address, SHA-256'd to produce 32-byte ECDSA signing input
+       - Same txHash + same sender -> same secret, always
 
     5. GENERATE AUTHWIT
        - Custom authwit for mint(amount, secret)
@@ -487,9 +488,9 @@ HANDLE_AUTHWIT_REQUEST(evmTxHash, evmChainId, signature):
 
 | Property | Explanation |
 | --- | --- |
-| **No database** | Same txHash -> same secret -> same authwit, every time |
+| **No database** | Same txHash + same sender -> same secret -> same authwit, every time |
 | **Idempotent** | User can retry request infinitely, always gets same response |
-| **Deterministic secret** | `secret = sign(txHash, spKey).r % Fr.MODULUS` is reproducible (deterministic ECDSA via RFC 6979) |
+| **Deterministic secret** | `secret = sign(sha256(txHash \|\| sender), spKey).r % Fr.MODULUS` is reproducible (deterministic ECDSA via RFC 6979) |
 | **Crash-resilient** | No state to lose, no recovery needed |
 
 ### Why This Design? (Phase 2 Benefits)
@@ -498,7 +499,7 @@ HANDLE_AUTHWIT_REQUEST(evmTxHash, evmChainId, signature):
 | --- | --- |
 | **Privacy-preserving** | SP never learns user's Aztec address |
 | **Stateless SP** | No database, horizontally scalable, crash-resilient |
-| **Deterministic** | Same txHash always produces same response |
+| **Deterministic** | Same txHash + same sender always produces same response |
 | **Custom authwit** | Inner hash uses only `(amount, secret)` allows any address to claim |
 | **Replay prevention** | Authwit is pushed as nullifier after use on Aztec |
 
@@ -506,13 +507,13 @@ HANDLE_AUTHWIT_REQUEST(evmTxHash, evmChainId, signature):
 
 1. **SP signing key security**: SP signing key is used for deterministic secret generation (ECDSA) and Schnorr authwit signing. Compromise allows minting of wFJ.
 2. **Recipient privacy**: `caller` is NOT in the authwit—tokens mint to `msg_sender`. SP never learns Aztec address.
-3. **Secret determinism**: `secret = sign(txHash, spKey).r % Fr.MODULUS` (deterministic ECDSA via RFC 6979, `r` component reduced mod BN254 Fr). Same txHash = same secret = same authwit.
+3. **Secret determinism**: `secret = sign(sha256(txHash || sender), spKey).r % Fr.MODULUS` (deterministic ECDSA via RFC 6979, `r` component reduced mod BN254 Fr). The signing input is SHA-256 of the 32-byte txHash concatenated with the 20-byte sender address (recovered from EIP-712 signature). Same txHash + same sender = same secret = same authwit.
 4. **Replay prevention**: The authwit itself is pushed as a nullifier after use. Same authwit cannot mint twice.
 5. **Custom authwit**: Modified authwit inner_hash uses only `(amount, secret)` — no caller, fpcAddress, or selector. Allows any address to claim.
 6. **No revocation**: Once authwit is generated, it's valid until secret is used. Stateless means no revocation possible.
 7. **EIP-712 verification**: SP recovers the signer address from the EIP-712 signature and uses it as the `from` filter when querying Transfer events. Only transfers sent by the recovered signer are counted, implicitly proving payment ownership.
 8. **Stateless availability**: SP has no database. User can retry infinitely—deterministic response.
-9. **Cross-chain replay prevention**: Different EVM chains produce different txHashes, so the derived secret is naturally unique per chain. EIP-712 domain also includes EVM `chainId` to bind signatures to a specific chain.
+9. **Cross-chain replay prevention**: Different EVM chains produce different txHashes, so the derived secret is naturally unique per chain. EIP-712 domain also includes EVM `chainId` to bind signatures to a specific chain. Additionally, the sender address is included in the secret derivation input (`sha256(txHash || sender)`), providing per-sender secret isolation.
 10. **Cross-sender aggregation prevention**: The sender address is recovered from the EIP-712 signature and used as a filter parameter — only AZT transfers where the `from` field matches the recovered signer are counted. Prevents a multi-sender transaction from crediting all transfer amounts to a single signer.
 
 ### Complete End-to-End Flow (Phase 2)
@@ -532,7 +533,7 @@ sequenceDiagram
 
     API->>API: Recover sender from EIP-712 signature
     API->>API: Validate tx: finality, filter by recovered sender + fee collector + AZT token
-    API->>API: Derive: secret = sign(txHash, spKey).r % Fr.MODULUS
+    API->>API: Derive: secret = sign(sha256(txHash || sender), spKey).r % Fr.MODULUS
     API->>API: Generate: authwit for mint(amount, secret)
     API->>User: Return { amount, secret, authwit }
 
@@ -574,3 +575,4 @@ To avoid changing the FPC contract, Phase 1 can assume all ERC20 transfers come 
 | 3.3 | 2026-02-11 | EIP-712 sender verification now checks against the token sender (Transfer event `from` field) instead of the transaction origin (`receipt.from` / `tx.origin`). Updated Backend Verification Logic, security considerations, EVM payment flow, and Phase 2 table to reflect this change. |
 | 3.4 | 2026-02-11 | Security hardening: validator now pins sender to first matching AZT transfer and sums only same-sender transfers, preventing cross-sender amount aggregation in multi-sender transactions. Updated payment verification acceptance criteria, Backend Verification Logic, EVM payment flow, sequence diagram, and security considerations. |
 | 3.5 | 2026-02-11 | Corrected sender filtering description: sender is recovered from EIP-712 signature (via `recoverClaimRequestSigner`) and passed as `from` filter to the validator — not "pinned to first matching transfer". Removed references to `verifyClaimRequestSignature` (only `recoverClaimRequestSigner` exists). Updated Backend Verification Logic, EVM payment flow, sequence diagram, security considerations #7 and #10, and payment verification acceptance criteria. |
+| 3.6 | 2026-02-12 | Secret derivation now includes sender address: `secret = sign(sha256(txHash \|\| sender), spKey).r % Fr.MODULUS`. The 32-byte txHash is concatenated with the 20-byte sender address (recovered from EIP-712 signature) and SHA-256'd to produce the ECDSA signing input. Provides per-sender secret isolation. Updated EVM payment flow, Backend Verification Logic, Phase 2 table, stateless design properties, security considerations #3 and #9, sequence diagram, API response comments, mint() requirement and transition note. |

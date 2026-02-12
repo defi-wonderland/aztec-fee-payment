@@ -1,5 +1,6 @@
 import { secp256k1 } from "@noble/curves/secp256k1";
-import type { Hex } from "viem";
+import { sha256 } from "@noble/hashes/sha2";
+import type { Address, Hex } from "viem";
 
 /** BN254 scalar field modulus */
 const BN254_FR_MODULUS =
@@ -28,18 +29,24 @@ export class SecretGenerator {
   }
 
   /**
-   * Generate a deterministic secret by signing the txHash with the SP key.
+   * Generate a deterministic secret by signing sha256(txHash || sender) with the SP key.
    *
    * Process:
-   * 1. Sign txHash with SP key (deterministic ECDSA via RFC 6979)
-   * 2. Take first 32 bytes (r component)
-   * 3. Reduce modulo BN254 Fr field
+   * 1. Compute sha256(txHash || sender) to produce 32-byte message
+   * 2. Sign with SP key (deterministic ECDSA via RFC 6979)
+   * 3. Take first 32 bytes (r component)
+   * 4. Reduce modulo BN254 Fr field
    *
    * @returns Secret as 0x-prefixed 32-byte hex string (zero-padded)
    */
-  generateSecret(txHash: Hex): Hex {
+  generateSecret(txHash: Hex, sender: Address): Hex {
     const txHashBytes = hexToBytes(txHash);
-    const signature = secp256k1.sign(txHashBytes, this.signingKey);
+    const senderBytes = hexToBytes(sender);
+    const combined = new Uint8Array(txHashBytes.length + senderBytes.length);
+    combined.set(txHashBytes, 0);
+    combined.set(senderBytes, txHashBytes.length);
+    const message = sha256(combined);
+    const signature = secp256k1.sign(message, this.signingKey);
     const rBytes = signature.toCompactRawBytes().slice(0, 32);
     const secretBigInt = BigInt("0x" + bytesToHex(rBytes)) % BN254_FR_MODULUS;
     return `0x${secretBigInt.toString(16).padStart(64, "0")}` as Hex;
