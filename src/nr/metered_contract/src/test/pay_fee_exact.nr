@@ -5,10 +5,14 @@
 // Deducts max_gas_cost from sender's balance with exact refund via teardown.
 //
 // |-- given the sender has sufficient balance (balance > max_gas_cost)
-// |   |-- it should deduct max_gas_cost from the sender's balance
-// |   |-- it should create a partial note for the refund
-// |   |-- it should set teardown to call _refund
-// |   +-- it should set the contract as fee payer
+// |   |-- when transaction_fee < max_gas_cost (refund occurs)
+// |   |   |-- it should deduct max_gas_cost from the sender's balance
+// |   |   |-- it should refund (max_gas_cost - transaction_fee) via teardown
+// |   |   |-- it should create a partial note for the refund
+// |   |   |-- it should set teardown to call _refund
+// |   +-- when transaction_fee == max_gas_cost (no refund)
+// |       |-- it should deduct max_gas_cost from the sender's balance
+// |       |-- it should complete the partial note with zero amount
 // |-- given the sender has zero balance
 // |   +-- it reverts (no notes to subtract from)
 //
@@ -17,6 +21,8 @@
 // mechanic and fails with a nonce-generator assertion. The success test
 // is commented out until TXE support is added. The revert test works
 // because it fails before reaching the teardown setup.
+//
+// https://github.com/AztecProtocol/aztec-packages/blob/v3.0.0-devnet.6-patch.1/yarn-project/pxe/src/contract_function_simulator/contract_function_simulator.ts#L402
 // =============================================================================
 
 use crate::{Metered, test::utils};

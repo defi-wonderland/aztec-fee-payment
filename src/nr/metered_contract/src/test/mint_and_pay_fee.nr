@@ -11,10 +11,10 @@
 // |-- given a valid authwit
 // |   |-- when amount > max_gas_cost
 // |   |   |-- it should credit account with (amount - max_gas_cost)
-// |   |   +-- it should set the contract as fee payer
 // |   +-- when amount == max_gas_cost
 // |       |-- it should credit account with zero (all goes to fee)
-// |       +-- it should set the contract as fee payer
+// |-- given amount < max_gas_cost
+// |   +-- it reverts due to u128 underflow on (amount - max_gas_cost)
 // |-- given an invalid authwit (smoke test -- see mint.nr)
 // |   +-- it reverts during authwit verification
 //
@@ -23,6 +23,8 @@
 // set_as_fee_payer() trigger an internal TXE assertion about the nonce
 // generator. This is a known TXE bug, not a contract bug.
 // The success path is verified via the TypeScript integration tests.
+//
+// https://github.com/AztecProtocol/aztec-packages/blob/v3.0.0-devnet.6-patch.1/yarn-project/pxe/src/contract_function_simulator/contract_function_simulator.ts#L402
 // =============================================================================
 
 use crate::{Metered, test::utils};

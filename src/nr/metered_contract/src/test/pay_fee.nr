@@ -7,7 +7,6 @@
 // |-- given the sender has sufficient balance (balance > max_gas_cost)
 // |   |-- it should deduct exactly max_gas_cost from the sender's balance
 // |   |-- it should return change (subtracted - max_gas_cost) as a new note
-// |   +-- it should set the contract as fee payer
 //
 // Note: max_gas_cost is derived from TXE gas settings (typically 0 in TXE).
 // Insufficient-balance tests are not feasible when max_gas_cost is 0
