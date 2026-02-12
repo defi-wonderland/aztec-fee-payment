@@ -4,15 +4,12 @@ import type { Logger } from "../../middleware/logger.js";
 export interface ValidateTransactionOptions {
   client: EVMClient;
   txHash: Hex;
+  from: Address;
   feeCollectorAddress: Address;
   aztTokenAddress: Address;
   requiredConfirmations: number;
   minAmount: bigint;
   logger: Logger;
-}
-export interface ValidatedTransaction {
-  amount: bigint;
-  from: Address;
 }
 /**
  * Validate an EVM transaction for FPC claim eligibility.
@@ -25,5 +22,7 @@ export interface ValidatedTransaction {
  */
 export declare function validateTransaction(
   options: ValidateTransactionOptions,
-): Promise<ValidatedTransaction>;
+): Promise<{
+  amount: bigint;
+}>;
 //# sourceMappingURL=validator.d.ts.map

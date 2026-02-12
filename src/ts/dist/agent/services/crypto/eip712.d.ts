@@ -11,15 +11,6 @@ export declare function recoverClaimRequestSigner(
   chainId: number,
 ): Promise<Address>;
 /**
- * Verify that an EIP-712 ClaimRequest signature was produced by `expectedSigner`.
- */
-export declare function verifyClaimRequestSignature(
-  message: ClaimRequestMessage,
-  signature: Hex,
-  expectedSigner: Address,
-  chainId: number,
-): Promise<boolean>;
-/**
  * Returns the typed data object for client-side signing.
  */
 export declare function getTypedDataForSigning(

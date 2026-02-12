@@ -18,7 +18,7 @@ export declare class AuthwitGenerator {
     fpcAddress: string;
     ownerAddress: string;
     ownerSigningKey: Hex;
-    chainId: bigint;
+    chainId?: bigint;
     version?: bigint;
   });
   generateMintAuthwit(amount: bigint, secretHex: Hex): Promise<MintAuthwit>;

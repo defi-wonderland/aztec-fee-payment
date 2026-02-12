@@ -7,6 +7,5 @@ export {
 export {
   validateTransaction,
   type ValidateTransactionOptions,
-  type ValidatedTransaction,
 } from "./validator.js";
 //# sourceMappingURL=index.d.ts.map

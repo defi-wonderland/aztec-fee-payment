@@ -19,5 +19,6 @@ export declare function findFeeCollectorTransfers(
   transfers: ParsedTransfer[],
   feeCollectorAddress: Address,
   aztTokenAddress: Address,
+  from: Address,
 ): ParsedTransfer[];
 //# sourceMappingURL=parser.d.ts.map

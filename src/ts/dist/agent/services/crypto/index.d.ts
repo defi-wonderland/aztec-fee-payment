@@ -1,6 +1,5 @@
 export {
   recoverClaimRequestSigner,
-  verifyClaimRequestSignature,
   getTypedDataForSigning,
   type ClaimRequestMessage,
 } from "./eip712.js";
