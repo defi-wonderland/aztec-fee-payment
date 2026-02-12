@@ -4,14 +4,21 @@ import type { AztecNode } from "@aztec/aztec.js/node";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { TxStatus } from "@aztec/aztec.js/tx";
 import { Fr } from "@aztec/aztec.js/fields";
-import { computeInnerAuthWitHash } from "@aztec/stdlib/auth-witness";
+import { Gas, GasFees } from "@aztec/stdlib/gas";
+import {
+  computeInnerAuthWitHash,
+  type AuthWitness,
+} from "@aztec/stdlib/auth-witness";
 
 import { CounterContract, MeteredContract } from "../artifacts/index.js";
 import {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
+  MeteredMintAndPayFeePaymentMethod,
+  MeteredMintThenPayFeePaymentMethod,
 } from "../fee-payment-methods/index.js";
 import { deployMeteredContract } from "../utils/deploy.js";
+import { maxGasCostFor } from "../utils/gas.js";
 
 import {
   LOCAL_AZTEC_NODE_URL,
@@ -26,6 +33,21 @@ import {
   getGasSetupWithTeardown,
   getBalance,
 } from "./utils.js";
+
+/** Creates an authwit for the Metered contract's mint/mint_and_pay_fee functions. */
+async function createMintAuthWit(
+  wallet: TestWallet,
+  signer: AztecAddress,
+  fpcAddress: AztecAddress,
+  amount: bigint,
+  secret: Fr,
+): Promise<AuthWitness> {
+  const innerHash = await computeInnerAuthWitHash([secret, new Fr(amount)]);
+  return wallet.createAuthWit(signer, {
+    consumer: fpcAddress,
+    innerHash,
+  });
+}
 
 describe("Metered Fee Payment Contract", () => {
   let wallet: TestWallet;
@@ -73,14 +95,13 @@ describe("Metered Fee Payment Contract", () => {
   beforeEach(async () => {
     // Mint internal balance for alice before each test
     const secret = Fr.random();
-    const innerHash = await computeInnerAuthWitHash([
+    const authWitness = await createMintAuthWit(
+      wallet,
+      alice,
+      fpc.address,
+      MINT_AMOUNT,
       secret,
-      new Fr(MINT_AMOUNT),
-    ]);
-    const authWitness = await wallet.createAuthWit(alice, {
-      consumer: fpc.address,
-      innerHash,
-    });
+    );
 
     await fpc.methods
       .mint(alice, MINT_AMOUNT, secret)
@@ -120,9 +141,15 @@ describe("Metered Fee Payment Contract", () => {
         .balance_of(alice)
         .simulate({ from: alice });
 
+      const transactionFee = receipt.transactionFee!;
+
       // FPC paid the actual transaction fee
       expect(fpcBalanceAfter).toBeLessThan(fpcBalanceBefore);
-      // User's internal balance was debited max gas cost (no refund)
+
+      // User's internal balance was debited maxGasCost -- NOT transactionFee.
+      // The difference (maxGasCost - transactionFee) is the overpayment that
+      // is never refunded. This IS the "refund = 0" behavior by design.
+      expect(maxGasCost).toBeGreaterThan(BigInt(transactionFee));
       expect(internalBalanceAfter).toBe(internalBalanceBefore - maxGasCost);
     },
     TEST_TIMEOUT,
@@ -170,7 +197,91 @@ describe("Metered Fee Payment Contract", () => {
     TEST_TIMEOUT,
   );
 
-  // --- Additional tests ---
+  it.only(
+    "pay_fee_exact SUCCESS: zero refund via calibrated gas settings",
+    async () => {
+      const internalBalanceBefore = await fpc.methods
+        .balance_of(alice)
+        .simulate({ from: alice });
+
+      // Use 1x multiplier (base fees exactly) so maxFeePerGas == baseFee.
+      const baseFees = (await aztecNode.getCurrentBaseFees()) as {
+        feePerDaGas: string | number | bigint;
+        feePerL2Gas: string | number | bigint;
+      };
+      const tightMaxFeesPerGas = new GasFees(
+        BigInt(baseFees.feePerDaGas),
+        BigInt(baseFees.feePerL2Gas),
+      );
+
+      // Phase 1: simulate to get exact gas usage (0% padding).
+      // estimateGas returns:
+      //   gasLimits     = totalGasUsed  (main + teardown)
+      //   teardownGasLimits = teardownGasUsed
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const simulation: any = await counter.methods.increment().simulate({
+        from: alice,
+        fee: {
+          estimateGas: true,
+          estimatedGasPadding: 0,
+          paymentMethod: exactPaymentMethod,
+        },
+      });
+
+      const estimatedTotal: Gas = simulation.estimatedGas.gasLimits;
+      const estimatedTeardown: Gas = simulation.estimatedGas.teardownGasLimits;
+
+      // The contract computes: maxGasCost = maxFee * (gasLimits + teardownGasLimits).
+      // The protocol charges: transactionFee = baseFee * totalGasUsed.
+      // For refund = 0: gasLimits + teardownGasLimits must equal totalGasUsed.
+      // Since estimatedTotal = totalGasUsed and estimatedTeardown = teardownGasUsed,
+      // we set gasLimits = totalGasUsed − teardownGasUsed = mainGasUsed.
+      const mainGasLimits = Gas.from({
+        daGas: estimatedTotal.daGas - estimatedTeardown.daGas,
+        l2Gas: estimatedTotal.l2Gas - estimatedTeardown.l2Gas,
+      });
+
+      const maxGasCost = maxGasCostFor(
+        tightMaxFeesPerGas,
+        mainGasLimits,
+        estimatedTeardown,
+      );
+
+      // Phase 2: send with calibrated gas settings.
+      const receipt = await counter.methods
+        .increment()
+        .send({
+          from: alice,
+          fee: {
+            paymentMethod: exactPaymentMethod,
+            gasSettings: {
+              gasLimits: mainGasLimits,
+              teardownGasLimits: estimatedTeardown,
+              maxFeesPerGas: tightMaxFeesPerGas,
+            },
+          },
+        })
+        .wait();
+
+      expect(receipt.status).toBe(TxStatus.SUCCESS);
+
+      const transactionFee = BigInt(receipt.transactionFee!);
+      const refund = maxGasCost - transactionFee;
+
+      // The refund should be exactly 0.
+      // This triggers partial_note.complete(ctx, addr, 0) in _refund —
+      // the edge case we want to validate.
+      expect(refund).toBe(0n);
+
+      const internalBalanceAfter = await fpc.methods
+        .balance_of(alice)
+        .simulate({ from: alice });
+      expect(internalBalanceAfter).toBe(internalBalanceBefore - transactionFee);
+    },
+    TEST_TIMEOUT,
+  );
+
+  // --- Insufficient balance tests ---
 
   it(
     "pay_fee INVALID: fails when user has insufficient balance (tx not included)",
@@ -207,6 +318,405 @@ describe("Metered Fee Payment Contract", () => {
               gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
             },
           })
+          .wait(),
+      ).rejects.toThrow();
+    },
+    TEST_TIMEOUT,
+  );
+
+  it(
+    "pay_fee_exact INVALID: fails when user has zero balance",
+    async () => {
+      const freshCounter = await deployCounter(wallet);
+      const { maxFeesPerGas, gasLimits, teardownGasLimits } =
+        await getGasSetupWithTeardown(aztecNode);
+
+      // Create a fresh FPC without minting internal balance
+      const freshFpc = await deployMeteredContract(wallet, alice);
+      await fundL2AddressWithFeeJuiceFromL1(
+        aztecNode,
+        wallet,
+        freshFpc.address,
+        {
+          claimTxSender: alice,
+          produceL2Block: async () => {
+            await deployCounter(wallet);
+          },
+          loggerName: "test:metered-exact-fresh",
+        },
+      );
+
+      const freshExactPaymentMethod = new MeteredExactFeePaymentMethod(
+        freshFpc.address,
+      );
+
+      // Should fail because alice has no internal balance
+      await expect(
+        freshCounter.methods
+          .increment()
+          .send({
+            from: alice,
+            fee: {
+              paymentMethod: freshExactPaymentMethod,
+              gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+            },
+          })
+          .wait(),
+      ).rejects.toThrow();
+    },
+    TEST_TIMEOUT,
+  );
+
+  // --- mint_and_pay_fee tests (TXE-blocked, verified here) ---
+
+  it(
+    "mint_and_pay_fee SUCCESS: mints and pays fee in a single tx",
+    async () => {
+      const internalBalanceBefore = await fpc.methods
+        .balance_of(alice)
+        .simulate({ from: alice });
+      const fpcBalanceBefore = await getBalance(fpc.address, aztecNode);
+
+      const { maxFeesPerGas, gasLimits, teardownGasLimits, maxGasCost } =
+        await getGasSetup(aztecNode);
+
+      const mintAmount = maxGasCost * 2n;
+      const secret = Fr.random();
+      const authWitness = await createMintAuthWit(
+        wallet,
+        alice,
+        fpc.address,
+        mintAmount,
+        secret,
+      );
+
+      const mintAndPayMethod = new MeteredMintAndPayFeePaymentMethod(
+        fpc.address,
+        alice,
+        mintAmount,
+        secret,
+        authWitness,
+      );
+
+      const receipt = await counter.methods
+        .increment()
+        .send({
+          from: alice,
+          fee: {
+            paymentMethod: mintAndPayMethod,
+            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+          },
+        })
+        .wait();
+
+      expect(receipt.status).toBe(TxStatus.SUCCESS);
+
+      const internalBalanceAfter = await fpc.methods
+        .balance_of(alice)
+        .simulate({ from: alice });
+      const fpcBalanceAfter = await getBalance(fpc.address, aztecNode);
+
+      // FPC paid the actual transaction fee from its FeeJuice balance
+      expect(fpcBalanceAfter).toBeLessThan(fpcBalanceBefore);
+
+      // User's internal balance increased by (mintAmount - maxGasCost)
+      // on top of whatever they had before
+      expect(internalBalanceAfter).toBe(
+        internalBalanceBefore + mintAmount - maxGasCost,
+      );
+    },
+    TEST_TIMEOUT,
+  );
+
+  it(
+    "mint_and_pay_fee INVALID: reverts when amount < max_gas_cost",
+    async () => {
+      const { maxFeesPerGas, gasLimits, teardownGasLimits } =
+        await getGasSetup(aztecNode);
+
+      // Mint amount of 1 is certainly less than max_gas_cost
+      const tinyAmount = 1n;
+      const secret = Fr.random();
+      const authWitness = await createMintAuthWit(
+        wallet,
+        alice,
+        fpc.address,
+        tinyAmount,
+        secret,
+      );
+
+      const mintAndPayMethod = new MeteredMintAndPayFeePaymentMethod(
+        fpc.address,
+        alice,
+        tinyAmount,
+        secret,
+        authWitness,
+      );
+
+      // Should revert: amount - max_gas_cost underflows (u128)
+      await expect(
+        counter.methods
+          .increment()
+          .send({
+            from: alice,
+            fee: {
+              paymentMethod: mintAndPayMethod,
+              gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+            },
+          })
+          .wait(),
+      ).rejects.toThrow();
+    },
+    TEST_TIMEOUT,
+  );
+
+  // --- MeteredMintThenPayFeePaymentMethod tests ---
+
+  it(
+    "mint_then_pay_fee SUCCESS: mints and pays fee as two-step flow in a single tx",
+    async () => {
+      const internalBalanceBefore = await fpc.methods
+        .balance_of(alice)
+        .simulate({ from: alice });
+      const fpcBalanceBefore = await getBalance(fpc.address, aztecNode);
+
+      const { maxFeesPerGas, gasLimits, teardownGasLimits, maxGasCost } =
+        await getGasSetup(aztecNode);
+
+      const mintAmount = maxGasCost * 2n;
+      const secret = Fr.random();
+      const authWitness = await createMintAuthWit(
+        wallet,
+        alice,
+        fpc.address,
+        mintAmount,
+        secret,
+      );
+
+      const mintThenPayMethod = new MeteredMintThenPayFeePaymentMethod(
+        fpc.address,
+        alice,
+        mintAmount,
+        secret,
+        authWitness,
+      );
+
+      const receipt = await counter.methods
+        .increment()
+        .send({
+          from: alice,
+          fee: {
+            paymentMethod: mintThenPayMethod,
+            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+          },
+        })
+        .wait();
+
+      expect(receipt.status).toBe(TxStatus.SUCCESS);
+
+      const internalBalanceAfter = await fpc.methods
+        .balance_of(alice)
+        .simulate({ from: alice });
+      const fpcBalanceAfter = await getBalance(fpc.address, aztecNode);
+
+      // FPC paid the actual transaction fee
+      expect(fpcBalanceAfter).toBeLessThan(fpcBalanceBefore);
+
+      // User's internal balance increased by mintAmount (from mint)
+      // then decreased by maxGasCost (from pay_fee, no refund)
+      expect(internalBalanceAfter).toBe(
+        internalBalanceBefore + mintAmount - maxGasCost,
+      );
+    },
+    TEST_TIMEOUT,
+  );
+
+  // --- FPC FeeJuice depletion ---
+
+  it(
+    "pay_fee INVALID: fails when FPC has no FeeJuice (even with user balance)",
+    async () => {
+      // Deploy a fresh FPC but do NOT fund it with FeeJuice
+      const unfundedFpc = await deployMeteredContract(wallet, alice);
+
+      // Mint internal balance so the user side is fine
+      const secret = Fr.random();
+      const authWitness = await createMintAuthWit(
+        wallet,
+        alice,
+        unfundedFpc.address,
+        MINT_AMOUNT,
+        secret,
+      );
+      await unfundedFpc.methods
+        .mint(alice, MINT_AMOUNT, secret)
+        .with({ authWitnesses: [authWitness] })
+        .send({ from: alice })
+        .wait();
+
+      const { maxFeesPerGas, gasLimits, teardownGasLimits } =
+        await getGasSetup(aztecNode);
+
+      const unfundedPaymentMethod = new MeteredFeePaymentMethod(
+        unfundedFpc.address,
+      );
+
+      // Should fail: user has internal balance, but the FPC itself
+      // cannot cover the sequencer fee (no FeeJuice)
+      await expect(
+        counter.methods
+          .increment()
+          .send({
+            from: alice,
+            fee: {
+              paymentMethod: unfundedPaymentMethod,
+              gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+            },
+          })
+          .wait(),
+      ).rejects.toThrow();
+    },
+    TEST_TIMEOUT,
+  );
+
+  it(
+    "pay_fee_exact INVALID: fails when FPC has no FeeJuice (even with user balance)",
+    async () => {
+      // Deploy a fresh FPC but do NOT fund it with FeeJuice
+      const unfundedFpc = await deployMeteredContract(wallet, alice);
+
+      // Mint internal balance so the user side is fine
+      const secret = Fr.random();
+      const authWitness = await createMintAuthWit(
+        wallet,
+        alice,
+        unfundedFpc.address,
+        MINT_AMOUNT,
+        secret,
+      );
+      await unfundedFpc.methods
+        .mint(alice, MINT_AMOUNT, secret)
+        .with({ authWitnesses: [authWitness] })
+        .send({ from: alice })
+        .wait();
+
+      const { maxFeesPerGas, gasLimits, teardownGasLimits } =
+        await getGasSetupWithTeardown(aztecNode);
+
+      const unfundedExactPaymentMethod = new MeteredExactFeePaymentMethod(
+        unfundedFpc.address,
+      );
+
+      // Should fail: user has internal balance, but the FPC itself
+      // cannot cover the sequencer fee (no FeeJuice)
+      await expect(
+        counter.methods
+          .increment()
+          .send({
+            from: alice,
+            fee: {
+              paymentMethod: unfundedExactPaymentMethod,
+              gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+            },
+          })
+          .wait(),
+      ).rejects.toThrow();
+    },
+    TEST_TIMEOUT,
+  );
+
+  // --- mint_and_pay_fee edge cases ---
+
+  it(
+    "mint_and_pay_fee SUCCESS: amount == maxGasCost credits zero to user",
+    async () => {
+      const internalBalanceBefore = await fpc.methods
+        .balance_of(alice)
+        .simulate({ from: alice });
+
+      const { maxFeesPerGas, gasLimits, teardownGasLimits, maxGasCost } =
+        await getGasSetup(aztecNode);
+
+      // Mint exactly maxGasCost so (amount - maxGasCost) == 0
+      const mintAmount = maxGasCost;
+      const secret = Fr.random();
+      const authWitness = await createMintAuthWit(
+        wallet,
+        alice,
+        fpc.address,
+        mintAmount,
+        secret,
+      );
+
+      const mintAndPayMethod = new MeteredMintAndPayFeePaymentMethod(
+        fpc.address,
+        alice,
+        mintAmount,
+        secret,
+        authWitness,
+      );
+
+      const receipt = await counter.methods
+        .increment()
+        .send({
+          from: alice,
+          fee: {
+            paymentMethod: mintAndPayMethod,
+            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+          },
+        })
+        .wait();
+
+      expect(receipt.status).toBe(TxStatus.SUCCESS);
+
+      const internalBalanceAfter = await fpc.methods
+        .balance_of(alice)
+        .simulate({ from: alice });
+
+      // amount == maxGasCost, so (amount - maxGasCost) == 0:
+      // user's internal balance should be unchanged
+      expect(internalBalanceAfter).toBe(internalBalanceBefore);
+    },
+    TEST_TIMEOUT,
+  );
+
+  // --- Authwit replay protection ---
+
+  it(
+    "authwit replay INVALID: reusing the same secret and amount fails",
+    async () => {
+      const secret = Fr.random();
+      const amount = 1_000_000n;
+
+      // First mint: should succeed
+      const authWitness1 = await createMintAuthWit(
+        wallet,
+        alice,
+        fpc.address,
+        amount,
+        secret,
+      );
+      await fpc.methods
+        .mint(alice, amount, secret)
+        .with({ authWitnesses: [authWitness1] })
+        .send({ from: alice })
+        .wait();
+
+      // Second mint with the same (secret, amount): the nullifier for this
+      // message hash was already emitted, so this must fail regardless of
+      // having a fresh valid auth witness (Schnorr is non-deterministic)
+      const authWitness2 = await createMintAuthWit(
+        wallet,
+        alice,
+        fpc.address,
+        amount,
+        secret,
+      );
+      await expect(
+        fpc.methods
+          .mint(alice, amount, secret)
+          .with({ authWitnesses: [authWitness2] })
+          .send({ from: alice })
           .wait(),
       ).rejects.toThrow();
     },
