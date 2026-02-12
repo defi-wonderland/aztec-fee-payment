@@ -13,13 +13,10 @@ export declare const REASONABLE_TEARDOWN_GAS_LIMITS: Gas;
  * @param multiplier - Multiplier to apply (default: 3n for safety margin)
  * @returns GasFees object with calculated max fees
  */
-export declare function maxFeesPerGasFromBaseFees(
-  baseFees: {
+export declare function maxFeesPerGasFromBaseFees(baseFees: {
     feePerDaGas: string | number | bigint;
     feePerL2Gas: string | number | bigint;
-  },
-  multiplier?: bigint,
-): GasFees;
+}, multiplier?: bigint): GasFees;
 /**
  * Calculate the maximum gas cost for a transaction.
  * @param maxFeesPerGas - Maximum fees per gas unit
@@ -27,9 +24,5 @@ export declare function maxFeesPerGasFromBaseFees(
  * @param teardownGasLimits - Gas limits for the teardown phase
  * @returns Maximum possible gas cost in wei
  */
-export declare function maxGasCostFor(
-  maxFeesPerGas: GasFees,
-  gasLimits: Gas,
-  teardownGasLimits: Gas,
-): bigint;
+export declare function maxGasCostFor(maxFeesPerGas: GasFees, gasLimits: Gas, teardownGasLimits: Gas): bigint;
 //# sourceMappingURL=gas.d.ts.map

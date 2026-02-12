@@ -1,27 +1,27 @@
 import { AppError } from "../errors.js";
 export function createErrorHandler(logger) {
-  return function errorHandler(error, req, res, _next) {
-    const requestId = req.headers["x-request-id"] ?? "unknown";
-    if (error instanceof AppError) {
-      logger.warn({ err: error, requestId }, error.message);
-      res.status(error.statusCode).json(error.toResponse());
-      return;
-    }
-    // SyntaxError from JSON body parsing
-    if (error instanceof SyntaxError && "body" in error) {
-      logger.warn({ err: error, requestId }, error.message);
-      res.status(400).json({
-        error: "INVALID_REQUEST",
-        message: "Invalid JSON in request body",
-      });
-      return;
-    }
-    // Unexpected errors — hide internals
-    logger.error({ err: error, requestId }, "Unhandled error");
-    res.status(500).json({
-      error: "INTERNAL_ERROR",
-      message: "An unexpected error occurred",
-    });
-  };
+    return function errorHandler(error, req, res, _next) {
+        const requestId = req.headers["x-request-id"] ?? "unknown";
+        if (error instanceof AppError) {
+            logger.warn({ err: error, requestId }, error.message);
+            res.status(error.statusCode).json(error.toResponse());
+            return;
+        }
+        // SyntaxError from JSON body parsing
+        if (error instanceof SyntaxError && "body" in error) {
+            logger.warn({ err: error, requestId }, error.message);
+            res.status(400).json({
+                error: "INVALID_REQUEST",
+                message: "Invalid JSON in request body",
+            });
+            return;
+        }
+        // Unexpected errors — hide internals
+        logger.error({ err: error, requestId }, "Unhandled error");
+        res.status(500).json({
+            error: "INTERNAL_ERROR",
+            message: "An unexpected error occurred",
+        });
+    };
 }
 //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZXJyb3JIYW5kbGVyLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vYWdlbnQvbWlkZGxld2FyZS9lcnJvckhhbmRsZXIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBR0EsT0FBTyxFQUFFLFFBQVEsRUFBRSxNQUFNLGNBQWMsQ0FBQztBQUV4QyxNQUFNLFVBQVUsa0JBQWtCLENBQUMsTUFBYztJQUMvQyxPQUFPLFNBQVMsWUFBWSxDQUMxQixLQUFZLEVBQ1osR0FBWSxFQUNaLEdBQWEsRUFDYixLQUFtQjtRQUVuQixNQUFNLFNBQVMsR0FBRyxHQUFHLENBQUMsT0FBTyxDQUFDLGNBQWMsQ0FBQyxJQUFJLFNBQVMsQ0FBQztRQUUzRCxJQUFJLEtBQUssWUFBWSxRQUFRLEVBQUUsQ0FBQztZQUM5QixNQUFNLENBQUMsSUFBSSxDQUFDLEVBQUUsR0FBRyxFQUFFLEtBQUssRUFBRSxTQUFTLEVBQUUsRUFBRSxLQUFLLENBQUMsT0FBTyxDQUFDLENBQUM7WUFDdEQsR0FBRyxDQUFDLE1BQU0sQ0FBQyxLQUFLLENBQUMsVUFBVSxDQUFDLENBQUMsSUFBSSxDQUFDLEtBQUssQ0FBQyxVQUFVLEVBQUUsQ0FBQyxDQUFDO1lBQ3RELE9BQU87UUFDVCxDQUFDO1FBRUQscUNBQXFDO1FBQ3JDLElBQUksS0FBSyxZQUFZLFdBQVcsSUFBSSxNQUFNLElBQUksS0FBSyxFQUFFLENBQUM7WUFDcEQsTUFBTSxDQUFDLElBQUksQ0FBQyxFQUFFLEdBQUcsRUFBRSxLQUFLLEVBQUUsU0FBUyxFQUFFLEVBQUUsS0FBSyxDQUFDLE9BQU8sQ0FBQyxDQUFDO1lBQ3RELEdBQUcsQ0FBQyxNQUFNLENBQUMsR0FBRyxDQUFDLENBQUMsSUFBSSxDQUFDO2dCQUNuQixLQUFLLEVBQUUsaUJBQWlCO2dCQUN4QixPQUFPLEVBQUUsOEJBQThCO2FBQ2hCLENBQUMsQ0FBQztZQUMzQixPQUFPO1FBQ1QsQ0FBQztRQUVELHFDQUFxQztRQUNyQyxNQUFNLENBQUMsS0FBSyxDQUFDLEVBQUUsR0FBRyxFQUFFLEtBQUssRUFBRSxTQUFTLEVBQUUsRUFBRSxpQkFBaUIsQ0FBQyxDQUFDO1FBQzNELEdBQUcsQ0FBQyxNQUFNLENBQUMsR0FBRyxDQUFDLENBQUMsSUFBSSxDQUFDO1lBQ25CLEtBQUssRUFBRSxnQkFBZ0I7WUFDdkIsT0FBTyxFQUFFLDhCQUE4QjtTQUNoQixDQUFDLENBQUM7SUFDN0IsQ0FBQyxDQUFDO0FBQ0osQ0FBQyJ9

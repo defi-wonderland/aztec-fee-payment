@@ -1,153 +1,126 @@
 import { describe, it, expect, vi } from "vitest";
 import { validateTransaction } from "../services/evm/validator.js";
 import { AppError } from "../errors.js";
-import {
-  FEE_COLLECTOR,
-  AZT_TOKEN,
-  USER,
-  makeTransferLog,
-  createMockClient,
-  validatorOpts,
-} from "./helpers.js";
+import { FEE_COLLECTOR, AZT_TOKEN, USER, makeTransferLog, createMockClient, validatorOpts, } from "./helpers.js";
 function receiptWith(logs, from = USER) {
-  return { status: "success", blockNumber: 100n, from, logs };
+    return { status: "success", blockNumber: 100n, from, logs };
 }
 describe("Transaction Validator", () => {
-  it("validates a legitimate transaction", async () => {
-    const result = await validateTransaction(validatorOpts(createMockClient()));
-    expect(result.amount).toBe(1000000000000000000n);
-  });
-  it("throws TX_NOT_FOUND when receipt is missing", async () => {
-    const client = createMockClient({
-      getTransactionReceipt: vi.fn().mockResolvedValue(null),
+    it("validates a legitimate transaction", async () => {
+        const result = await validateTransaction(validatorOpts(createMockClient()));
+        expect(result.amount).toBe(1000000000000000000n);
     });
-    await expect(
-      validateTransaction(validatorOpts(client)),
-    ).rejects.toMatchObject({ code: "TX_NOT_FOUND" });
-  });
-  it("throws TX_REVERTED when transaction failed", async () => {
-    const client = createMockClient({
-      getTransactionReceipt: vi
-        .fn()
-        .mockResolvedValue({ status: "reverted", blockNumber: 100n, logs: [] }),
+    it("throws TX_NOT_FOUND when receipt is missing", async () => {
+        const client = createMockClient({
+            getTransactionReceipt: vi.fn().mockResolvedValue(null),
+        });
+        await expect(validateTransaction(validatorOpts(client))).rejects.toMatchObject({ code: "TX_NOT_FOUND" });
     });
-    await expect(
-      validateTransaction(validatorOpts(client)),
-    ).rejects.toMatchObject({ code: "TX_REVERTED" });
-  });
-  it("throws TX_NOT_FINALIZED when not enough confirmations", async () => {
-    const client = createMockClient({
-      getBlockNumber: vi.fn().mockResolvedValue(103n),
+    it("throws TX_REVERTED when transaction failed", async () => {
+        const client = createMockClient({
+            getTransactionReceipt: vi
+                .fn()
+                .mockResolvedValue({ status: "reverted", blockNumber: 100n, logs: [] }),
+        });
+        await expect(validateTransaction(validatorOpts(client))).rejects.toMatchObject({ code: "TX_REVERTED" });
     });
-    try {
-      await validateTransaction(validatorOpts(client));
-      expect.unreachable("Should have thrown TX_NOT_FINALIZED");
-    } catch (err) {
-      expect(err).toBeInstanceOf(AppError);
-      const appErr = err;
-      expect(appErr.code).toBe("TX_NOT_FINALIZED");
-      expect(appErr.details?.confirmations).toBe(3);
-      expect(appErr.details?.required).toBe(6);
-    }
-  });
-  it("passes when confirmations exactly equal required", async () => {
-    // blockNumber=100, currentBlock=106 => 6 confirmations = 6 required
-    const client = createMockClient({
-      getBlockNumber: vi.fn().mockResolvedValue(106n),
+    it("throws TX_NOT_FINALIZED when not enough confirmations", async () => {
+        const client = createMockClient({
+            getBlockNumber: vi.fn().mockResolvedValue(103n),
+        });
+        try {
+            await validateTransaction(validatorOpts(client));
+            expect.unreachable("Should have thrown TX_NOT_FINALIZED");
+        }
+        catch (err) {
+            expect(err).toBeInstanceOf(AppError);
+            const appErr = err;
+            expect(appErr.code).toBe("TX_NOT_FINALIZED");
+            expect(appErr.details?.confirmations).toBe(3);
+            expect(appErr.details?.required).toBe(6);
+        }
     });
-    const result = await validateTransaction(validatorOpts(client));
-    expect(result.amount).toBeDefined();
-  });
-  it("fails when confirmations are one less than required", async () => {
-    // blockNumber=100, currentBlock=105 => 5 confirmations < 6 required
-    const client = createMockClient({
-      getBlockNumber: vi.fn().mockResolvedValue(105n),
+    it("passes when confirmations exactly equal required", async () => {
+        // blockNumber=100, currentBlock=106 => 6 confirmations = 6 required
+        const client = createMockClient({
+            getBlockNumber: vi.fn().mockResolvedValue(106n),
+        });
+        const result = await validateTransaction(validatorOpts(client));
+        expect(result.amount).toBeDefined();
     });
-    await expect(
-      validateTransaction(validatorOpts(client)),
-    ).rejects.toMatchObject({ code: "TX_NOT_FINALIZED" });
-  });
-  it("does not call getBlockNumber if receipt is null", async () => {
-    const getBlockNumber = vi.fn();
-    const client = createMockClient({
-      getTransactionReceipt: vi.fn().mockResolvedValue(null),
-      getBlockNumber,
+    it("fails when confirmations are one less than required", async () => {
+        // blockNumber=100, currentBlock=105 => 5 confirmations < 6 required
+        const client = createMockClient({
+            getBlockNumber: vi.fn().mockResolvedValue(105n),
+        });
+        await expect(validateTransaction(validatorOpts(client))).rejects.toMatchObject({ code: "TX_NOT_FINALIZED" });
     });
-    await expect(validateTransaction(validatorOpts(client))).rejects.toThrow();
-    expect(getBlockNumber).not.toHaveBeenCalled();
-  });
-  it("throws WRONG_RECIPIENT when no matching transfers", async () => {
-    const wrongToken = "0x9999999999999999999999999999999999999999";
-    const client = createMockClient({
-      getTransactionReceipt: vi
-        .fn()
-        .mockResolvedValue(
-          receiptWith([
-            makeTransferLog(wrongToken, USER, FEE_COLLECTOR, 1000n),
-          ]),
-        ),
+    it("does not call getBlockNumber if receipt is null", async () => {
+        const getBlockNumber = vi.fn();
+        const client = createMockClient({
+            getTransactionReceipt: vi.fn().mockResolvedValue(null),
+            getBlockNumber,
+        });
+        await expect(validateTransaction(validatorOpts(client))).rejects.toThrow();
+        expect(getBlockNumber).not.toHaveBeenCalled();
     });
-    await expect(
-      validateTransaction(validatorOpts(client)),
-    ).rejects.toMatchObject({ code: "WRONG_RECIPIENT" });
-  });
-  it("sums multiple matching transfers", async () => {
-    const client = createMockClient({
-      getTransactionReceipt: vi
-        .fn()
-        .mockResolvedValue(
-          receiptWith([
-            makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 500n),
-            makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 300n),
-          ]),
-        ),
+    it("throws WRONG_RECIPIENT when no matching transfers", async () => {
+        const wrongToken = "0x9999999999999999999999999999999999999999";
+        const client = createMockClient({
+            getTransactionReceipt: vi
+                .fn()
+                .mockResolvedValue(receiptWith([
+                makeTransferLog(wrongToken, USER, FEE_COLLECTOR, 1000n),
+            ])),
+        });
+        await expect(validateTransaction(validatorOpts(client))).rejects.toMatchObject({ code: "WRONG_RECIPIENT" });
     });
-    const result = await validateTransaction(validatorOpts(client));
-    expect(result.amount).toBe(800n);
-  });
-  it("throws INVALID_AMOUNT when transfer amount is zero", async () => {
-    const client = createMockClient({
-      getTransactionReceipt: vi
-        .fn()
-        .mockResolvedValue(
-          receiptWith([makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 0n)]),
-        ),
+    it("sums multiple matching transfers", async () => {
+        const client = createMockClient({
+            getTransactionReceipt: vi
+                .fn()
+                .mockResolvedValue(receiptWith([
+                makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 500n),
+                makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 300n),
+            ])),
+        });
+        const result = await validateTransaction(validatorOpts(client));
+        expect(result.amount).toBe(800n);
     });
-    await expect(
-      validateTransaction(validatorOpts(client)),
-    ).rejects.toMatchObject({ code: "INVALID_AMOUNT" });
-  });
-  it("throws INVALID_AMOUNT when amount is below configured minimum", async () => {
-    const client = createMockClient({
-      getTransactionReceipt: vi
-        .fn()
-        .mockResolvedValue(
-          receiptWith([makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 500n)]),
-        ),
+    it("throws INVALID_AMOUNT when transfer amount is zero", async () => {
+        const client = createMockClient({
+            getTransactionReceipt: vi
+                .fn()
+                .mockResolvedValue(receiptWith([makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 0n)])),
+        });
+        await expect(validateTransaction(validatorOpts(client))).rejects.toMatchObject({ code: "INVALID_AMOUNT" });
     });
-    try {
-      await validateTransaction(validatorOpts(client, { minAmount: 1000n }));
-      expect.unreachable("Should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(AppError);
-      const appErr = err;
-      expect(appErr.code).toBe("INVALID_AMOUNT");
-      expect(appErr.details?.amount).toBe("500");
-      expect(appErr.details?.minAmount).toBe("1000");
-    }
-  });
-  it("passes when amount exactly equals minimum", async () => {
-    const client = createMockClient({
-      getTransactionReceipt: vi
-        .fn()
-        .mockResolvedValue(
-          receiptWith([makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 1000n)]),
-        ),
+    it("throws INVALID_AMOUNT when amount is below configured minimum", async () => {
+        const client = createMockClient({
+            getTransactionReceipt: vi
+                .fn()
+                .mockResolvedValue(receiptWith([makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 500n)])),
+        });
+        try {
+            await validateTransaction(validatorOpts(client, { minAmount: 1000n }));
+            expect.unreachable("Should have thrown");
+        }
+        catch (err) {
+            expect(err).toBeInstanceOf(AppError);
+            const appErr = err;
+            expect(appErr.code).toBe("INVALID_AMOUNT");
+            expect(appErr.details?.amount).toBe("500");
+            expect(appErr.details?.minAmount).toBe("1000");
+        }
     });
-    const result = await validateTransaction(
-      validatorOpts(client, { minAmount: 1000n }),
-    );
-    expect(result.amount).toBe(1000n);
-  });
+    it("passes when amount exactly equals minimum", async () => {
+        const client = createMockClient({
+            getTransactionReceipt: vi
+                .fn()
+                .mockResolvedValue(receiptWith([makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 1000n)])),
+        });
+        const result = await validateTransaction(validatorOpts(client, { minAmount: 1000n }));
+        expect(result.amount).toBe(1000n);
+    });
 });
 //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidmFsaWRhdG9yLnRlc3QuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi9hZ2VudC90ZXN0L3ZhbGlkYXRvci50ZXN0LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE9BQU8sRUFBRSxRQUFRLEVBQUUsRUFBRSxFQUFFLE1BQU0sRUFBRSxFQUFFLEVBQUUsTUFBTSxRQUFRLENBQUM7QUFFbEQsT0FBTyxFQUFFLG1CQUFtQixFQUFFLE1BQU0sOEJBQThCLENBQUM7QUFDbkUsT0FBTyxFQUFFLFFBQVEsRUFBRSxNQUFNLGNBQWMsQ0FBQztBQUN4QyxPQUFPLEVBQ0wsYUFBYSxFQUNiLFNBQVMsRUFDVCxJQUFJLEVBQ0osZUFBZSxFQUNmLGdCQUFnQixFQUNoQixhQUFhLEdBQ2QsTUFBTSxjQUFjLENBQUM7QUFFdEIsU0FBUyxXQUFXLENBQ2xCLElBQTBDLEVBQzFDLE9BQWdCLElBQUk7SUFFcEIsT0FBTyxFQUFFLE1BQU0sRUFBRSxTQUFTLEVBQUUsV0FBVyxFQUFFLElBQUksRUFBRSxJQUFJLEVBQUUsSUFBSSxFQUFFLENBQUM7QUFDOUQsQ0FBQztBQUVELFFBQVEsQ0FBQyx1QkFBdUIsRUFBRSxHQUFHLEVBQUU7SUFDckMsRUFBRSxDQUFDLG9DQUFvQyxFQUFFLEtBQUssSUFBSSxFQUFFO1FBQ2xELE1BQU0sTUFBTSxHQUFHLE1BQU0sbUJBQW1CLENBQUMsYUFBYSxDQUFDLGdCQUFnQixFQUFFLENBQUMsQ0FBQyxDQUFDO1FBQzVFLE1BQU0sQ0FBQyxNQUFNLENBQUMsTUFBTSxDQUFDLENBQUMsSUFBSSxDQUFDLG9CQUFvQixDQUFDLENBQUM7SUFDbkQsQ0FBQyxDQUFDLENBQUM7SUFFSCxFQUFFLENBQUMsNkNBQTZDLEVBQUUsS0FBSyxJQUFJLEVBQUU7UUFDM0QsTUFBTSxNQUFNLEdBQUcsZ0JBQWdCLENBQUM7WUFDOUIscUJBQXFCLEVBQUUsRUFBRSxDQUFDLEVBQUUsRUFBRSxDQUFDLGlCQUFpQixDQUFDLElBQUksQ0FB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

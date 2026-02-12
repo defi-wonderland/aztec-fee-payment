@@ -1,149 +1,137 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { privateKeyToAccount } from "viem/accounts";
 import { getTypedDataForSigning } from "../services/crypto/eip712.js";
-import {
-  createTestConfig,
-  TEST_KEY,
-  OTHER_KEY,
-  FEE_COLLECTOR,
-  AZT_TOKEN,
-  TX_HASH,
-  CHAIN_ID,
-} from "./helpers.js";
+import { createTestConfig, TEST_KEY, OTHER_KEY, FEE_COLLECTOR, AZT_TOKEN, TX_HASH, CHAIN_ID, } from "./helpers.js";
 const userAccount = privateKeyToAccount(OTHER_KEY);
 // Mock the EVM validator — only succeeds when `from` matches the expected user
 vi.mock("../services/evm/validator.js", async () => {
-  const { privateKeyToAccount } = await import("viem/accounts");
-  const { invalidInput } = await import("../errors.js");
-  return {
-    validateTransaction: vi.fn().mockImplementation((opts) => {
-      const expectedFrom = privateKeyToAccount(OTHER_KEY).address.toLowerCase();
-      if (opts.from.toLowerCase() !== expectedFrom) {
-        throw invalidInput(
-          "WRONG_RECIPIENT",
-          "No AZT transfer to fee collector address found",
-        );
-      }
-      return { amount: 1000000000000000000n };
-    }),
-  };
+    const { privateKeyToAccount } = await import("viem/accounts");
+    const { invalidInput } = await import("../errors.js");
+    return {
+        validateTransaction: vi
+            .fn()
+            .mockImplementation((opts) => {
+            const expectedFrom = privateKeyToAccount(OTHER_KEY).address.toLowerCase();
+            if (opts.from.toLowerCase() !== expectedFrom) {
+                throw invalidInput("WRONG_RECIPIENT", "No AZT transfer to fee collector address found");
+            }
+            return { amount: 1000000000000000000n };
+        }),
+    };
 });
 // Mock the EVM client so the server doesn't try to connect to real RPCs
 vi.mock("../services/evm/client.js", () => ({
-  MultiChainEVMClient: class {
-    getClientForChain() {
-      return { chainId: CHAIN_ID };
-    }
-    isChainSupported() {
-      return true;
-    }
-    getSupportedChains() {
-      return [CHAIN_ID];
-    }
-  },
+    MultiChainEVMClient: class {
+        getClientForChain() {
+            return { chainId: CHAIN_ID };
+        }
+        isChainSupported() {
+            return true;
+        }
+        getSupportedChains() {
+            return [CHAIN_ID];
+        }
+    },
 }));
 async function signClaimRequest(txHash, chainId) {
-  return userAccount.signTypedData(getTypedDataForSigning(txHash, chainId));
+    return userAccount.signTypedData(getTypedDataForSigning(txHash, chainId));
 }
 describe("Integration: Authwit Request Flow", () => {
-  let server;
-  let baseUrl;
-  beforeAll(async () => {
-    const config = createTestConfig({
-      port: 0,
-      logLevel: "error",
-      chains: {
-        [CHAIN_ID]: {
-          name: "base-sepolia",
-          rpcUrl: "https://sepolia.base.org",
-          feeCollectorAddress: FEE_COLLECTOR,
-          aztTokenAddress: AZT_TOKEN,
-          requiredConfirmations: 6,
-        },
-      },
+    let server;
+    let baseUrl;
+    beforeAll(async () => {
+        const config = createTestConfig({
+            port: 0,
+            logLevel: "error",
+            chains: {
+                [CHAIN_ID]: {
+                    name: "base-sepolia",
+                    rpcUrl: "https://sepolia.base.org",
+                    feeCollectorAddress: FEE_COLLECTOR,
+                    aztTokenAddress: AZT_TOKEN,
+                    requiredConfirmations: 6,
+                },
+            },
+        });
+        const { createServer } = await import("../server.js");
+        const { app } = createServer(config);
+        server = await new Promise((resolve) => {
+            const s = app.listen(0, "127.0.0.1", () => resolve(s));
+        });
+        const addr = server.address();
+        if (typeof addr === "object" && addr)
+            baseUrl = `http://127.0.0.1:${addr.port}`;
     });
-    const { createServer } = await import("../server.js");
-    const { app } = createServer(config);
-    server = await new Promise((resolve) => {
-      const s = app.listen(0, "127.0.0.1", () => resolve(s));
+    afterAll(() => {
+        server?.closeAllConnections();
+        return new Promise((resolve) => server?.close(() => resolve()));
     });
-    const addr = server.address();
-    if (typeof addr === "object" && addr)
-      baseUrl = `http://127.0.0.1:${addr.port}`;
-  });
-  afterAll(() => {
-    server?.closeAllConnections();
-    return new Promise((resolve) => server?.close(() => resolve()));
-  });
-  const post = (body) =>
-    fetch(`${baseUrl}/api/v1/authwit/request`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+    const post = (body) => fetch(`${baseUrl}/api/v1/authwit/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
     });
-  it("returns valid authwit for legitimate payment", async () => {
-    const signature = await signClaimRequest(TX_HASH, CHAIN_ID);
-    const res = await post({
-      evmTxHash: TX_HASH,
-      evmChainId: CHAIN_ID,
-      signature,
+    it("returns valid authwit for legitimate payment", async () => {
+        const signature = await signClaimRequest(TX_HASH, CHAIN_ID);
+        const res = await post({
+            evmTxHash: TX_HASH,
+            evmChainId: CHAIN_ID,
+            signature,
+        });
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.amount).toBe("1000000000000000000");
+        expect(body.secret).toMatch(/^0x[0-9a-f]{64}$/);
+        expect(body.authwit.innerHash).toBeDefined();
+        expect(body.authwit.outerHash).toBeDefined();
+        expect(body.authwit.witness).toBeInstanceOf(Array);
+        expect(body.authwit.witness.length).toBe(3);
     });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.amount).toBe("1000000000000000000");
-    expect(body.secret).toMatch(/^0x[0-9a-f]{64}$/);
-    expect(body.authwit.innerHash).toBeDefined();
-    expect(body.authwit.outerHash).toBeDefined();
-    expect(body.authwit.witness).toBeInstanceOf(Array);
-    expect(body.authwit.witness.length).toBe(3);
-  });
-  it("returns same secret and hashes for same txHash (idempotent)", async () => {
-    const signature = await signClaimRequest(TX_HASH, CHAIN_ID);
-    const payload = { evmTxHash: TX_HASH, evmChainId: CHAIN_ID, signature };
-    const body1 = await (await post(payload)).json();
-    const body2 = await (await post(payload)).json();
-    expect(body1.secret).toBe(body2.secret);
-    expect(body1.authwit.innerHash).toBe(body2.authwit.innerHash);
-    expect(body1.authwit.outerHash).toBe(body2.authwit.outerHash);
-  });
-  it("rejects when recovered signer does not match transfer sender", async () => {
-    const otherAccount = privateKeyToAccount(TEST_KEY);
-    const badSignature = await otherAccount.signTypedData(
-      getTypedDataForSigning(TX_HASH, CHAIN_ID),
-    );
-    const res = await post({
-      evmTxHash: TX_HASH,
-      evmChainId: CHAIN_ID,
-      signature: badSignature,
+    it("returns same secret and hashes for same txHash (idempotent)", async () => {
+        const signature = await signClaimRequest(TX_HASH, CHAIN_ID);
+        const payload = { evmTxHash: TX_HASH, evmChainId: CHAIN_ID, signature };
+        const body1 = await (await post(payload)).json();
+        const body2 = await (await post(payload)).json();
+        expect(body1.secret).toBe(body2.secret);
+        expect(body1.authwit.innerHash).toBe(body2.authwit.innerHash);
+        expect(body1.authwit.outerHash).toBe(body2.authwit.outerHash);
     });
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("WRONG_RECIPIENT");
-  });
-  it("rejects unsupported chain", async () => {
-    const signature = await signClaimRequest(TX_HASH, 99999);
-    const res = await post({
-      evmTxHash: TX_HASH,
-      evmChainId: 99999,
-      signature,
+    it("rejects when recovered signer does not match transfer sender", async () => {
+        const otherAccount = privateKeyToAccount(TEST_KEY);
+        const badSignature = await otherAccount.signTypedData(getTypedDataForSigning(TX_HASH, CHAIN_ID));
+        const res = await post({
+            evmTxHash: TX_HASH,
+            evmChainId: CHAIN_ID,
+            signature: badSignature,
+        });
+        expect(res.status).toBe(400);
+        expect((await res.json()).error).toBe("WRONG_RECIPIENT");
     });
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("INVALID_CHAIN");
-  });
-  it("rejects invalid request body", async () => {
-    const res = await post({ evmTxHash: "not-hex" });
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("INVALID_REQUEST");
-  });
-  it("health check returns ok", async () => {
-    const res = await fetch(`${baseUrl}/health`);
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.status).toBe("ok");
-    expect(body.chains).toContain(CHAIN_ID);
-  });
-  it("returns 404 for unknown routes", async () => {
-    const res = await fetch(`${baseUrl}/api/v1/nonexistent`);
-    expect(res.status).toBe(404);
-  });
+    it("rejects unsupported chain", async () => {
+        const signature = await signClaimRequest(TX_HASH, 99999);
+        const res = await post({
+            evmTxHash: TX_HASH,
+            evmChainId: 99999,
+            signature,
+        });
+        expect(res.status).toBe(400);
+        expect((await res.json()).error).toBe("INVALID_CHAIN");
+    });
+    it("rejects invalid request body", async () => {
+        const res = await post({ evmTxHash: "not-hex" });
+        expect(res.status).toBe(400);
+        expect((await res.json()).error).toBe("INVALID_REQUEST");
+    });
+    it("health check returns ok", async () => {
+        const res = await fetch(`${baseUrl}/health`);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.status).toBe("ok");
+        expect(body.chains).toContain(CHAIN_ID);
+    });
+    it("returns 404 for unknown routes", async () => {
+        const res = await fetch(`${baseUrl}/api/v1/nonexistent`);
+        expect(res.status).toBe(404);
+    });
 });
 //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW50ZWdyYXRpb24udGVzdC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL2FnZW50L3Rlc3QvaW50ZWdyYXRpb24udGVzdC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxPQUFPLEVBQUUsUUFBUSxFQUFFLEVBQUUsRUFBRSxNQUFNLEVBQUUsRUFBRSxFQUFFLFNBQVMsRUFBRSxRQUFRLEVBQUUsTUFBTSxRQUFRLENBQUM7QUFFdkUsT0FBTyxFQUFFLG1CQUFtQixFQUFFLE1BQU0sZUFBZSxDQUFDO0FBR3BELE9BQU8sRUFBRSxzQkFBc0IsRUFBRSxNQUFNLDhCQUE4QixDQUFDO0FBQ3RFLE9BQU8sRUFDTCxnQkFBZ0IsRUFDaEIsUUFBUSxFQUNSLFNBQVMsRUFDVCxhQUFhLEVBQ2IsU0FBUyxFQUNULE9BQU8sRUFDUCxRQUFRLEdBQ1QsTUFBTSxjQUFjLENBQUM7QUFFdEIsTUFBTSxXQUFXLEdBQUcsbUJBQW1CLENBQUMsU0FBUyxDQUFDLENBQUM7QUFFbkQsK0VBQStFO0FBQy9FLEVBQUUsQ0FBQyxJQUFJLENBQUMsOEJBQThCLEVBQUUsS0FBSyxJQUFJLEVBQUU7SUFDakQsTUFBTSxFQUFFLG1CQUFtQixFQUFFLEdBQUcsTUFBTSxNQUFNLENBQUMsZUFBZSxDQUFDLENBQUM7SUFDOUQsTUFBTSxFQUFFLFlBQVksRUFBRSxHQUFHLE1BQU0sTUFBTSxDQUFDLGNBQWMsQ0FBQyxDQUFDO0lBQ3RELE9BQU87UUFDTCxtQkFBbUIsRUFBRSxFQUFFO2FBQ3BCLEVBQUUsRUFBRTthQUNKLGtCQUFrQixDQUFDLENBQUMsSUFBc0IsRUFBRSxFQUFFO1lBQzdDLE1BQU0sWUFBWSxHQUNoQixtQkFBbUIsQ0FBQyxTQUFTLENBQUMsQ0FBQyxPQUFPLENBQUMsV0FBVyxFQUFFLENBQUM7WUFDdkQsSUFBSSxJQUFJLENBQUMsSUFBSSxDQUFDLFdBQVcsRUFBRSxLQUFLLFlBQVksRUFBRSxDQUFDO2dCQUM3QyxNQUFNLFlBQVksQ0FDaEIsaUJBQWlCLEVBQ2pCLGdEQUFnRCxDQUNqRCxDQUFDO1lBQ0osQ0FBQztZQUNELE9BQU8sRUFBRSxNQUFNLEVBQUUsb0JBQW9CLEVBQUUsQ0FBQztRQUMxQyxDQUFDLENBQUM7S0FDTCxDQUFDO0FBQ0osQ0FBQyxDQUFDLENBQUM7QUFFSCx3RUFBd0U7QUFDeEUsRUFBRSxDQUFDLElBQUksQ0FBQywyQkFBMkIsRUFBRSxHQUFHLEVBQUUsQ0FBQyxDQUFDO0lBQzFDLG1CQUFtQixFQUFFO1FBQ25CLGlCQUFpQjtZQUNmLE9BQU8sRUFBRSxPQUFPLEVBQUUsUUFBUSxFQUFFLENBQUM7UUFDL0IsQ0FBQztRQUNELGdCQUFnQjtZQUNkLE9BQU8sSUFBSSxDQUFDO1FBQ2QsQ0FBQztRQUNELGtCQUFrQjtZQUNoQixPQUFPLENBQUMsUUFBUSxDQUFDLENBQUM7UUFDcEIsQ0FBQztLQUNGO0NBQ0YsQ0FBQyxDQUFDLENBQUM7QUFFSixLQUFLLFVBQVUsZ0JBQWdCLENBQUMsTUFBVyxFQUFFLE9BQWU7SUFDMUQsT0FBTyxXQUFXLENBQUMsYUFBYSxDQUFDLHNCQUFzQixDQUFDLE1BQU0sRUFBRSxPQUFPLENBQUMsQ0FBQyxDQUFDO0FBQzVFLENBQUM7QUFFRCxRQUFRLENBQUMsbUNBQW1DLEVBQUUsR0FBRyxFQUFFO0lBQ2pELElBQUksTUFBYyxDQUFDO0lBQ25CLElBQUksT0FBZSxDQUFDO0lBRXBCLFNBQVMsQ0FBQyxLQUFLLElBQUksRUFBRTtRQUNuQixNQUFNLE1BQU0sR0FBRyxnQkFBZ0IsQ0FBQztZQUM5QixJQUFJLEVBQUUsQ0FBQztZQUNQLFFBQVEsRUFBRSxPQUFPO1lBQ2pCLE1BQU0sRUFBRTtnQkFDTixDQUFDLFFBQVEsQ0FBQyxFQUFFO29CQUNWLElBQUksRUFBRSxjQUFjO29CQUNwQixNQUFNLEVBQUUsMEJBQTBCO29CQUNsQyxtQkFBbUIsRUFBRSxhQUFhO29CQUNsQyxlQUFlLEVBQUUsU0FBUztvQkFDMUIscUJBQXFCLEVBQUUsQ0FBQztpQkFDekI7YUFDRjtTQUNGLENBQUMsQ0FBQztRQUNILE1BQU0sRUFBRSxZQUFZLEVBQUUsR0FBRyxNQUFNLE1BQU0sQ0FBQyxjQUFjLENBQUMsQ0FBQztRQUN0RCxNQUFNLEVBQUUsR0FBRyxFQUFFLEdBQUcsWUFBWSxDQUFDLE1BQU0sQ0FBQyxDQUFDO1FBQ3JDLE1BQU0sR0FBRyxNQUFNLElBQUksT0FBTyxDQUFTLENBQUMsT0FBTyxFQUFFLEVBQUU7WUFDN0MsTUFBTSxDQUFDLEdBQUcsR0FBRyxDQUFDLE1BQU0sQ0FBQyxDQUFDLEVBQUUsV0FBVyxFQUFFLEdBQUcsRUFBRSxDQUFDLE9BQU8sQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDO1FBQ3pELENBQUMsQ0FBQyxDQUFDO1FBQ0gsTUFBTSxJQUFJLEdBQUcsTUFBTSxDQUFDLE9BQU8sRUFBRSxDQUFDO1FBQzlCLElBQUksT0FBTyxJQUFJLEtBQUssUUFBUSxJQUFJLElBQUk7WUFDbEMsT0FBTyxHQUFHLG9CQUFvQixJQUFJLENBQUMsSUFBSSxFQUFFLENBQUM7SUFDOUMsQ0FBQyxDQUFDLENBQUM7SUFFSCxRQUFRLENBQUMsR0FBRyxFQUFFO1FBQ1osTUFBTSxFQUFFLG1CQUFtQixFQUFFLENBQUM7UUFDOUIsT0FBTyxJQUFJLE9BQU8sQ0FBTyxDQUFDLE9BQU8sRUFBRSxFQUFFLENBQUMsTUFBTSxFQUFFLEtBQUssQ0FBQyxHQUFHLEVBQUUsQ0FBQyxPQUFPLEVBQUUsQ0FBQyxDQUFDLENBQUM7SUFDeEUsQ0FBQyxDQUFDLENBQUM7SUFFSCxNQUFNLElBQUksR0FBRyxDQUFDLElBQWEsRUFBRSxFQUFFLENBQzdCLEtBQUssQ0FBQyxHQUFHLE9BQU8seUJBQXlCLEVBQUU7UUFDekMsTUFBTSxFQUFFLE1BQU07UUFDZCxPQUFPLEVBQUUsRUFBRSxjQUFjLEVBQUUsa0JBQWtCLEVBQUU7UUFDL0MsSUFBSSxFQUFFLElBQUksQ0FBQyxTQUFTLENBQUMsSUFBSSxDQUFDO0tBQzNCLENBQUMsQ0FBQztJQUVMLEVBQUUsQ0FBQyw4Q0FBOEMsRUFBRSxLQUFLLElBQUksRUFBRTtRQUM1RCxNQUFNLFNBQVMsR0FBRyxNQUFNLGdCQUFnQixDQUFDLE9BQU8sRUFBRSxRQUFRLENBQUMsQ0FBQztRQUM1RCxNQUFNLEdBQUcsR0FBRyxNQUFNLElBQUksQ0FBQztZQUNyQixTQUFTLEVBQUUsT0FBTztZQUNsQixVQUFVLEVBQUUsUUFBUTtZQUNwQixTQUFTO1NBQ1YsQ0FBQyxDQUFDO1FBRUgsTUFBTSxDQUFDLEdBQUcsQ0FBQyxNQUFNLENBQUMsQ0FBQyxJQUFJLENBQUMsR0FBRyxDQUFDLENBQUM7UUFDN0IsTUFBTSxJQUFJLEdBQUcsTUFBTSxHQUFHLENBQUMsSUFBSSxFQUFFLENBQUM7UUFDOUIsTUFBTSxDQUFDLElBQUksQ0FBQyxNQUFNLENBQUMsQ0FBQyxJQUFJLENBQUMscUJBQXFCLENBQUMsQ0FBQztRQUNoRCxNQUFNLENBQUMsSUFBSSxDQUFDLE1BQU0sQ0FBQyxDQUFDLE9BQU8sQ0FBQyxrQkFBa0IsQ0FBQyxDQUFDO1FBQ2hELE1BQU0sQ0FBQyxJQUFJLENBQUMsT0FBTyxDQUFDLFNBQVMsQ0FBQyxDQUFDLFdBQVcsRUFBRSxDQUFDO1FBQzdDLE1BQU0sQ0FBQyxJQUFJLENBQUMsT0FBTyxDQUFDLFNBQVMsQ0FBQyxDQUFDLFdBQVcsRUFBRSxDQUFDO1FBQzdDLE1BQU0sQ0FBQyxJQUFJLENBQUMsT0FBTyxDQUFDLE9BQU8sQ0FBQyxDQUFDLGNBQWMsQ0FBQyxLQUFLLENBQUMsQ0FBQztRQUNuRCxNQUFNLENBQUMsSUFBSSxDQUFDLE9BQU8sQ0FBQyxPQUFPLENBQUMsTUFBTSxDQUFDLENBQUMsSUFBSSxDQUFDLENBQUMsQ0FBQyxDQUFDO0lBQzlDLENBQUMsQ0FBQyxDQUFDO0lBRUgsRUFBRSxDQUFDLDZEQUE2RCxFQUFFLEtBQUssSUFBSSxFQUFFO1FBQzNFLE1BQU0sU0FBUyxHQUFHLE1BQU0sZ0JBQWdCLENBQUMsT0FBTyxFQUFFLFFBQVEsQ0FBQyxDQUFDO1FBQzVELE1BQU0sT0FBTyxHQUFHLEVBQUUsU0FBUyxFQUFFLE9BQU8sRUFBRSxVQUFVLEVBQUUsUUFBUSxFQUFFLFNBQVMsRUFBRSxDQUFDO1FBRXhFLE1BQU0sS0FBSyxHQUFHLE1BQU0sQ0FBQyxNQUFNLElBQUksQ0FBQyxPQUFPLENBQUMsQ0FBQyxDQUFDLElBQUksRUFBRSxDQUFDO1FBQ2pELE1BQU0sS0FBSyxHQUFHLE1BQU0sQ0FBQyxNQUFNLElBQUksQ0FBQyxPQUFPLENBQUMsQ0FBQyxDQUFDLElBQUksRUFBRSxDQUFDO1FBRWpELE1BQU0sQ0FBQyxLQUFLLENBQUMsTUFBTSxDQUFDLENBQUMsSUFBSSxDQUFDLEtBQUssQ0FBQyxNQUFNLENBQUMsQ0FBQztRQUN4QyxNQUFNLENBQUMsS0FBSyxDQUFDLE9BQU8sQ0FBQyxTQUFTLENBQUMsQ0FBQyxJQUFJLENBQUMsS0FBSyxDQUFDLE9BQU8sQ0FBQyxTQUFTLENBQUMsQ0FBQztRQUM5RCxNQUFNLENBQUMsS0FBSyxDQUFDLE9BQU8sQ0FBQyxTQUFTLENBQUMsQ0FBQyxJQUFJLENBQUMsS0FBSyxDQUFDLE9BQU8sQ0FBQyxTQUFTLENBQUMsQ0FBQztJQUNoRSxDQUFDLENBQUMsQ0FBQztJQUVILEVBQUUsQ0FBQyw4REFBOEQsRUFBRSxLQUFLLElBQUksRUFBRTtRQUM1RSxNQUFNLFlBQVksR0FBRyxtQkFBbUIsQ0FBQyxRQUFRLENBQUMsQ0FBQztRQUNuRCxNQUFNLFlBQVksR0FBRyxNQUFNLFlBQVksQ0FBQyxhQUFhLENBQ25ELHNCQUFzQixDQUFDLE9BQU8sRUFBRSxRQUFRLENBQUMsQ0FDMUMsQ0FBQztRQUVGLE1BQU0sR0FBRyxHQUFHLE1BQU0sSUFBSSxDQUFDO1lBQ3JCLFNBQVMsRUFBRSxPQUFPO1lBQ2xCLFVBQVUsRUFBRSxRQUFRO1lBQ3BCLFNBQVMsRUFBRSxZQUFZO1NBQ3hCLENBQUMsQ0FBQztRQUNILE1BQU0sQ0FBQyxHQUFHLENBQUMsTUFBTSxDQUFDLENBQUMsSUFBSSxDQUFDLEdBQUcsQ0FBQyxDQUFDO1FBQzdCLE1BQU0sQ0FBQyxDQUFDLE1BQU0sR0FBRyxDQUFDLElBQUksRUFBRSxDQUFDLENBQUMsS0FBSyxDQUFDLENBQUMsSUFBSSxDQUFDLGlCQUFpQixDQUFDLENBQUM7SUFDM0QsQ0FBQyxDQUFDLENBQUM7SUFFSCxFQUFFLENBQUMsMkJBQTJCLEVBQUUsS0FBSyxJQUFJLEVBQUU7UUFDekMsTUFBTSxTQUFTLEdBQUcsTUFBTSxnQkFBZ0IsQ0FBQyxPQUFPLEVBQUUsS0FBSyxDQUFDLENBQUM7UUFDekQsTUFBTSxHQUFHLEdBQUcsTUFBTSxJQUFJLENBQUM7WUFDckIsU0FBUyxFQUFFLE9BQU87WUFDbEIsVUFBVSxFQUFFLEtBQUs7WUFDakIsU0FBUztTQUNWLENBQUMsQ0FBQztRQUNILE1BQU0sQ0FBQyxHQUFHLENBQUMsTUFBTSxDQUFDLENBQUMsSUFBSSxDQUFDLEdBQUcsQ0FBQyxDQUFDO1FBQzdCLE1BQU0sQ0FBQyxDQUFDLE1BQU0sR0FBRyxDQUFDLElBQUksRUFBRSxDQUFDLENBQUMsS0FBSyxDQUFDLENBQUMsSUFBSSxDQUFDLGVBQWUsQ0FBQyxDQUFDO0lBQ3pELENBQUMsQ0FBQyxDQUFDO0lBRUgsRUFBRSxDQUFDLDhCQUE4QixFQUFFLEtBQUssSUFBSSxFQUFFO1FBQzVDLE1BQU0sR0FBRyxHQUFHLE1BQU0sSUFBSSxDQUFDLEVBQUUsU0FBUyxFQUFFLFNBQVMsRUFBRSxDQUFDLENBQUM7UUFDakQsTUFBTSxDQUFDLEdBQUcsQ0FBQyxNQUFNLENBQUMsQ0FBQyxJQUFJLENBQUMsR0FBRyxDQUFDLENBQUM7UUFDN0IsTUFBTSxDQUFDLENBQUMsTUFBTSxHQUFHLENBQUMsSUFBSSxFQUFFLENBQUMsQ0FBQyxLQUFLLENBQUMsQ0FBQyxJQUFJLENBQUMsaUJBQWlCLENBQUMsQ0FBQztJQUMzRCxDQUFDLENBQUMsQ0FBQztJQUVILEVBQUUsQ0FBQyx5QkFBeUIsRUFBRSxLQUFLLElBQUksRUFBRTtRQUN2QyxNQUFNLEdBQUcsR0FBRyxNQUFNLEtBQUssQ0FBQyxHQUFHLE9BQU8sU0FBUyxDQUFDLENBQUM7UUFDN0MsTUFBTSxDQUFDLEdBQUcsQ0FBQyxNQUFNLENBQUMsQ0FBQyxJQUFJLENBQUMsR0FBRyxDQUFDLENBQUM7UUFDN0IsTUFBTSxJQUFJLEdBQUcsTUFBTSxHQUFHLENBQUMsSUFBSSxFQUFFLENBQUM7UUFDOUIsTUFBTSxDQUFDLElBQUksQ0FBQyxNQUFNLENBQUMsQ0FBQyxJQUFJLENBQUMsSUFBSSxDQUFDLENBQUM7UUFDL0IsTUFBTSxDQUFDLElBQUksQ0FBQyxNQUFNLENBQUMsQ0FBQyxTQUFTLENBQUMsUUFBUSxDQUFDLENBQUM7SUFDMUMsQ0FBQyxDQUFDLENBQUM7SUFFSCxFQUFFLENBQUMsZ0NBQWdDLEVBQUUsS0FBSyxJQUFJLEVBQUU7UUFDOUMsTUFBTSxHQUFHLEdBQUcsTUFBTSxLQUFLLENBQUMsR0FBRyxPQUFPLHFCQUFxQixDQUFDLENBQUM7UUFDekQsTUFBTSxDQUFDLEdBQUcsQ0FBQyxNQUFNLENBQUMsQ0FBQyxJQUFJLENBQUMsR0FBRyxDQUFDLENBQUM7SUFDL0IsQ0FBQyxDQUFDLENBQUM7QUFDTCxDQUFDLENBQUMsQ0FBQyJ9

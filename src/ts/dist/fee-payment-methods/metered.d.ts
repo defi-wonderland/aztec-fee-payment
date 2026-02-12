@@ -9,23 +9,23 @@ import { ExecutionPayload } from "@aztec/stdlib/tx";
  * NOTE: Does not refund unused gas - use MeteredExactFeePaymentMethod for refunds.
  */
 export declare class MeteredFeePaymentMethod implements FeePaymentMethod {
-  private readonly fpcAddress;
-  constructor(fpcAddress: AztecAddress);
-  getAsset(): Promise<AztecAddress>;
-  getFeePayer(): Promise<AztecAddress>;
-  getExecutionPayload(): Promise<ExecutionPayload>;
-  getGasSettings(): GasSettings | undefined;
+    private readonly fpcAddress;
+    constructor(fpcAddress: AztecAddress);
+    getAsset(): Promise<AztecAddress>;
+    getFeePayer(): Promise<AztecAddress>;
+    getExecutionPayload(): Promise<ExecutionPayload>;
+    getGasSettings(): GasSettings | undefined;
 }
 /**
  * Fee payment method for the Metered contract with exact refunds.
  * Deducts max gas cost upfront, then refunds (max - actual) in teardown.
  */
 export declare class MeteredExactFeePaymentMethod implements FeePaymentMethod {
-  private readonly fpcAddress;
-  constructor(fpcAddress: AztecAddress);
-  getAsset(): Promise<AztecAddress>;
-  getFeePayer(): Promise<AztecAddress>;
-  getExecutionPayload(): Promise<ExecutionPayload>;
-  getGasSettings(): GasSettings | undefined;
+    private readonly fpcAddress;
+    constructor(fpcAddress: AztecAddress);
+    getAsset(): Promise<AztecAddress>;
+    getFeePayer(): Promise<AztecAddress>;
+    getExecutionPayload(): Promise<ExecutionPayload>;
+    getGasSettings(): GasSettings | undefined;
 }
 //# sourceMappingURL=metered.d.ts.map

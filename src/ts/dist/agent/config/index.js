@@ -2,11 +2,12 @@ import "dotenv/config";
 import { configSchema } from "../types/index.js";
 import { parseChainsFromEnv } from "./schema.js";
 function safeParseBigInt(value) {
-  try {
-    return BigInt(value);
-  } catch {
-    return value;
-  }
+    try {
+        return BigInt(value);
+    }
+    catch {
+        return value;
+    }
 }
 /**
  * Load and validate agent configuration from environment variables.
@@ -15,27 +16,27 @@ function safeParseBigInt(value) {
  * least one CHAIN_<id>_* group.
  */
 export function loadConfig(env = process.env) {
-  const chains = parseChainsFromEnv(env);
-  const raw = {
-    port: env.PORT ? Number(env.PORT) : undefined,
-    host: env.HOST,
-    logLevel: env.LOG_LEVEL,
-    chains,
-    spSigningKey: env.SP_SIGNING_KEY,
-    minAmount: env.MIN_AMOUNT ? safeParseBigInt(env.MIN_AMOUNT) : undefined,
-    rateLimit: {
-      windowMs: env.RATE_LIMIT_WINDOW_MS
-        ? Number(env.RATE_LIMIT_WINDOW_MS)
-        : undefined,
-      maxRequests: env.RATE_LIMIT_MAX_REQUESTS
-        ? Number(env.RATE_LIMIT_MAX_REQUESTS)
-        : undefined,
-    },
-    aztec: {
-      fpcAddress: env.FPC_ADDRESS,
-      ownerAddress: env.OWNER_ADDRESS,
-    },
-  };
-  return configSchema.parse(raw);
+    const chains = parseChainsFromEnv(env);
+    const raw = {
+        port: env.PORT ? Number(env.PORT) : undefined,
+        host: env.HOST,
+        logLevel: env.LOG_LEVEL,
+        chains,
+        spSigningKey: env.SP_SIGNING_KEY,
+        minAmount: env.MIN_AMOUNT ? safeParseBigInt(env.MIN_AMOUNT) : undefined,
+        rateLimit: {
+            windowMs: env.RATE_LIMIT_WINDOW_MS
+                ? Number(env.RATE_LIMIT_WINDOW_MS)
+                : undefined,
+            maxRequests: env.RATE_LIMIT_MAX_REQUESTS
+                ? Number(env.RATE_LIMIT_MAX_REQUESTS)
+                : undefined,
+        },
+        aztec: {
+            fpcAddress: env.FPC_ADDRESS,
+            ownerAddress: env.OWNER_ADDRESS,
+        },
+    };
+    return configSchema.parse(raw);
 }
 //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi9hZ2VudC9jb25maWcvaW5kZXgudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsT0FBTyxlQUFlLENBQUM7QUFDdkIsT0FBTyxFQUFFLFlBQVksRUFBb0IsTUFBTSxtQkFBbUIsQ0FBQztBQUNuRSxPQUFPLEVBQUUsa0JBQWtCLEVBQUUsTUFBTSxhQUFhLENBQUM7QUFFakQsU0FBUyxlQUFlLENBQUMsS0FBYTtJQUNwQyxJQUFJLENBQUM7UUFDSCxPQUFPLE1BQU0sQ0FBQyxLQUFLLENBQUMsQ0FBQztJQUN2QixDQUFDO0lBQUMsTUFBTSxDQUFDO1FBQ1AsT0FBTyxLQUFLLENBQUM7SUFDZixDQUFDO0FBQ0gsQ0FBQztBQUVEOzs7OztHQUtHO0FBQ0gsTUFBTSxVQUFVLFVBQVUsQ0FDeEIsTUFBMEMsT0FBTyxDQUFDLEdBQUc7SUFFckQsTUFBTSxNQUFNLEdBQUcsa0JBQWtCLENBQUMsR0FBRyxDQUFDLENBQUM7SUFFdkMsTUFBTSxHQUFHLEdBQUc7UUFDVixJQUFJLEVBQUUsR0FBRyxDQUFDLElBQUksQ0FBQyxDQUFDLENBQUMsTUFBTSxDQUFDLEdBQUcsQ0FBQyxJQUFJLENBQUMsQ0FBQyxDQUFDLENBQUMsU0FBUztRQUM3QyxJQUFJLEVBQUUsR0FBRyxDQUFDLElBQUk7UUFDZCxRQUFRLEVBQUUsR0FBRyxDQUFDLFNBQVM7UUFDdkIsTUFBTTtRQUNOLFlBQVksRUFBRSxHQUFHLENBQUMsY0FBYztRQUNoQyxTQUFTLEVBQUUsR0FBRyxDQUFDLFVBQVUsQ0FBQyxDQUFDLENBQUMsZUFBZSxDQUFDLEdBQUcsQ0FBQyxVQUFVLENBQUMsQ0FBQyxDQUFDLENBQUMsU0FBUztRQUN2RSxTQUFTLEVBQUU7WUFDVCxRQUFRLEVBQUUsR0FBRyxDQUFDLG9CQUFvQjtnQkFDaEMsQ0FBQyxDQUFDLE1BQU0sQ0FBQyxHQUFHLENBQUMsb0JBQW9CLENBQUM7Z0JBQ2xDLENBQUMsQ0FBQyxTQUFTO1lBQ2IsV0FBVyxFQUFFLEdBQUcsQ0FBQyx1QkFBdUI7Z0JBQ3RDLENBQUMsQ0FBQyxNQUFNLENBQUMsR0FBRyxDQUFDLHVCQUF1QixDQUFDO2dCQUNyQyxDQUFDLENBQUMsU0FBUztTQUNkO1FBQ0QsS0FBSyxFQUFFO1lBQ0wsVUFBVSxFQUFFLEdBQUcsQ0FBQyxXQUFXO1lBQzNCLFlBQVksRUFBRSxHQUFHLENBQUMsYUFBYTtTQUNoQztLQUNGLENBQUM7SUFFRixPQUFPLFlBQVksQ0FBQyxLQUFLLENBQUMsR0FBRyxDQUFnQixDQUFDO0FBQ2hELENBQUMifQ==
