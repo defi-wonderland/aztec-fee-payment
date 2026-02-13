@@ -1,13 +1,6 @@
-// =============================================================================
-// constructor
-// fn constructor(owner: AztecAddress)
-//
-// |-- when called with a valid owner address
-// |   |-- it should store the owner in public immutable storage
-// |   +-- it should be readable via storage after initialization
-// |-- when called a second time (re-initialization)
-// |   +-- it reverts because the contract is already initialized
-// =============================================================================
+// constructor(owner: AztecAddress)
+// Sets the owner in public immutable storage.
+// See src/ts/test/README.md for the full test tree and coverage matrix.
 
 use crate::{Metered, test::utils};
 

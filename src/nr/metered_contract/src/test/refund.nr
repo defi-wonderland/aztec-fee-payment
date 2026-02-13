@@ -1,20 +1,6 @@
-// =============================================================================
-// _refund
-// #[only_self]
-// fn _refund(max_gas_cost: u128, partial_note: PartialUintNote)
-//
-// Teardown function to refund unused gas. Only callable by the contract
-// itself (#[only_self]).
-//
-// |-- given the caller is NOT the contract itself
-// |   +-- it reverts because of the only_self restriction
-//
-// Note: _refund requires a valid PartialUintNote (created by UintNote::
-// partial() in pay_fee_exact). Creating one in isolation requires protocol
-// support that may not be available in TXE. The only_self guard test can
-// be verified independently. Full refund flow is best tested via the
-// TypeScript integration tests (pay_fee_exact).
-// =============================================================================
+// _refund(max_gas_cost: u128, partial_note: PartialUintNote) [#only_self]
+// Teardown function to refund unused gas. Only callable by the contract itself.
+// See src/ts/test/README.md for the full test tree and coverage matrix.
 
 use crate::{Metered, test::utils};
 use dep::uint_note::uint_note::PartialUintNote;

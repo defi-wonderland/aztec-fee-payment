@@ -1,18 +1,6 @@
-// =============================================================================
-// pay_fee
-// fn pay_fee()
-//
+// pay_fee()
 // Deducts max_gas_cost from sender's balance. No refund of unused gas.
-//
-// |-- given the sender has sufficient balance (balance > max_gas_cost)
-// |   |-- it should deduct exactly max_gas_cost from the sender's balance
-// |   |-- it should return change (subtracted - max_gas_cost) as a new note
-//
-// Note: max_gas_cost is derived from TXE gas settings (typically 0 in TXE).
-// Insufficient-balance tests are not feasible when max_gas_cost is 0
-// because try_sub(0, 1) succeeds trivially. Those cases are covered
-// by the TypeScript integration tests.
-// =============================================================================
+// See src/ts/test/README.md for the full test tree and coverage matrix.
 
 use crate::{Metered, test::utils};
 

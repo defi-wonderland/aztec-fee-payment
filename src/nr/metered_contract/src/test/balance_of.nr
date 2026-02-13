@@ -1,16 +1,6 @@
-// =============================================================================
-// balance_of
-// unconstrained fn balance_of(account: AztecAddress) -> u128
-//
+// balance_of(account: AztecAddress) -> u128
 // Returns the internal balance of an account.
-//
-// |-- given the account has a minted balance
-// |   +-- it should return the correct balance
-// |-- given the account has never been minted to
-// |   +-- it should return zero
-// |-- given the account has had multiple mints
-// |   +-- it should return the accumulated total
-// =============================================================================
+// See src/ts/test/README.md for the full test tree and coverage matrix.
 
 use crate::{Metered, test::utils};
 

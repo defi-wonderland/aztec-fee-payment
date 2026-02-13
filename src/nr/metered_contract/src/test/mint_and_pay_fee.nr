@@ -1,31 +1,7 @@
-// =============================================================================
-// mint_and_pay_fee
-// fn mint_and_pay_fee(account: AztecAddress, amount: u128, secret: Field)
-//
-// Mints tokens and pays fee in a single tx. The minted amount must be
-// >= max_gas_cost; surplus is credited to the account.
-//
-// Authwit edge cases are tested exhaustively in mint.nr.
-// This file focuses on the mint-minus-fee arithmetic and underflow behavior.
-//
-// |-- given a valid authwit
-// |   |-- when amount > max_gas_cost
-// |   |   |-- it should credit account with (amount - max_gas_cost)
-// |   +-- when amount == max_gas_cost
-// |       |-- it should credit account with zero (all goes to fee)
-// |-- given amount < max_gas_cost
-// |   +-- it reverts due to u128 underflow on (amount - max_gas_cost)
-// |-- given an invalid authwit (smoke test -- see mint.nr)
-// |   +-- it reverts during authwit verification
-//
-// Note: The success tests are disabled due to a TXE limitation.
-// Functions that combine _verify_authwit (which emits a nullifier) with
-// set_as_fee_payer() trigger an internal TXE assertion about the nonce
-// generator. This is a known TXE bug, not a contract bug.
-// The success path is verified via the TypeScript integration tests.
-//
-// https://github.com/AztecProtocol/aztec-packages/blob/v3.0.0-devnet.6-patch.1/yarn-project/pxe/src/contract_function_simulator/contract_function_simulator.ts#L402
-// =============================================================================
+// mint_and_pay_fee(account: AztecAddress, amount: u128, secret: Field)
+// Mints tokens and pays fee in a single tx. Authwit edge cases are
+// tested exhaustively in mint.nr.
+// See src/ts/test/README.md for the full test tree and coverage matrix.
 
 use crate::{Metered, test::utils};
 use aztec::oracle::random::random;
