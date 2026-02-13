@@ -15,7 +15,7 @@
     "compile": "aztec compile",
     "build": "yarn compile && yarn codegen && yarn workspace @defi-wonderland/aztec-fee-payment build",
     "test": "yarn test:nr && yarn test:js",
-    "test:js": "vitest run",
+    "test:js": "vitest run && vitest run --config vitest.agent.config.ts",
     "test:nr": "aztec test",
     "lint:prettier": "prettier '**/*.{js,ts}' --write",
     "ccc": "yarn clean && yarn compile && yarn codegen",
