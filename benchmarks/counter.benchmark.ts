@@ -23,6 +23,7 @@ interface CounterBenchmarkContext extends BenchmarkContext {
   accounts: AztecAddress[];
   counterContract: CounterContract;
   feePaymentMethod: FeePaymentMethod;
+  meteredFpcAddress: AztecAddress;
 }
 
 // Use export default class extending Benchmark
@@ -77,7 +78,7 @@ export default class CounterContractBenchmark extends Benchmark {
    * Returns the list of CounterContract methods to be benchmarked.
    */
   getMethods(context: CounterBenchmarkContext): any[] {
-    const { counterContract, wallet, deployer } = context;
+    const { counterContract, wallet, deployer, feePaymentMethod } = context;
 
     return [
       {
@@ -85,12 +86,9 @@ export default class CounterContractBenchmark extends Benchmark {
         interaction: {
           caller: deployer,
           action: counterContract.withWallet(wallet).methods.increment(),
+          feePaymentMethod,
         },
       },
     ];
-  }
-
-  async teardown(context: BenchmarkContext): Promise<void> {
-    process.exit(0);
   }
 }
