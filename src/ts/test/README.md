@@ -98,7 +98,7 @@ pay_fee
 
 pay_fee_exact
   success + refund > 0                    BLOCKED            x
-  success + refund == 0                   BLOCKED            x
+  success + refund == 0                   BLOCKED            SKIPPED†
   zero user balance                       x                  x
   FPC has no FeeJuice                                        x
 
@@ -114,8 +114,10 @@ mint_then_pay_fee
 _refund
   only_self guard                         x
 
-x   = tested
-x*  = tested but weak (TXE gas settings default to 0)
-x** = may hit TXE bug; added defensively
+x       = tested
+x*      = tested but weak (TXE gas settings default to 0)
+x**     = may hit TXE bug; added defensively
 BLOCKED = disabled in Noir due to TXE nonce-generator bug
+†SKIPPED = needs maxGasCost == txFee exactly; receipt lacks per-dimension
+           gas breakdown and estimation under-counts setup-phase overhead
 ```
