@@ -1,33 +1,8 @@
-// =============================================================================
-// mint
-// fn mint(account: AztecAddress, amount: u128, secret: Field)
-//
+// mint(account: AztecAddress, amount: u128, secret: Field)
 // Mints internal balance to an account. Requires authwit from owner.
-//
-// Since #[internal] functions cannot be called directly via the contract
-// interface, _verify_authwit edge cases are tested here through mint()
-// (the thinnest external wrapper).
-//
-// |-- given a valid authwit from the owner
-// |   |-- when amount is a normal value
-// |   |   +-- it should increase account's balance by amount
-// |   |-- when minting to a different account than the caller
-// |   |   +-- it should increase the target account's balance
-// |   |-- when minting multiple times
-// |   |   +-- it should accumulate balance correctly
-// |   +-- when amount is zero
-// |       +-- it should succeed with no change to balance
-// |-- given an invalid authwit (wrong secret)
-// |   +-- it reverts during authwit verification
-// |-- given an authwit signed for a different amount
-// |   +-- it reverts because the inner hash doesn't match
-// |-- given no authwit is registered at all
-// |   +-- it reverts during authwit verification
-// |-- given an authwit registered on a non-owner account
-// |   +-- it reverts because the owner's account contract rejects it
-// |-- given the same authwit is replayed
-// |   +-- it reverts because the nullifier was already emitted
-// =============================================================================
+// Authwit edge cases are tested here through mint() as the thinnest
+// external wrapper (see README for details).
+// See src/ts/test/README.md for the full test tree and coverage matrix.
 
 use crate::{Metered, test::utils};
 use aztec::oracle::random::random;
