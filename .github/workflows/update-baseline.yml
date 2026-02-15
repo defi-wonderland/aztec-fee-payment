@@ -15,5 +15,8 @@ concurrency:
 
 jobs:
   baseline:
-    uses: defi-wonderland/aztec-ci-actions/.github/workflows/update-baseline.yml@v0
+    uses: defi-wonderland/aztec-benchmark/.github/workflows/update-baseline.yml@feat/benchmark-workflow # TODO: pin to v0 when ready
+    permissions:
+      contents: read
+      actions: write
     secrets: inherit

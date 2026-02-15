@@ -9,5 +9,13 @@ concurrency:
 
 jobs:
   checks:
-    uses: defi-wonderland/aztec-ci-actions/.github/workflows/run-tests.yml@fix/detach-benchmarks
+    uses: defi-wonderland/aztec-ci-actions/.github/workflows/run-tests.yml@fix/mv-benchmark # TODO: pin to v0.1 when ready
+    secrets: inherit
+
+  benchmark:
+    uses: defi-wonderland/aztec-benchmark/.github/workflows/pr-benchmark.yml@feat/benchmark-workflow # TODO: pin to v0 when ready
+    permissions:
+      pull-requests: write
+      issues: write
+      actions: read
     secrets: inherit
