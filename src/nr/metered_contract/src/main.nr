@@ -153,18 +153,6 @@ pub contract Metered {
         assert_inner_hash_valid_authwit(self.context, owner, inner_hash);
     }
 
-    /// @notice Decreases the private balance of `account` by `amount` and emits a private balance note with the change to account
-    /// @param account The address of the account to decrease the balance of
-    /// @param amount The amount of tokens to decrease the balance by
-    /// @param max_notes The maximum number of notes to process in a single call
-    #[internal("private")]
-    fn _decrease_private_balance(account: AztecAddress, amount: u128, max_notes: u32) {
-        // Subtracts `amount` from the private balance of `account`
-        let change = self.internal._subtract_balance(account, amount, max_notes);
-        // Increases `change` to the private balance of `account`, and emits a private balance note to account
-        self.storage.balances.at(account).add(change).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
-    }
-
     /// @notice Subtracts balance from private balance
     /// @dev Subtracts amount from private balance and returns the change to the owner, recursively if necessary
     /// @param account The address of the account to subtract the balance from
