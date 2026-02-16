@@ -1,6 +1,6 @@
 # Fee Payment Contract (FPC) — Product Requirements Document
 
-**Version**: 3.6
+**Version**: 3.7
 **Status**: Active
 **Current Phase**: Phase 2 (Authorized Mint with Authwit)
 **Target Aztec Version**: 3.0.0-devnet.6-patch.1
@@ -43,7 +43,7 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 
 **As an SP, I want to fund the FPC with Fee Juice so that users can sponsor their transactions.**
 
-- Deploy FPC contract (no initialization parameters required)
+- Deploy FPC contract with owner address (defaults to deployer if unspecified)
 - Bridge AZT from L1 to Aztec
 - Claim FJ from Fee Juice Portal into FPC
 - Use own AccountContract to pay for claim transaction
@@ -80,13 +80,14 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 | **Storage: User balance tracking** | `Owned<BalanceSet<Context>, Context>` maps `AztecAddress -> wFJ balance`; uses `UintNote` for private balance notes | Implemented |
 | **Method: `pay_fee()`** | Private, `#[nophasecheck]`. Deducts max gas cost from `msg_sender`'s wFJ balance using `try_sub` with `max_notes = 1`; handles change notes with `UNCONSTRAINED_ONCHAIN` delivery; calls `set_as_fee_payer()` then `end_setup()`. No refund of unused gas. | Implemented |
 | **Method: `pay_fee_exact()`** | Private, `#[nophasecheck]`. Deducts max gas cost upfront using same single-note optimization with `UNCONSTRAINED_ONCHAIN` delivery for change notes; creates `PartialUintNote` for refund; sets teardown to call `_refund()`; calls `set_as_fee_payer()` then `end_setup()`. Refunds `max_gas_cost - transaction_fee` in teardown. | Implemented |
-| **Method: `mint(amount, secret)`** | Private. `secret` is a deterministic value derived by the SP's off-chain agent (secp256k1 ECDSA signature of `sha256(txHash || sender)` via RFC 6979, where `sender` is the EVM address recovered from the EIP-712 signature; `r` component reduced mod BN254 Fr). Validates custom authwit signed by owner, pushes the authwit itself as a nullifier for replay prevention, calls `set_as_fee_payer()` to self-sponsor the mint transaction, deducts gas cost from minted amount, credits `(amount - gas_cost)` to `msg_sender`'s balance. SP never learns user's Aztec address. | Planned |
-| **Method: `mint(account, amount)` (legacy)** | Private. Adds `amount` to `account`'s balance via `BalanceSet.add()` with `CONSTRAINED_ONCHAIN` delivery. Permissionless, no access control. | Implemented (Phase 1 — to be replaced) |
+| **Method: `mint(amount, secret)`** | Private, `#[nophasecheck]`. `secret` is a deterministic value derived by the SP's off-chain agent (secp256k1 ECDSA signature of `sha256(txHash || sender)` via RFC 6979, where `sender` is the EVM address recovered from the EIP-712 signature; `r` component reduced mod BN254 Fr). Validates custom authwit signed by owner via `assert_inner_hash_valid_authwit` (which pushes the nullifier for replay prevention), calls `set_as_fee_payer()` to self-sponsor the mint transaction, deducts gas cost from minted amount, credits `(amount - max_gas_cost)` to `msg_sender`'s balance with `CONSTRAINED_ONCHAIN` delivery. SP never learns user's Aztec address. | Implemented |
+| **Storage: Owner** | `PublicImmutable<AztecAddress>` stores the owner (Service Provider) address, set at initialization. Used for authwit verification in `mint()`. | Implemented |
+| **Method: `initialize(owner)`** | Public, `#[initializer]`. Sets the contract owner (Service Provider) address. Asserts owner is not zero. Owner's account contract is used to verify authwits for minting. | Implemented |
 | **Method: `_refund(max_gas_cost, partial_note)`** | Public, `#[only_self]`. Teardown function called by `pay_fee_exact()`. Calculates `refund_amount = max_gas_cost - transaction_fee` and completes the partial note. | Implemented |
 | **Method: `balance_of(account)`** | Unconstrained utility view. Returns the wFJ balance of an account. | Implemented |
 | **Library: `get_max_gas_cost(context)`** | `#[contract_library_method]`. Calculates max gas cost from transaction gas settings: `(DA limit + DA teardown) * max_fee_per_da_gas + (L2 limit + L2 teardown) * max_fee_per_l2_gas`. | Implemented |
 
-> **Note on `mint()` transition**: The contract currently implements `mint(account, amount)` (Phase 1, permissionless) for testing. This is being replaced by `mint(amount, secret)` (Phase 2) which adds custom authwit authorization, replay prevention (the authwit itself is pushed as a nullifier), and self-sponsoring. The `secret` parameter is derived by the off-chain agent via deterministic ECDSA (RFC 6979) signing of `sha256(txHash || sender)` (where `sender` is the EVM address recovered from the EIP-712 signature), extracting the `r` component and reducing it mod BN254 Fr. The off-chain agent already implements the Phase 2 flow (see [Phase 2](#phase-2--authorized-mint-with-custom-authwit) and the Off-Chain Agent Specification). The contract update is planned.
+> **Note on `mint()` transition**: The contract now implements `mint(amount, secret)` (Phase 2) with custom authwit authorization, replay prevention (via `assert_inner_hash_valid_authwit` which pushes the nullifier), and self-sponsoring. The permissionless `mint(account, amount)` from Phase 1 has been removed. The `secret` parameter is derived by the off-chain agent via deterministic ECDSA (RFC 6979) signing of `sha256(txHash || sender)` (where `sender` is the EVM address recovered from the EIP-712 signature), extracting the `r` component and reducing it mod BN254 Fr. The contract requires initialization with an owner address whose account contract verifies authwits. See [Phase 2](#phase-2--authorized-mint-with-custom-authwit) and the Off-Chain Agent Specification.
 
 ### TypeScript SDK
 
@@ -94,7 +95,8 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 | --- | --- | --- |
 | **`MeteredFeePaymentMethod`** | Implements `FeePaymentMethod` interface. Calls `pay_fee()` on the FPC in setup phase. No refund of unused gas. | Implemented |
 | **`MeteredExactFeePaymentMethod`** | Implements `FeePaymentMethod` interface. Calls `pay_fee_exact()` on the FPC in setup phase. Refunds unused gas via teardown. | Implemented |
-| **`deployMeteredContract(wallet)`** | Utility to deploy a Metered FPC contract. Returns `MeteredContract` instance. | Implemented |
+| **`MeteredMintFeePaymentMethod`** | Implements `FeePaymentMethod` interface. Calls `mint(amount, secret)` on the FPC as a fee entry point. FPC self-sponsors the transaction. Caller must store authwit witness in PXE before sending. Constructor takes `(fpcAddress, amount, secret)`. | Implemented |
+| **`deployMeteredContract(wallet, owner?)`** | Utility to deploy a Metered FPC contract with an owner address. If no owner is specified, the deployer's address is used. Returns `MeteredContract` instance. | Implemented |
 | **`maxFeesPerGasFromBaseFees(baseFees, multiplier)`** | Calculates max fees per gas from current base fees with a safety multiplier (default 3x). Returns `GasFees`. | Implemented |
 | **`maxGasCostFor(maxFeesPerGas, gasLimits, teardownGasLimits)`** | Calculates maximum possible gas cost in wei. Formula matches the Noir `get_max_gas_cost()` implementation. | Implemented |
 | **`REASONABLE_GAS_LIMITS` / `REASONABLE_TEARDOWN_GAS_LIMITS`** | Default gas limit constants sourced from `@aztec/constants`. | Implemented |
@@ -121,24 +123,24 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 
 ### Contract Storage
 
-The Metered contract has a single storage field:
+The Metered contract has two storage fields:
 
 ```noir
 #[storage]
 struct Storage<Context> {
+    owner: PublicImmutable<AztecAddress, Context>,
     balances: Owned<BalanceSet<Context>, Context>,
 }
 ```
 
+- **`owner`**: `PublicImmutable<AztecAddress>` storing the Service Provider address, set at initialization. The owner's account contract is used to verify authwits for `mint()`.
 - **`balances`**: Maps `AztecAddress` to private wFJ balance using `UintNote` notes
-- **No owner**: The current contract has no owner or initialization function
-- **No public state**: All balance tracking is private via note-based storage
 
 ### Deployment Flow
 
-1. SP deploys FPC contract via `deployMeteredContract(wallet)` — no constructor arguments
+1. SP deploys FPC contract via `deployMeteredContract(wallet, owner?)` — initializes with owner address (defaults to deployer)
 2. SP funds FPC with Fee Juice by bridging from L1 via `fundL2AddressWithFeeJuiceFromL1()`
-3. Users obtain authwits from SP's off-chain agent and call `mint(amount, secret)` to credit their own balance (Phase 2). Legacy: SP calls `mint(account, amount)` directly (Phase 1)
+3. Users obtain authwits from SP's off-chain agent and call `mint(amount, secret)` to credit their own balance. The FPC self-sponsors the mint transaction.
 
 ### Fee Payment Flow: `pay_fee()` (No Refund)
 
@@ -226,19 +228,34 @@ import {
   MeteredContract,
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
+  MeteredMintFeePaymentMethod,
   deployMeteredContract,
   maxFeesPerGasFromBaseFees,
   REASONABLE_GAS_LIMITS,
   REASONABLE_TEARDOWN_GAS_LIMITS,
 } from '@defi-wonderland/aztec-fee-payment';
 
-// Deploy FPC
+// Deploy FPC (wallet becomes the owner/Service Provider)
 const fpc = await deployMeteredContract(wallet);
+// Or specify a different owner:
+// const fpc = await deployMeteredContract(wallet, ownerAddress);
 
-// Mint balance for user (Phase 1 legacy — will be replaced by mint(amount, secret) with authwit)
-await fpc.methods.mint(userAddress, 1_000_000_000_000n).send().wait();
+// Mint balance for user (Phase 2 — authwit-based, self-sponsored)
+// 1. Obtain authwit from off-chain agent after EVM payment
+const { amount, secret, authwit } = await agent.requestAuthwit(evmTxHash);
+// 2. Store authwit witness in PXE
+await wallet.addAuthWitness(authwit);
+// 3. Use MeteredMintFeePaymentMethod — FPC self-sponsors the mint transaction
+await someContract.methods.doSomething()
+  .send({
+    fee: {
+      paymentMethod: new MeteredMintFeePaymentMethod(fpc.address, amount, secret),
+      gasSettings: { gasLimits, teardownGasLimits: Gas.empty(), maxFeesPerGas },
+    },
+  })
+  .wait();
 
-// Use pay_fee (no refund) - simpler, cheaper
+// Use pay_fee (no refund) - simpler, cheaper (after user has wFJ balance)
 await someContract.methods.doSomething()
   .send({
     fee: {
@@ -326,23 +343,25 @@ EVM-Side Payment Flow:
 
 ### Overview
 
-Phase 2 replaces the permissionless `mint(account, amount)` with an authorized `mint(amount, secret)` that uses custom authwit for privacy-preserving, replay-protected minting. The off-chain agent implementing this flow is complete; the contract-side changes are planned.
+Phase 2 replaces the permissionless `mint(account, amount)` with an authorized `mint(amount, secret)` that uses custom authwit for privacy-preserving, replay-protected minting. Both the off-chain agent and the contract-side changes are fully implemented.
 
-### Planned Changes
+### Changes
 
-| Component | Phase 1 (Legacy) | Phase 2 (Current Target) | Status |
+| Component | Phase 1 (Legacy) | Phase 2 (Implemented) | Status |
 | --- | --- | --- | --- |
-| **`mint()` signature** | `mint(account: AztecAddress, amount: u128)` | `mint(amount: u128, secret: Field)` | Contract: Planned |
-| **Authorization** | Permissionless | Custom authwit signed by SP | Agent: Implemented |
-| **Recipient** | Explicit `account` parameter | `msg_sender` (SP never learns Aztec address) | Contract: Planned |
-| **Replay prevention** | None (can mint multiple times) | The authwit itself is pushed as a nullifier | Contract: Planned |
-| **Self-sponsoring** | No | Yes — FPC calls `set_as_fee_payer()` in mint, deducts gas from minted amount | Contract: Planned |
-| **Storage** | `balances` only | `balances` + `PublicImmutable<AztecAddress>` owner | Contract: Planned |
-| **Initialization** | None | `initialize(owner: AztecAddress)` | Contract: Planned |
-| **EIP-712 verification** | N/A | User signs txHash to prove ownership as token sender (Transfer event `from`) | Agent: Implemented |
-| **Deterministic secrets** | N/A | `secret = sign(sha256(txHash \|\| sender), spKey).r % Fr.MODULUS` (deterministic ECDSA via RFC 6979) | Agent: Implemented |
-| **Authwit generation** | N/A | Authwit for `mint(amount, secret)` via Schnorr on Grumpkin | Agent: Implemented |
-| **Stateless API** | N/A | `POST /api/v1/authwit/request` | Agent: Implemented |
+| **`mint()` signature** | `mint(account: AztecAddress, amount: u128)` | `mint(amount: u128, secret: Field)` | Implemented |
+| **Authorization** | Permissionless | Custom authwit signed by SP, verified via `assert_inner_hash_valid_authwit` | Implemented |
+| **Recipient** | Explicit `account` parameter | `msg_sender` (SP never learns Aztec address) | Implemented |
+| **Replay prevention** | None (can mint multiple times) | `assert_inner_hash_valid_authwit` pushes the nullifier | Implemented |
+| **Self-sponsoring** | No | Yes — FPC calls `set_as_fee_payer()` in mint, deducts gas from minted amount | Implemented |
+| **Storage** | `balances` only | `balances` + `PublicImmutable<AztecAddress>` owner | Implemented |
+| **Initialization** | None | `initialize(owner: AztecAddress)` | Implemented |
+| **SDK: `MeteredMintFeePaymentMethod`** | N/A | Fee payment method that calls `mint(amount, secret)` as fee entry point | Implemented |
+| **SDK: `deployMeteredContract`** | `deployMeteredContract(wallet)` | `deployMeteredContract(wallet, owner?)` — accepts optional owner (defaults to deployer) | Implemented |
+| **EIP-712 verification** | N/A | User signs txHash to prove ownership as token sender (Transfer event `from`) | Implemented |
+| **Deterministic secrets** | N/A | `secret = sign(sha256(txHash \|\| sender), spKey).r % Fr.MODULUS` (deterministic ECDSA via RFC 6979) | Implemented |
+| **Authwit generation** | N/A | Authwit for `mint(amount, secret)` via Schnorr on Grumpkin | Implemented |
+| **Stateless API** | N/A | `POST /api/v1/authwit/request` | Implemented |
 
 ### The Cold-Start Problem
 
@@ -576,3 +595,4 @@ To avoid changing the FPC contract, Phase 1 can assume all ERC20 transfers come 
 | 3.4 | 2026-02-11 | Security hardening: validator now pins sender to first matching AZT transfer and sums only same-sender transfers, preventing cross-sender amount aggregation in multi-sender transactions. Updated payment verification acceptance criteria, Backend Verification Logic, EVM payment flow, sequence diagram, and security considerations. |
 | 3.5 | 2026-02-11 | Corrected sender filtering description: sender is recovered from EIP-712 signature (via `recoverClaimRequestSigner`) and passed as `from` filter to the validator — not "pinned to first matching transfer". Removed references to `verifyClaimRequestSignature` (only `recoverClaimRequestSigner` exists). Updated Backend Verification Logic, EVM payment flow, sequence diagram, security considerations #7 and #10, and payment verification acceptance criteria. |
 | 3.6 | 2026-02-12 | Secret derivation now includes sender address: `secret = sign(sha256(txHash \|\| sender), spKey).r % Fr.MODULUS`. The 32-byte txHash is concatenated with the 20-byte sender address (recovered from EIP-712 signature) and SHA-256'd to produce the ECDSA signing input. Provides per-sender secret isolation. Updated EVM payment flow, Backend Verification Logic, Phase 2 table, stateless design properties, security considerations #3 and #9, sequence diagram, API response comments, mint() requirement and transition note. |
+| 3.7 | 2026-02-16 | Phase 2 contract implementation complete: `mint(amount, secret)` with authwit authorization via `assert_inner_hash_valid_authwit`, `PublicImmutable<AztecAddress>` owner storage, `initialize(owner)` function, self-sponsoring, and replay prevention. Removed legacy `mint(account, amount)`. Added `MeteredMintFeePaymentMethod` to SDK. Updated `deployMeteredContract` to accept optional `owner` parameter. All Phase 2 items marked as Implemented. Updated contract storage schema, deployment flow, SDK usage examples, requirements tables, and Phase 2 changes table. |

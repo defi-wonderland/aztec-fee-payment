@@ -310,10 +310,12 @@ export async function deployMetered(
 ): Promise<{ contract: MeteredContract; status: "deployed" | "existing" }> {
   logger.info("Checking Metered contract...");
 
+  const deployerAddress = (await deployer.getAccounts())[0]!.item;
+
   const instance = await getContractInstanceFromInstantiationParams(
     MeteredContractArtifact,
     {
-      constructorArgs: [],
+      constructorArgs: [deployerAddress],
       salt,
       publicKeys: PublicKeys.default(),
       deployer: AztecAddress.ZERO,
@@ -350,7 +352,7 @@ export async function deployMetered(
     MeteredContractArtifact,
     (address) =>
       Contract.at(address.address, MeteredContractArtifact, deployer),
-    [],
+    [deployerAddress],
   );
 
   options = {
@@ -411,11 +413,11 @@ async function computeContractAddresses(
     metered = AztecAddress.fromString(config.contracts.metered.existingAddress);
   } else {
     const meteredSalt = Fr.fromString(config.contracts.metered.salt);
-    // Metered contract has no constructor, so we don't specify constructorArtifact
+    // Metered contract has initialize(owner) — use zero address for address computation
     const meteredInstance = await getContractInstanceFromInstantiationParams(
       MeteredContractArtifact,
       {
-        constructorArgs: [],
+        constructorArgs: [AztecAddress.ZERO],
         salt: meteredSalt,
         publicKeys: PublicKeys.default(),
         deployer: AztecAddress.ZERO,
@@ -446,7 +448,7 @@ export async function deployToNetwork(
         address: addresses.metered.toString(),
         salt: config.contracts.metered.salt,
         deployer: universalDeployer,
-        // Metered contract has no constructor
+        // Metered contract has initialize(owner) constructor
       },
     };
 

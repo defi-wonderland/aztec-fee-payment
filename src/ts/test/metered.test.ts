@@ -3,11 +3,14 @@ import { TestWallet } from "@aztec/test-wallet/server";
 import type { AztecNode } from "@aztec/aztec.js/node";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { TxStatus } from "@aztec/aztec.js/tx";
+import { Fr } from "@aztec/foundation/curves/bn254";
+import { computeInnerAuthWitHash } from "@aztec/stdlib/auth-witness";
 
 import { CounterContract, MeteredContract } from "../artifacts/index.js";
 import {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
+  MeteredMintFeePaymentMethod,
 } from "../fee-payment-methods/index.js";
 import { deployMeteredContract } from "../utils/deploy.js";
 
@@ -24,6 +27,58 @@ import {
   getGasSetupWithTeardown,
   getBalance,
 } from "./utils.js";
+
+/**
+ * Creates a mint authwit and stores it in the wallet's PXE.
+ * The wallet (owner) signs the custom inner hash H(amount, secret).
+ * Returns the secret used, so the caller can pass it to mint().
+ */
+async function mintWithAuthwit(
+  wallet: TestWallet,
+  fpc: MeteredContract,
+  sender: AztecAddress,
+  amount: bigint,
+  aztecNode: AztecNode,
+): Promise<void> {
+  const secret = Fr.random();
+
+  // Compute custom inner hash: H(amount, secret) — matches Noir's compute_inner_authwit_hash
+  const innerHash = await computeInnerAuthWitHash([new Fr(amount), secret]);
+
+  // Create the authwit signed by the wallet's account (the owner/SP).
+  // The wallet computes the outer hash using the correct chain_id and version.
+  const authWit = await wallet.createAuthWit({
+    consumer: fpc.address,
+    innerHash,
+  });
+
+  // Store the witness in the PXE so it's available during private execution
+  await wallet.addAuthWitness(authWit);
+
+  // Use MeteredMintFeePaymentMethod to call mint() in the setup phase.
+  // The FPC self-sponsors the transaction — sender needs no FJ balance.
+  const { maxFeesPerGas, gasLimits, teardownGasLimits } =
+    await getGasSetup(aztecNode);
+
+  const mintPaymentMethod = new MeteredMintFeePaymentMethod(
+    fpc.address,
+    amount,
+    secret,
+  );
+
+  // Send a no-op transaction with mint as the fee payment method.
+  // The mint function handles everything: authwit validation, fee payment, and balance minting.
+  await fpc.methods
+    .balance_of(sender)
+    .send({
+      from: sender,
+      fee: {
+        paymentMethod: mintPaymentMethod,
+        gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+      },
+    })
+    .wait();
+}
 
 describe("Metered Fee Payment Contract", () => {
   let wallet: TestWallet;
@@ -48,7 +103,7 @@ describe("Metered Fee Payment Contract", () => {
     // Deploy counter for testing
     counter = await deployCounter(wallet);
 
-    // Deploy and fund the Metered FPC
+    // Deploy and fund the Metered FPC (deployer/alice is the owner)
     fpc = await deployMeteredContract(wallet);
     const { balance } = await fundL2AddressWithFeeJuiceFromL1(
       aztecNode,
@@ -69,8 +124,9 @@ describe("Metered Fee Payment Contract", () => {
   });
 
   beforeEach(async () => {
-    // Mint internal balance for alice before each test
-    await fpc.methods.mint(alice, MINT_AMOUNT).send({ from: alice }).wait();
+    // Mint internal balance for alice using Phase 2 authwit flow.
+    // The wallet (alice/deployer) is the owner and signs the authwit.
+    await mintWithAuthwit(wallet, fpc, alice, MINT_AMOUNT, aztecNode);
   });
 
   // --- pay_fee (no refund) tests ---

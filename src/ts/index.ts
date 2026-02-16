@@ -11,13 +11,15 @@
  *   deployMeteredContract,
  * } from '@defi-wonderland/aztec-fee-payment';
  *
- * // Deploy FPC
+ * // Deploy FPC (wallet becomes the owner/Service Provider)
  * const fpc = await deployMeteredContract(wallet);
  *
- * // Mint balance for user
- * await fpc.methods.mint(userAddress, 1_000_000_000_000n).send().wait();
+ * // Mint balance: obtain authwit from off-chain agent, then call mint
+ * const { amount, secret, authwit } = await agent.requestAuthwit(evmTxHash);
+ * await wallet.addAuthWitness(authwit);
+ * // Use MeteredMintFeePaymentMethod to self-sponsor the mint transaction
  *
- * // Use sponsored payment
+ * // Use sponsored payment (after user has wFJ balance)
  * await someContract.methods.doSomething()
  *   .send({
  *     fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) }
@@ -33,6 +35,7 @@ export { MeteredContract, MeteredContractArtifact } from "./artifacts/index.js";
 export {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
+  MeteredMintFeePaymentMethod,
 } from "./fee-payment-methods/index.js";
 
 // Utilities for integrators

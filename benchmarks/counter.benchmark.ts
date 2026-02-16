@@ -6,11 +6,14 @@ import {
   type BenchmarkContext,
 } from "@defi-wonderland/aztec-benchmark";
 import { Gas, GasFees } from "@aztec/stdlib/gas";
+import { Fr } from "@aztec/foundation/curves/bn254";
+import { computeInnerAuthWitHash } from "@aztec/stdlib/auth-witness";
 
 import { CounterContract, MeteredContract } from "../src/ts/artifacts/index.js";
 import {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
+  MeteredMintFeePaymentMethod,
 } from "../src/ts/fee-payment-methods/index.js";
 import {
   createLocalNetworkContext,
@@ -138,10 +141,44 @@ export default class CounterContractBenchmark extends Benchmark {
       },
     );
 
-    // Mint internal balance for deployer
+    // Mint internal balance for deployer using Phase 2 authwit flow
+    const mintAmount = 10_000_000_000_000_000_000n;
+    const mintSecret = Fr.random();
+    const mintInnerHash = await computeInnerAuthWitHash([
+      new Fr(mintAmount),
+      mintSecret,
+    ]);
+    const mintAuthWit = await wallet.createAuthWit({
+      consumer: meteredFpc.address,
+      innerHash: mintInnerHash,
+    });
+    await wallet.addAuthWitness(mintAuthWit);
+
+    // Gas settings for the mint transaction (no teardown)
+    const mintBaseFees: any = await (aztecNode as any).getCurrentBaseFees();
+    const mintMaxFeesPerGas = maxFeesPerGasFromBaseFees(mintBaseFees);
+    const mintGasSettings = {
+      gasLimits: REASONABLE_GAS_LIMITS,
+      teardownGasLimits: Gas.from({ l2Gas: 0, daGas: 0 }),
+      maxFeesPerGas: mintMaxFeesPerGas,
+    };
+
+    const mintPaymentMethod = new MeteredMintFeePaymentMethod(
+      meteredFpc.address,
+      mintAmount,
+      mintSecret,
+    );
+
+    // Send a no-op tx with mint as the fee payment method
     await meteredFpc.methods
-      .mint(deployer, 10_000_000_000_000_000_000n)
-      .send({ from: deployer })
+      .balance_of(deployer)
+      .send({
+        from: deployer,
+        fee: {
+          paymentMethod: mintPaymentMethod,
+          gasSettings: mintGasSettings,
+        },
+      })
       .wait();
 
     const meteredPaymentMethod = new MeteredFeePaymentMethod(

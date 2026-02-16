@@ -1,23 +1,39 @@
 use dep::aztec::macros::aztec;
 
-/// Metered Fee Payment Contract
+/// Metered Fee Payment Contract (Phase 2)
 /// Tracks internal balances and deducts max gas cost per transaction.
-/// Users must have sufficient balance to cover estimated fees.
+/// Users obtain authwits from the Service Provider's off-chain agent and call
+/// mint(amount, secret) to credit their balance. The FPC self-sponsors mint
+/// transactions, solving the cold-start problem (users need no FJ to mint).
 #[aztec]
 pub contract Metered {
     use dep::aztec::{
+        authwit::auth::{assert_inner_hash_valid_authwit, compute_inner_authwit_hash},
         context::PrivateContext,
-        macros::{functions::{external, nophasecheck, only_self}, storage::storage},
+        macros::{
+            functions::{external, initializer, nophasecheck, only_self},
+            storage::storage,
+        },
         messages::message_delivery::MessageDelivery,
         protocol_types::address::AztecAddress,
-        state_vars::{Owned, state_variable::StateVariable},
+        state_vars::{Owned, PublicImmutable, state_variable::StateVariable},
     };
     use dep::balance_set::BalanceSet;
     use dep::uint_note::uint_note::{PartialUintNote, UintNote};
 
     #[storage]
     struct Storage<Context> {
+        owner: PublicImmutable<AztecAddress, Context>,
         balances: Owned<BalanceSet<Context>, Context>,
+    }
+
+    /// Initializes the contract with the owner (Service Provider) address.
+    /// The owner's account contract verifies authwits for minting.
+    #[external("public")]
+    #[initializer]
+    fn initialize(owner: AztecAddress) {
+        assert(!owner.is_zero(), "Owner address cannot be zero");
+        self.storage.owner.initialize(owner);
     }
 
     /// Sponsors the transaction by deducting max gas cost from sender's balance.
@@ -85,11 +101,50 @@ pub contract Metered {
         self.context.end_setup();
     }
 
-    /// Mints internal balance to an account.
-    /// NOTE: Currently permissionless for testing. Add access control in production.
+    /// Mints internal balance using a custom authwit signed by the owner (Service Provider).
+    /// The FPC self-sponsors this transaction, deducting gas cost from the minted amount.
+    /// SP never learns the caller's Aztec address — tokens are credited to msg_sender.
+    ///
+    /// Execution order (critical for griefing prevention):
+    /// 1. Validate authwit (calls owner's account contract)
+    /// 2. Push authwit nullifier (replay prevention) — BEFORE set_as_fee_payer
+    /// 3. set_as_fee_payer() — FPC commits to pay only after validation
+    /// 4. end_setup()
+    /// 5. Mint (amount - max_gas_cost) to msg_sender
     #[external("private")]
-    fn mint(account: AztecAddress, amount: u128) {
-        self.storage.balances.at(account).add(amount).deliver(MessageDelivery.CONSTRAINED_ONCHAIN);
+    #[nophasecheck]
+    fn mint(amount: u128, secret: Field) {
+        let sender = self.context.msg_sender().unwrap();
+
+        // Validate the mint amount covers gas cost before consuming the authwit.
+        let max_gas_cost = get_max_gas_cost(self.context);
+        assert(amount >= max_gas_cost, "Mint amount does not cover gas cost");
+
+        // Read the owner from public immutable storage (historical read in private context).
+        let owner = self.storage.owner.read();
+
+        // Compute custom inner hash: H(amount, secret).
+        // This matches the off-chain agent's computeInnerAuthWitHash([amount, secret]).
+        let inner_hash = compute_inner_authwit_hash([amount as Field, secret]);
+
+        // Verify the authwit against the owner's account contract AND push a nullifier
+        // for replay prevention. The nullifier is pushed here — BEFORE set_as_fee_payer() —
+        // to prevent griefing attacks where an attacker replays a used authwit to force
+        // the FPC to pay gas on a transaction that will fail.
+        assert_inner_hash_valid_authwit(self.context, owner, inner_hash);
+
+        // Self-sponsor: FPC pays for this transaction, solving the cold-start problem
+        // (user has no FJ to pay for the mint transaction itself).
+        self.context.set_as_fee_payer();
+
+        // End the setup phase — from here, side effects are revertible.
+        self.context.end_setup();
+
+        // Credit (amount - max_gas_cost) to msg_sender's balance.
+        let net_amount = amount - max_gas_cost;
+        self.storage.balances.at(sender).add(net_amount).deliver(
+            MessageDelivery.CONSTRAINED_ONCHAIN,
+        );
     }
 
     /// Teardown function to refund unused gas.
