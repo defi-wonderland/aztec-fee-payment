@@ -45,15 +45,7 @@ pub contract Metered {
     #[nophasecheck]
     fn pay_fee() {
         let sender = self.context.msg_sender().unwrap();
-
-        // Calculate the max gas cost from transaction settings.
-        let max_gas_cost = get_max_gas_cost(self.context);
-
-        // Deduct from sender's balance (reverts if insufficient).
-        // This happens in setup phase - if it fails, tx is invalid.
-        let change =
-            self.internal._subtract_balance(sender, max_gas_cost, INITIAL_TRANSFER_CALL_MAX_NOTES);
-        self.storage.balances.at(sender).add(change).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+        self.internal._deduct_max_gas_cost(sender);
 
         // Set the FPC as the fee payer of the tx.
         self.context.set_as_fee_payer();
@@ -67,15 +59,7 @@ pub contract Metered {
     #[nophasecheck]
     fn pay_fee_exact() {
         let sender = self.context.msg_sender().unwrap();
-
-        // Calculate the max gas cost from transaction settings.
-        let max_gas_cost = get_max_gas_cost(self.context);
-
-        // Deduct from sender's balance using single note optimization (reverts if insufficient).
-        // Use try_sub with max_notes = 1 to only read a single note, reducing proof generation time.
-        let change =
-            self.internal._subtract_balance(sender, max_gas_cost, INITIAL_TRANSFER_CALL_MAX_NOTES);
-        self.storage.balances.at(sender).add(change).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+        let max_gas_cost = self.internal._deduct_max_gas_cost(sender);
 
         // Prepare the partial note for the refund.
         let partial_note = UintNote::partial(
@@ -151,6 +135,23 @@ pub contract Metered {
         // Delegate signature verification to the owner's account contract
         let owner = self.storage.owner.read();
         assert_inner_hash_valid_authwit(self.context, owner, inner_hash);
+    }
+
+    /// @notice Computes the max gas cost and deducts it from the account's balance.
+    /// @param account The address to deduct the gas cost from
+    /// @return max_gas_cost
+    #[internal("private")]
+    fn _deduct_max_gas_cost(account: AztecAddress) -> u128 {
+        // Calculate the max gas cost from transaction settings.
+        let max_gas_cost = get_max_gas_cost(self.context);
+
+        // Deduct from account's balance (reverts if insufficient).
+        // This happens in setup phase - if it fails, tx is invalid.
+        let change =
+            self.internal._subtract_balance(account, max_gas_cost, INITIAL_TRANSFER_CALL_MAX_NOTES);
+        self.storage.balances.at(account).add(change).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+
+        max_gas_cost
     }
 
     /// @notice Subtracts balance from private balance
