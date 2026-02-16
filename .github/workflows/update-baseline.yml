@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   baseline:
-    uses: defi-wonderland/aztec-benchmark/.github/workflows/update-baseline.yml@feat/benchmark-workflow # TODO: pin to v0 when ready
+    uses: defi-wonderland/aztec-benchmark/.github/workflows/update-baseline.yml@prerelease-4.0.0-devnet.1-patch.0 # TODO: rm `prerelease-` when released
     permissions:
       contents: read
       actions: write
