@@ -141,58 +141,6 @@ export class MeteredMintAndPayFeePaymentMethod implements FeePaymentMethod {
 }
 
 /**
- * Fee payment method that mints and pays fee, with fallback to existing balance.
- * Verifies authorization via the owner's account contract, mints the specified amount,
- * then deducts max gas cost.
- * If minted amount >= max_gas_cost, no existing balance is needed.
- * If minted amount < max_gas_cost, the difference is deducted from existing balance.
- */
-export class MeteredMintAndPayFeeWithBalancePaymentMethod implements FeePaymentMethod {
-  constructor(
-    private readonly fpcAddress: AztecAddress,
-    private readonly account: AztecAddress,
-    private readonly amount: bigint,
-    private readonly secret: Fr,
-    private readonly authWitness: AuthWitness,
-  ) {}
-
-  getAsset(): Promise<AztecAddress> {
-    throw new Error("Asset is not required for metered fee payment.");
-  }
-
-  getFeePayer() {
-    return Promise.resolve(this.fpcAddress);
-  }
-
-  async getExecutionPayload(): Promise<ExecutionPayload> {
-    return new ExecutionPayload(
-      [
-        {
-          name: "mint_and_pay_fee_with_balance",
-          to: this.fpcAddress,
-          selector: await FunctionSelector.fromSignature(
-            "mint_and_pay_fee_with_balance((Field),u128,Field)",
-          ),
-          type: FunctionType.PRIVATE,
-          hideMsgSender: false,
-          isStatic: false,
-          args: [this.account.toField(), new Fr(this.amount), this.secret],
-          returnTypes: [],
-        },
-      ],
-      [this.authWitness],
-      [],
-      [],
-      this.fpcAddress,
-    );
-  }
-
-  getGasSettings(): GasSettings | undefined {
-    return;
-  }
-}
-
-/**
  * Fee payment method that mints tokens first, then pays fee from balance.
  * This is a two-step flow: mint creates notes, then pay_fee consumes them.
  * Useful when you want to separate minting from fee payment.
