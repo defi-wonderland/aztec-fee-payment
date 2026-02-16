@@ -16,7 +16,7 @@
  * const fpc = await deployMeteredContract(wallet, ownerAddress);
  *
  * // Option 1: Pre-mint balance and use MeteredFeePaymentMethod
- * // (requires authorization via the owner's account contract)
+ * // (requires authwit from the owner's account contract)
  * await fpc.methods.mint(userAddress, amount, secret)
  *   .with({ authWitnesses: [authWitness] })
  *   .send().wait();
@@ -29,7 +29,7 @@
  *
  * // Option 2: Mint and pay fee in one transaction
  * const paymentMethod = new MeteredMintAndPayFeePaymentMethod(
- *   fpc.address, amount, secret, authWitness
+ *   fpc.address, userAddress, amount, secret, authWitness
  * );
  * await someContract.methods.doSomething()
  *   .send({ fee: { paymentMethod } })
