@@ -12,8 +12,8 @@
  *   deployMeteredContract,
  * } from '@defi-wonderland/aztec-fee-payment';
  *
- * // Deploy FPC
- * const fpc = await deployMeteredContract(wallet);
+ * // Deploy FPC with owner address
+ * const fpc = await deployMeteredContract(wallet, ownerAddress);
  *
  * // Option 1: Pre-mint balance and use MeteredFeePaymentMethod
  * // (requires authwit from the owner's account contract)
