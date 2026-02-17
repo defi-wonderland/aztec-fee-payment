@@ -1,4 +1,3 @@
-import { type Wallet } from "@aztec/aztec.js/wallet";
 import type { FeePaymentMethod } from "@aztec/aztec.js/fee";
 import { AztecAddress } from "@aztec/aztec.js/addresses";
 import {
@@ -6,7 +5,8 @@ import {
   type BenchmarkContext,
 } from "@defi-wonderland/aztec-benchmark";
 
-import { CounterContract } from "../src/ts/artifacts/index.js";
+import { CounterContract } from "../src/artifacts/Counter.js";
+import { MeteredContract } from "../src/artifacts/Metered.js";
 import { MeteredFeePaymentMethod } from "../src/ts/fee-payment-methods/index.js";
 import {
   createLocalNetworkContext,
@@ -15,10 +15,10 @@ import {
 } from "../src/ts/test/harness.js";
 import { deployCounter } from "../src/ts/test/utils.js";
 import { deployMeteredContract } from "../src/ts/utils/deploy.js";
+import { TestWallet } from "@aztec/test-wallet/server";
 
-// Extend the BenchmarkContext from the new package
-interface CounterBenchmarkContext extends BenchmarkContext {
-  wallet: Wallet;
+interface MeteredBenchmarkContext extends BenchmarkContext {
+  wallet: TestWallet;
   deployer: AztecAddress;
   accounts: AztecAddress[];
   counterContract: CounterContract;
@@ -26,13 +26,8 @@ interface CounterBenchmarkContext extends BenchmarkContext {
   meteredFpcAddress: AztecAddress;
 }
 
-// Use export default class extending Benchmark
-export default class CounterContractBenchmark extends Benchmark {
-  /**
-   * Sets up the benchmark environment for the CounterContract.
-   * Creates PXE client, gets accounts, and deploys the contract.
-   */
-  async setup(): Promise<CounterBenchmarkContext> {
+export default class MeteredContractBenchmark extends Benchmark {
+  async setup(): Promise<MeteredBenchmarkContext> {
     const { aztecNode, wallet, accounts, deployer } =
       await createLocalNetworkContext({
         nodeUrl: LOCAL_AZTEC_NODE_URL,
@@ -43,8 +38,8 @@ export default class CounterContractBenchmark extends Benchmark {
       from: deployer,
     });
 
-    // Deploy and fund Metered FPC
     const meteredFpc = await deployMeteredContract(wallet);
+
     await fundL2AddressWithFeeJuiceFromL1(
       aztecNode,
       wallet,
@@ -58,7 +53,6 @@ export default class CounterContractBenchmark extends Benchmark {
       },
     );
 
-    // Mint internal balance for deployer
     await meteredFpc.methods
       .mint(deployer, 10_000_000_000_000_000_000n)
       .send({ from: deployer });
@@ -71,22 +65,19 @@ export default class CounterContractBenchmark extends Benchmark {
       accounts,
       counterContract,
       feePaymentMethod,
+      meteredFpcAddress: meteredFpc.address,
     };
   }
 
-  /**
-   * Returns the list of CounterContract methods to be benchmarked.
-   */
-  getMethods(context: CounterBenchmarkContext): any[] {
-    const { counterContract, wallet, deployer, feePaymentMethod } = context;
+  getMethods(context: MeteredBenchmarkContext): any[] {
+    const { counterContract, wallet, deployer } = context;
 
     return [
       {
-        name: "increment",
+        name: "mint",
         interaction: {
           caller: deployer,
           action: counterContract.withWallet(wallet).methods.increment(),
-          feePaymentMethod,
         },
       },
     ];

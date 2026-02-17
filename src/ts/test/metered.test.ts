@@ -4,7 +4,8 @@ import type { AztecNode } from "@aztec/aztec.js/node";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { TxStatus } from "@aztec/aztec.js/tx";
 
-import { CounterContract, MeteredContract } from "../artifacts/index.js";
+import { CounterContract } from "../../artifacts/Counter.js";
+import { MeteredContract } from "../../artifacts/Metered.js";
 import {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
