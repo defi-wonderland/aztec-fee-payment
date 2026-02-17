@@ -47,7 +47,7 @@
     "@aztec/test-wallet": "4.0.0-devnet.1-patch.0",
     "@commitlint/cli": "20.2.0",
     "@commitlint/config-conventional": "20.2.0",
-    "@defi-wonderland/aztec-benchmark": "https://github.com/defi-wonderland/aztec-benchmark/releases/download/prerelease-3ff00ed/defi-wonderland-aztec-benchmark-4.0.0-devnet.1-patch.0-prerelease.3ff00ed.tgz",
+    "@defi-wonderland/aztec-benchmark": "4.0.0-devnet.1-patch.0",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
     "@types/node": "25.0.3",
