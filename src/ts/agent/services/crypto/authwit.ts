@@ -34,7 +34,9 @@ export class AuthwitGenerator {
   }) {
     this.fpcAddress = AztecAddress.fromString(config.fpcAddress);
     this.ownerAddress = AztecAddress.fromString(config.ownerAddress);
-    this.ownerSigningKey = GrumpkinScalar.fromString(config.ownerSigningKey);
+    this.ownerSigningKey = GrumpkinScalar.fromBufferReduce(
+      parseHex32(config.ownerSigningKey),
+    );
     this.schnorr = new Schnorr();
     this.chainId = new Fr(config.chainId ?? 0n);
     this.version = new Fr(config.version ?? 1n);
@@ -85,4 +87,12 @@ export function formatAuthwitResponse(authwit: MintAuthwit): AuthwitResponse {
       witness: authwit.witness,
     },
   };
+}
+
+function parseHex32(value: Hex): Buffer {
+  const hex = value.startsWith("0x") ? value.slice(2) : value;
+  if (hex.length !== 64) {
+    throw new Error("ownerSigningKey must be a 32-byte hex value");
+  }
+  return Buffer.from(hex, "hex");
 }

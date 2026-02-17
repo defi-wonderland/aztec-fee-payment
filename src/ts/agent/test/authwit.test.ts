@@ -8,14 +8,23 @@ import { TEST_KEY, FPC_ADDRESS, OWNER_ADDRESS } from "./helpers.js";
 
 const SECRET =
   "0x0000000000000000000000000000000000000000000000000000000000000abc" as Hex;
+const LEGACY_OUT_OF_RANGE_KEY =
+  "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" as Hex;
+const IN_RANGE_KEY =
+  "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6" as Hex;
 
 function makeGenerator(
-  overrides?: Partial<{ fpcAddress: string; chainId: bigint; version: bigint }>,
+  overrides?: Partial<{
+    fpcAddress: string;
+    chainId: bigint;
+    version: bigint;
+    ownerSigningKey: Hex;
+  }>,
 ) {
   return new AuthwitGenerator({
     fpcAddress: overrides?.fpcAddress ?? FPC_ADDRESS,
     ownerAddress: OWNER_ADDRESS,
-    ownerSigningKey: TEST_KEY,
+    ownerSigningKey: overrides?.ownerSigningKey ?? TEST_KEY,
     chainId: overrides?.chainId,
     version: overrides?.version,
   });
@@ -94,5 +103,23 @@ describe("AuthwitGenerator", () => {
     expect(response.authwit.innerHash).toBe(authwit.innerHash);
     expect(response.authwit.outerHash).toBe(authwit.outerHash);
     expect(response.authwit.witness).toEqual(authwit.witness);
+  });
+
+  it("accepts legacy out-of-range authwit key by reducing it into Grumpkin field", async () => {
+    const legacy = makeGenerator({ ownerSigningKey: LEGACY_OUT_OF_RANGE_KEY });
+    const authwit = await legacy.generateMintAuthwit(123n, SECRET);
+    expect(authwit.witness.length).toBe(3);
+  });
+
+  it("accepts already in-range authwit keys unchanged", async () => {
+    const inRange = makeGenerator({ ownerSigningKey: IN_RANGE_KEY });
+    const authwit = await inRange.generateMintAuthwit(123n, SECRET);
+    expect(authwit.witness.length).toBe(3);
+  });
+
+  it("rejects authwit keys that are not 32-byte hex values", () => {
+    expect(() => makeGenerator({ ownerSigningKey: "0x1234" as Hex })).toThrow(
+      "ownerSigningKey must be a 32-byte hex value",
+    );
   });
 });
