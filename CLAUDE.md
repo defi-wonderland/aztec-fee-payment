@@ -49,7 +49,7 @@ yarn ccc
 
 # Individual steps
 yarn compile          # aztec compile (Noir contracts)
-yarn codegen          # aztec codegen target --outdir src/ts/artifacts
+yarn codegen          # aztec codegen target --outdir src/artifacts
 
 # Build TS package (compile + codegen + tsc)
 yarn build
