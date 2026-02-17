@@ -8,20 +8,31 @@
  * import {
  *   MeteredContract,
  *   MeteredFeePaymentMethod,
+ *   MeteredMintAndPayFeePaymentMethod,
  *   deployMeteredContract,
  * } from '@defi-wonderland/aztec-fee-payment';
  *
  * // Deploy FPC
  * const fpc = await deployMeteredContract(wallet);
  *
- * // Mint balance for user
- * await fpc.methods.mint(userAddress, 1_000_000_000_000n).send().wait();
+ * // Option 1: Pre-mint balance and use MeteredFeePaymentMethod
+ * // (requires authwit from the owner's account contract)
+ * await fpc.methods.mint(userAddress, amount, secret)
+ *   .with({ authWitnesses: [authWitness] })
+ *   .send().wait();
  *
- * // Use sponsored payment
  * await someContract.methods.doSomething()
  *   .send({
  *     fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) }
  *   })
+ *   .wait();
+ *
+ * // Option 2: Mint and pay fee in one transaction
+ * const paymentMethod = new MeteredMintAndPayFeePaymentMethod(
+ *   fpc.address, userAddress, amount, secret, authWitness
+ * );
+ * await someContract.methods.doSomething()
+ *   .send({ fee: { paymentMethod } })
  *   .wait();
  * ```
  */
@@ -33,6 +44,8 @@ export { MeteredContract, MeteredContractArtifact } from "./artifacts/index.js";
 export {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
+  MeteredMintAndPayFeePaymentMethod,
+  MeteredMintThenPayFeePaymentMethod,
 } from "./fee-payment-methods/index.js";
 
 // Utilities for integrators
