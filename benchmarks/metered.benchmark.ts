@@ -5,8 +5,8 @@ import {
   type BenchmarkContext,
 } from "@defi-wonderland/aztec-benchmark";
 
-import { CounterContract } from "../src/ts/artifacts/Counter.js";
-import { MeteredContract } from "../src/ts/artifacts/Metered.js";
+import { CounterContract } from "../src/artifacts/Counter.js";
+import { MeteredContract } from "../src/artifacts/Metered.js";
 import { MeteredFeePaymentMethod } from "../src/ts/fee-payment-methods/index.js";
 import {
   createLocalNetworkContext,

@@ -50,7 +50,7 @@ nargo compile --silence-warnings
 aztec compile
 
 # Generate TypeScript bindings
-aztec codegen target --outdir src/ts/artifacts
+aztec codegen target --outdir src/artifacts
 ```
 
 ## Testing

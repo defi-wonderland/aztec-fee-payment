@@ -4,7 +4,7 @@ import { AztecNode } from "@aztec/aztec.js/node";
 import { Gas, GasFees } from "@aztec/stdlib/gas";
 import { getFeeJuiceBalance } from "@aztec/aztec.js/utils";
 
-import { CounterContract } from "../artifacts/Counter.js";
+import { CounterContract } from "../../artifacts/Counter.js";
 import {
   REASONABLE_GAS_LIMITS,
   REASONABLE_TEARDOWN_GAS_LIMITS,
