@@ -36,7 +36,7 @@ import { poseidon2Hash } from "@aztec/foundation/crypto/poseidon";
 import {
   MeteredContract,
   MeteredContractArtifact,
-} from "../src/ts/artifacts/Metered.js";
+} from "../src/artifacts/Metered.js";
 
 import {
   DeployedContracts,

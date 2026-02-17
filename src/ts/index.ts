@@ -30,7 +30,7 @@
 export {
   MeteredContract,
   MeteredContractArtifact,
-} from "./artifacts/Metered.js";
+} from "../artifacts/Metered.js";
 
 // Fee payment method implementations
 export {
