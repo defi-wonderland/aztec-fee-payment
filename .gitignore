@@ -18,6 +18,5 @@ testnet-*/
 local-network-*/
 *-fpc-store-*/
 deployments/*/pending-claims.json
-
 src/ts/dist
 src/ts/artifacts
