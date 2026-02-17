@@ -1,0 +1,166 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+tone_instructions: >
+  Be direct and technical. Focus on security, correctness, and privacy
+  implications in this Aztec/Noir smart contract and off-chain agent codebase.
+
+reviews:
+  profile: assertive
+  request_changes_workflow: true
+  suggested_labels: false
+  poem: false
+
+  path_filters:
+    - "!target/**"
+    - "!node_modules/**"
+    - "!src/ts/dist/**"
+    - "!pxe-*/**"
+    - "!codegenCache.json"
+    - "!yarn.lock"
+    - "!benchmarks/*.json"
+    - "!tsconfig.tsbuildinfo"
+    - "!deployments/**/*.json"
+
+  path_instructions:
+    - path: "src/**/main.nr"
+      instructions: >
+        Aztec smart contract written in Noir. Review with focus on:
+
+
+        **Authorization (CRITICAL):**
+        - Functions operating on behalf of another address must validate
+          authorization (e.g., authwit checks). Missing checks are security
+          vulnerabilities.
+
+
+        **Self-only function protection (CRITICAL):**
+        - Public state-mutating functions called from private functions MUST use
+          the `#[only_self]` attribute. Without it, anyone can call them directly
+          and bypass private validation.
+
+
+        **Private-to-public transitions (CRITICAL):**
+        - Use enqueued calls for
+          private-to-public transitions. Public functions called this way must
+          use `#[only_self]`.
+
+
+        **Note handling (CRITICAL):**
+        - Note consumption uses BalanceSet abstractions (e.g., `try_sub`) which
+          handle nullifiers internally. Missing nullifiers cause double-spend.
+        - Note creation uses BalanceSet `add().deliver()` with the appropriate
+          `MessageDelivery` mode. Partial notes (`UintNote::partial`) are used
+          for teardown refunds.
+
+    - path: "src/**/test/**/*.nr"
+      instructions: >
+        Noir unit tests using TestEnvironment. Check for:
+        - Coverage of both success and failure paths.
+        - Use `#[test(should_fail_with = "...")]` for expected failures.
+        - Account creation via TestEnvironment methods (`create_light_account`,
+          `create_contract_account`).
+
+    - path: "src/ts/test/**/*.ts"
+      instructions: >
+        TypeScript integration tests (vitest) running against a live Aztec
+        sandbox. Verify:
+        - Tests import generated artifacts from the artifacts directory.
+        - Sandbox lifecycle managed via vitest globalSetup (auto-start/stop).
+        - Transaction execution follows the `.send().wait()` pattern.
+        - Failure-path tests verify specific error codes or revert messages.
+
+    - path: "src/ts/agent/**/*.ts"
+      instructions: >
+        Off-chain agent — Express server validating EVM transfers and returning
+        Aztec authwits. Review with focus on:
+
+
+        **Security (CRITICAL):**
+        - SP_SIGNING_KEY must never be logged or exposed in error responses
+          (check pino redact paths and error handler).
+        - EVM tx validation must check: receipt status, confirmations, amount,
+          recipient address, and AZT token address.
+        - Secret generation must remain deterministic — verify changes don't
+          break test vectors or alter the signing input format.
+        - Rate limiting and Zod input validation middleware on all API routes.
+        - Error responses use structured error codes, never leak stack traces.
+
+        **Correctness:**
+        - Multi-chain config parsed from CHAIN_<id>_* env var groups.
+        - Authwit inner/outer hash construction matches Aztec protocol.
+        - EIP-712 typed data matches the contract's expected domain/types.
+
+    - path: "src/ts/agent/test/**/*.ts"
+      instructions: >
+        Agent unit/integration tests (vitest, separate config, no sandbox).
+        Verify:
+        - EVM dependencies are mocked via `vi.mock()` and helper factories;
+          no real RPC calls in unit tests.
+        - Crypto tests verify determinism (same input = same output) and
+          uniqueness (different inputs = different outputs).
+        - Config tests cover missing/invalid env var scenarios.
+        - Integration tests start a real HTTP server and test the full
+          request-response flow including error cases.
+
+    - path: "src/ts/fee-payment-methods/**/*.ts"
+      instructions: >
+        Published SDK fee payment methods. These are consumed by downstream
+        users. Verify:
+        - Public API changes are intentional and backwards-compatible.
+        - Gas calculation logic is correct.
+        - Type exports match the package's public surface.
+
+    - path: "src/ts/utils/**/*.ts"
+      instructions: >
+        Published SDK utilities (gas helpers, deploy helpers, authwit utils).
+        Verify:
+        - Public API changes are intentional and backwards-compatible.
+        - Gas constants and calculations are correct.
+
+    - path: "scripts/**/*.ts"
+      instructions: >
+        Deployment, bridging, and utility scripts. Verify:
+        - Network configs (devnet/testnet/local-network) are correctly separated.
+        - Deployment scripts handle errors with retries and provide clear logging.
+        - Sandbox management is idempotent (reuses running instances).
+        - FPC funding scripts correctly handle L1 minting, bridging, and L2 claiming.
+
+    - path: "**/*.toml"
+      instructions: >
+        Noir project configuration. Verify:
+        - Dependency tags match the project Aztec version (package.json
+          config.aztecVersion). Note: Nargo.toml tags use a `v` prefix while
+          package.json does not.
+        - Workspace members in root Nargo.toml include all contract packages.
+        - Package names follow snake_case conventions.
+
+    - path: "package.json"
+      instructions: >
+        Project configuration. Verify:
+        - All @aztec/* dependency versions are aligned with each other.
+        - packageManager field is present and matches the expected Yarn version.
+        - Node.js engine requirements are specified (>=22).
+
+    - path: ".github/workflows/**"
+      instructions: >
+        CI/CD workflows. Ensure:
+        - Aztec version is detected dynamically from package.json config.
+        - Sandbox management uses vitest globalSetup (auto-start/stop), not
+          manual Docker steps.
+        - Test commands match package.json scripts.
+        - Node.js version matches project requirements (>=22).
+
+    - path: "docs/*.md"
+      instructions: >
+        Design specification documents (source of truth for this project).
+        Review for:
+        - Internal consistency and alignment with code changes in the same PR.
+        - Version history table updates (date and version bump).
+
+  auto_review:
+    drafts: false
+    base_branches:
+      - "**"
+
+  tools:
+    semgrep:
+      enabled: true
