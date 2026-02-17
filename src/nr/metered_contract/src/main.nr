@@ -1,19 +1,19 @@
-use dep::aztec::macros::aztec;
+use aztec::macros::aztec;
 
 /// Metered Fee Payment Contract
 /// Tracks internal balances and deducts max gas cost per transaction.
 /// Users must have sufficient balance to cover estimated fees.
 #[aztec]
 pub contract Metered {
-    use dep::aztec::{
+    use aztec::{
         context::PrivateContext,
-        macros::{functions::{external, nophasecheck, only_self}, storage::storage},
+        macros::{functions::{allow_phase_change, external, only_self}, storage::storage},
         messages::message_delivery::MessageDelivery,
-        protocol_types::address::AztecAddress,
-        state_vars::{Owned, state_variable::StateVariable},
+        protocol::address::AztecAddress,
+        state_vars::{Owned, StateVariable},
     };
-    use dep::balance_set::BalanceSet;
-    use dep::uint_note::uint_note::{PartialUintNote, UintNote};
+    use balance_set::BalanceSet;
+    use uint_note::{PartialUintNote, UintNote};
 
     #[storage]
     struct Storage<Context> {
@@ -24,9 +24,9 @@ pub contract Metered {
     /// If sender has insufficient balance, the transaction is invalid.
     /// NOTE: Does not refund unused gas - the full max_gas_cost is consumed.
     #[external("private")]
-    #[nophasecheck]
+    #[allow_phase_change]
     fn pay_fee() {
-        let sender = self.context.msg_sender().unwrap();
+        let sender = self.context.maybe_msg_sender().unwrap();
 
         // Calculate the max gas cost from transaction settings.
         let max_gas_cost = get_max_gas_cost(self.context);
@@ -39,7 +39,7 @@ pub contract Metered {
         // try_sub may have subtracted more or less than amount. We must ensure that we subtracted at least as much as
         // we needed, and then create a new note for the owner for the change (if any).
         assert(subtracted >= max_gas_cost, "Balance too low or note insufficient");
-        balance_set.add(subtracted - max_gas_cost).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+        balance_set.add(subtracted - max_gas_cost).deliver(MessageDelivery.ONCHAIN_UNCONSTRAINED);
 
         // Set the FPC as the fee payer of the tx.
         self.context.set_as_fee_payer();
@@ -50,9 +50,9 @@ pub contract Metered {
     /// Sponsors the transaction with exact fee refunds.
     /// Deducts max gas cost upfront, then refunds the difference in teardown.
     #[external("private")]
-    #[nophasecheck]
+    #[allow_phase_change]
     fn pay_fee_exact() {
-        let sender = self.context.msg_sender().unwrap();
+        let sender = self.context.maybe_msg_sender().unwrap();
 
         // Calculate the max gas cost from transaction settings.
         let max_gas_cost = get_max_gas_cost(self.context);
@@ -65,7 +65,7 @@ pub contract Metered {
         // try_sub may have subtracted more or less than amount. We must ensure that we subtracted at least as much as
         // we needed, and then create a new note for the owner for the change (if any).
         assert(subtracted >= max_gas_cost, "Balance too low or note insufficient");
-        balance_set.add(subtracted - max_gas_cost).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+        balance_set.add(subtracted - max_gas_cost).deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
 
         // Prepare the partial note for the refund.
         let partial_note = UintNote::partial(
@@ -89,7 +89,7 @@ pub contract Metered {
     /// NOTE: Currently permissionless for testing. Add access control in production.
     #[external("private")]
     fn mint(account: AztecAddress, amount: u128) {
-        self.storage.balances.at(account).add(amount).deliver(MessageDelivery.CONSTRAINED_ONCHAIN);
+        self.storage.balances.at(account).add(amount).deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
     }
 
     /// Teardown function to refund unused gas.

@@ -9,7 +9,7 @@ import pino from "pino";
 // ── Shared constants ────────────────────────────────────────────────────────
 
 export const TEST_KEY =
-  "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" as Hex;
+  "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6" as Hex;
 export const OTHER_KEY =
   "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" as Hex;
 export const FEE_COLLECTOR =

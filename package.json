@@ -1,6 +1,6 @@
 {
   "name": "aztec-fee-payment-monorepo",
-  "version": "3.0.0-devnet.6-patch.1",
+  "version": "4.0.0-devnet.1-patch.0",
   "private": true,
   "repository": "https://github.com/defi-wonderland/aztec-fee-payment.git",
   "author": "Wonderland",
@@ -10,12 +10,12 @@
     "src/ts"
   ],
   "scripts": {
-    "clean": "rm -rf ./src/ts/artifacts/Counter.ts ./src/ts/artifacts/FeePayment.ts ./target codegenCache.json",
-    "codegen": "aztec codegen target --outdir src/ts/artifacts -f",
+    "clean": "rm -rf ./src/artifacts/* ./target codegenCache.json",
+    "codegen": "aztec codegen target --outdir src/artifacts -f",
     "compile": "aztec compile",
     "build": "yarn compile && yarn codegen && yarn workspace @defi-wonderland/aztec-fee-payment build",
     "test": "yarn test:nr && yarn test:js",
-    "test:js": "vitest run && yarn test:agent",
+    "test:js": "rm -rf pxe-test-metered && vitest run && yarn test:agent",
     "test:nr": "aztec test",
     "lint:prettier": "prettier '**/*.{js,ts}' --write",
     "ccc": "yarn clean && yarn compile && yarn codegen",
@@ -44,20 +44,20 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
-    "@aztec/accounts": "3.0.0-devnet.6-patch.1",
-    "@aztec/aztec.js": "3.0.0-devnet.6-patch.1",
-    "@aztec/constants": "3.0.0-devnet.6-patch.1",
-    "@aztec/entrypoints": "3.0.0-devnet.6-patch.1",
-    "@aztec/ethereum": "3.0.0-devnet.6-patch.1",
-    "@aztec/foundation": "3.0.0-devnet.6-patch.1",
-    "@aztec/noir-contracts.js": "3.0.0-devnet.6-patch.1",
-    "@aztec/protocol-contracts": "3.0.0-devnet.6-patch.1",
-    "@aztec/pxe": "3.0.0-devnet.6-patch.1",
-    "@aztec/stdlib": "3.0.0-devnet.6-patch.1",
-    "@aztec/test-wallet": "3.0.0-devnet.6-patch.1",
+    "@aztec/accounts": "4.0.0-devnet.1-patch.0",
+    "@aztec/aztec.js": "4.0.0-devnet.1-patch.0",
+    "@aztec/constants": "4.0.0-devnet.1-patch.0",
+    "@aztec/entrypoints": "4.0.0-devnet.1-patch.0",
+    "@aztec/ethereum": "4.0.0-devnet.1-patch.0",
+    "@aztec/foundation": "4.0.0-devnet.1-patch.0",
+    "@aztec/noir-contracts.js": "4.0.0-devnet.1-patch.0",
+    "@aztec/protocol-contracts": "4.0.0-devnet.1-patch.0",
+    "@aztec/pxe": "4.0.0-devnet.1-patch.0",
+    "@aztec/stdlib": "4.0.0-devnet.1-patch.0",
+    "@aztec/test-wallet": "4.0.0-devnet.1-patch.0",
     "@commitlint/cli": "20.2.0",
     "@commitlint/config-conventional": "20.2.0",
-    "@defi-wonderland/aztec-benchmark": "3.0.0-devnet.20251212",
+    "@defi-wonderland/aztec-benchmark": "4.0.0-devnet.1-patch.0",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
     "@types/node": "25.0.3",
@@ -73,7 +73,7 @@
     "vitest": "4.0.16"
   },
   "config": {
-    "aztecVersion": "3.0.0-devnet.6-patch.1"
+    "aztecVersion": "4.0.0-devnet.1-patch.0"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
   "engines": {
@@ -82,6 +82,6 @@
   },
   "resolutions": {
     "@noble/hashes": "1.8.0",
-    "@aztec/foundation": "3.0.0-devnet.6-patch.1"
+    "@aztec/foundation": "4.0.0-devnet.1-patch.0"
   }
 }

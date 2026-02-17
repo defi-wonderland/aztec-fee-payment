@@ -15,19 +15,22 @@
  * const fpc = await deployMeteredContract(wallet);
  *
  * // Mint balance for user
- * await fpc.methods.mint(userAddress, 1_000_000_000_000n).send().wait();
+ * await fpc.methods.mint(userAddress, 1_000_000_000_000n).send();
  *
  * // Use sponsored payment
  * await someContract.methods.doSomething()
  *   .send({
  *     fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) }
  *   })
- *   .wait();
+ *   ;
  * ```
  */
 
 // Contract artifacts and type-safe wrappers
-export { MeteredContract, MeteredContractArtifact } from "./artifacts/index.js";
+export {
+  MeteredContract,
+  MeteredContractArtifact,
+} from "../artifacts/Metered.js";
 
 // Fee payment method implementations
 export {

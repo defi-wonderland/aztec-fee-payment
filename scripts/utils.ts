@@ -1,5 +1,5 @@
 import { AztecAddress } from "@aztec/aztec.js/addresses";
-import { MeteredContract } from "../src/ts/artifacts/Metered.js";
+import { MeteredContract } from "../src/artifacts/Metered.js";
 import { AccountWithSecretKey } from "@aztec/aztec.js/account";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { dirname, join } from "path";
