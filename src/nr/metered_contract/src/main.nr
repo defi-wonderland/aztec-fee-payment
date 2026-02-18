@@ -19,7 +19,9 @@ pub contract Metered {
     use dep::balance_set::BalanceSet;
     use dep::uint_note::uint_note::{PartialUintNote, UintNote};
 
-    global CONFIG_DELAY: u64 = 60; // 1 minute
+    // Delay used for owner changes
+    // TODO: research & decide how much delay is needed
+    global CONFIG_DELAY: u64 = 60;
     // gas-optimized max notes for initial transfer call
     global INITIAL_TRANSFER_CALL_MAX_NOTES: u32 = 2;
     // max notes transfer for recursive transfer call if initial max notes are exceeded
