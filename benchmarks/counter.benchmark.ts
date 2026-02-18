@@ -375,6 +375,30 @@ export default class CounterContractBenchmark extends Benchmark {
           ),
         },
       },
+      // MintAndPayFee: simple mint + pay, no existing notes consumed
+      {
+        name: "increment_metered_mint_and_pay_fee",
+        interaction: {
+          caller: deployer,
+          action: new FeeWrappedInteraction(
+            counterContract.withWallet(wallet).methods.increment(),
+            mintAndPayFeeMethod,
+            gasSettingsNoTeardown,
+          ),
+        },
+      },
+      // MintThenPayFee: two-step flow - mint creates note, pay_fee consumes it
+      {
+        name: "increment_metered_mint_then_pay_fee",
+        interaction: {
+          caller: deployer,
+          action: new FeeWrappedInteraction(
+            counterContract.withWallet(wallet).methods.increment(),
+            mintThenPayFeeMethod,
+            gasSettingsNoTeardown,
+          ),
+        },
+      },
     ];
 
     return methods;
