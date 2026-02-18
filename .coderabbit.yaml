@@ -65,7 +65,7 @@ reviews:
         local-network. Verify:
         - Tests import generated artifacts from the artifacts directory.
         - Local-network lifecycle managed via vitest globalSetup (auto-start/stop).
-        - Transaction execution follows the `.send().wait()` pattern.
+        - Transaction execution follows the `.send()` pattern.
         - Failure-path tests verify specific error codes or revert messages.
 
     - path: "src/ts/agent/**/*.ts"
