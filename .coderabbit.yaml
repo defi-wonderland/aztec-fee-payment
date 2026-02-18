@@ -62,9 +62,9 @@ reviews:
     - path: "src/ts/test/**/*.ts"
       instructions: >
         TypeScript integration tests (vitest) running against a live Aztec
-        sandbox. Verify:
+        local-network. Verify:
         - Tests import generated artifacts from the artifacts directory.
-        - Sandbox lifecycle managed via vitest globalSetup (auto-start/stop).
+        - Local-network lifecycle managed via vitest globalSetup (auto-start/stop).
         - Transaction execution follows the `.send().wait()` pattern.
         - Failure-path tests verify specific error codes or revert messages.
 
@@ -106,7 +106,6 @@ reviews:
         Published SDK fee payment methods. These are consumed by downstream
         users. Verify:
         - Public API changes are intentional and backwards-compatible.
-        - Gas calculation logic is correct.
         - Type exports match the package's public surface.
 
     - path: "src/ts/utils/**/*.ts"
@@ -121,7 +120,6 @@ reviews:
         Deployment, bridging, and utility scripts. Verify:
         - Network configs (devnet/testnet/local-network) are correctly separated.
         - Deployment scripts handle errors with retries and provide clear logging.
-        - Sandbox management is idempotent (reuses running instances).
         - FPC funding scripts correctly handle L1 minting, bridging, and L2 claiming.
 
     - path: "**/*.toml"
@@ -137,17 +135,18 @@ reviews:
       instructions: >
         Project configuration. Verify:
         - All @aztec/* dependency versions are aligned with each other.
+        - All dependencies are pinned to specific versions.
         - packageManager field is present and matches the expected Yarn version.
-        - Node.js engine requirements are specified (>=22).
+        - Node.js engine requirements are specified (=22).
 
     - path: ".github/workflows/**"
       instructions: >
         CI/CD workflows. Ensure:
         - Aztec version is detected dynamically from package.json config.
-        - Sandbox management uses vitest globalSetup (auto-start/stop), not
+        - Local-network management uses vitest globalSetup (auto-start/stop), not
           manual Docker steps.
         - Test commands match package.json scripts.
-        - Node.js version matches project requirements (>=22).
+        - Node.js version matches project requirements (=22).
 
     - path: "docs/*.md"
       instructions: >
@@ -159,7 +158,7 @@ reviews:
   auto_review:
     drafts: false
     base_branches:
-      - "**"
+      - ".*"
 
   tools:
     semgrep:
