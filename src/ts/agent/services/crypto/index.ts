@@ -9,3 +9,4 @@ export {
   formatAuthwitResponse,
   type MintAuthwit,
 } from "./authwit.js";
+export type { ISecretGenerator, IAuthwitGenerator } from "./types.js";

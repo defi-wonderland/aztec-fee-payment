@@ -114,6 +114,63 @@ describe("Configuration", () => {
     });
   });
 
+  describe("signerMode configuration", () => {
+    it("defaults to 'local' when SIGNER_MODE is not set", () => {
+      const env = createTestEnv();
+      const config = loadConfig(env);
+
+      expect(config.signerMode).toBe("local");
+    });
+
+    it("accepts SIGNER_MODE=local without Lambda fields", () => {
+      const env = createTestEnv({ SIGNER_MODE: "local" });
+      const config = loadConfig(env);
+
+      expect(config.signerMode).toBe("local");
+      expect(config.signerLambdaArn).toBeUndefined();
+      expect(config.signerLambdaRegion).toBeUndefined();
+    });
+
+    it("accepts SIGNER_MODE=lambda when ARN and region are provided", () => {
+      const env = createTestEnv({
+        SIGNER_MODE: "lambda",
+        SIGNER_LAMBDA_ARN: "arn:aws:lambda:us-east-1:123456789:function:signer",
+        SIGNER_LAMBDA_REGION: "us-east-1",
+      });
+      const config = loadConfig(env);
+
+      expect(config.signerMode).toBe("lambda");
+      expect(config.signerLambdaArn).toBe(
+        "arn:aws:lambda:us-east-1:123456789:function:signer",
+      );
+      expect(config.signerLambdaRegion).toBe("us-east-1");
+    });
+
+    it("throws when SIGNER_MODE=lambda but ARN is missing", () => {
+      const env = createTestEnv({
+        SIGNER_MODE: "lambda",
+        SIGNER_LAMBDA_REGION: "us-east-1",
+      });
+
+      expect(() => loadConfig(env)).toThrow("SIGNER_LAMBDA_ARN");
+    });
+
+    it("throws when SIGNER_MODE=lambda but region is missing", () => {
+      const env = createTestEnv({
+        SIGNER_MODE: "lambda",
+        SIGNER_LAMBDA_ARN: "arn:aws:lambda:us-east-1:123456789:function:signer",
+      });
+
+      expect(() => loadConfig(env)).toThrow("SIGNER_LAMBDA_REGION");
+    });
+
+    it("rejects invalid SIGNER_MODE values", () => {
+      const env = createTestEnv({ SIGNER_MODE: "cloud" });
+
+      expect(() => loadConfig(env)).toThrow();
+    });
+  });
+
   describe("parseChainsFromEnv", () => {
     it("parses chain env vars correctly", () => {
       const env = {

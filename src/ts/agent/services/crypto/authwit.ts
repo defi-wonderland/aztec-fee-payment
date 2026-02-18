@@ -8,6 +8,7 @@ import {
 } from "@aztec/stdlib/auth-witness";
 import type { Hex } from "viem";
 import type { AuthwitResponse } from "../../types/index.js";
+import type { IAuthwitGenerator } from "./types.js";
 
 export interface MintAuthwit {
   amount: bigint;
@@ -17,7 +18,7 @@ export interface MintAuthwit {
   witness: string[];
 }
 
-export class AuthwitGenerator {
+export class AuthwitGenerator implements IAuthwitGenerator {
   private fpcAddress: AztecAddress;
   private ownerAddress: AztecAddress;
   private ownerSigningKey: GrumpkinScalar;

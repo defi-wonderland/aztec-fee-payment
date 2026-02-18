@@ -70,42 +70,66 @@ const hexKey = z
   .string()
   .regex(hexPattern, "Must be 0x-prefixed hex") as z.ZodType<Hex>;
 
-export const configSchema = z.object({
-  port: z.number().int().min(1).max(65535).default(3000),
-  host: z.string().min(1).default("0.0.0.0"),
-  logLevel: z.enum(["debug", "info", "warn", "error"]).default("info"),
+export const configSchema = z
+  .object({
+    port: z.number().int().min(1).max(65535).default(3000),
+    host: z.string().min(1).default("0.0.0.0"),
+    logLevel: z.enum(["debug", "info", "warn", "error"]).default("info"),
 
-  chains: z
-    .record(
-      z.coerce.number().int().positive(),
-      z.object({
-        name: z.string().min(1),
-        rpcUrl: z.string().url(),
-        feeCollectorAddress: hexAddress,
-        aztTokenAddress: hexAddress,
-        requiredConfirmations: z.number().int().min(0).default(1),
+    chains: z
+      .record(
+        z.coerce.number().int().positive(),
+        z.object({
+          name: z.string().min(1),
+          rpcUrl: z.string().url(),
+          feeCollectorAddress: hexAddress,
+          aztTokenAddress: hexAddress,
+          requiredConfirmations: z.number().int().min(0).default(1),
+        }),
+      )
+      .refine((chains) => Object.keys(chains).length > 0, {
+        message: "At least one chain must be configured",
       }),
-    )
-    .refine((chains) => Object.keys(chains).length > 0, {
-      message: "At least one chain must be configured",
+
+    spSigningKey: hexKey,
+
+    minAmount: z.bigint().min(0n).default(1n),
+
+    rateLimit: z
+      .object({
+        windowMs: z.number().int().positive().default(60_000),
+        maxRequests: z.number().int().positive().default(100),
+      })
+      .default({}),
+
+    aztec: z.object({
+      fpcAddress: z.string().min(1),
+      ownerAddress: z.string().min(1),
     }),
 
-  spSigningKey: hexKey,
-
-  minAmount: z.bigint().min(0n).default(1n),
-
-  rateLimit: z
-    .object({
-      windowMs: z.number().int().positive().default(60_000),
-      maxRequests: z.number().int().positive().default(100),
-    })
-    .default({}),
-
-  aztec: z.object({
-    fpcAddress: z.string().min(1),
-    ownerAddress: z.string().min(1),
-  }),
-});
+    signerMode: z.enum(["local", "lambda"]).default("local"),
+    signerLambdaArn: z.string().min(1).optional(),
+    signerLambdaRegion: z.string().min(1).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.signerMode === "lambda") {
+      if (!data.signerLambdaArn) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "SIGNER_LAMBDA_ARN is required when SIGNER_MODE is 'lambda'",
+          path: ["signerLambdaArn"],
+        });
+      }
+      if (!data.signerLambdaRegion) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "SIGNER_LAMBDA_REGION is required when SIGNER_MODE is 'lambda'",
+          path: ["signerLambdaRegion"],
+        });
+      }
+    }
+  });
 
 // ── Derived types from Zod schemas ──────────────────────────────────────────
 

@@ -1,6 +1,7 @@
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { sha256 } from "@noble/hashes/sha2";
 import type { Address, Hex } from "viem";
+import type { ISecretGenerator } from "./types.js";
 
 /** BN254 scalar field modulus */
 const BN254_FR_MODULUS =
@@ -21,7 +22,7 @@ function bytesToHex(bytes: Uint8Array): string {
     .join("");
 }
 
-export class SecretGenerator {
+export class SecretGenerator implements ISecretGenerator {
   private signingKey: Uint8Array;
 
   constructor(spSigningKeyHex: Hex) {

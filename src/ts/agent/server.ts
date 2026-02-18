@@ -9,6 +9,8 @@ import {
 import { MultiChainEVMClient } from "./services/evm/client.js";
 import { SecretGenerator } from "./services/crypto/secret.js";
 import { AuthwitGenerator } from "./services/crypto/authwit.js";
+import type { ISecretGenerator } from "./services/crypto/types.js";
+import type { IAuthwitGenerator } from "./services/crypto/types.js";
 import { createAuthwitRouter } from "./routes/authwit.js";
 
 export function createServer(config: AgentConfig) {
@@ -62,12 +64,22 @@ export function createServer(config: AgentConfig) {
 
   // Services
   const evmClients = new MultiChainEVMClient(config.chains, logger);
-  const secretGenerator = new SecretGenerator(config.spSigningKey);
-  const authwitGenerator = new AuthwitGenerator({
-    fpcAddress: config.aztec.fpcAddress,
-    ownerAddress: config.aztec.ownerAddress,
-    ownerSigningKey: config.spSigningKey,
-  });
+
+  let secretGenerator: ISecretGenerator;
+  let authwitGenerator: IAuthwitGenerator;
+
+  if (config.signerMode === "local") {
+    secretGenerator = new SecretGenerator(config.spSigningKey);
+    authwitGenerator = new AuthwitGenerator({
+      fpcAddress: config.aztec.fpcAddress,
+      ownerAddress: config.aztec.ownerAddress,
+      ownerSigningKey: config.spSigningKey,
+    });
+  } else {
+    throw new Error(
+      `Signer mode "${config.signerMode}" is not yet implemented. Lambda signing will be available in Milestone 4.`,
+    );
+  }
 
   // API routes
   const authwitRouter = createAuthwitRouter({

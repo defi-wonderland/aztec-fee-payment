@@ -40,6 +40,9 @@ export function loadConfig(
       fpcAddress: env.FPC_ADDRESS,
       ownerAddress: env.OWNER_ADDRESS,
     },
+    signerMode: env.SIGNER_MODE,
+    signerLambdaArn: env.SIGNER_LAMBDA_ARN,
+    signerLambdaRegion: env.SIGNER_LAMBDA_REGION,
   };
 
   return configSchema.parse(raw) as AgentConfig;

@@ -129,6 +129,7 @@ export function createTestConfig(
     minAmount: 1n,
     rateLimit: { windowMs: 60_000, maxRequests: 100 },
     aztec: { fpcAddress: FPC_ADDRESS, ownerAddress: OWNER_ADDRESS },
+    signerMode: "local" as const,
     ...overrides,
   };
 }

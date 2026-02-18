@@ -9,18 +9,16 @@ import {
 import { MultiChainEVMClient } from "../services/evm/client.js";
 import { validateTransaction } from "../services/evm/validator.js";
 import { recoverClaimRequestSigner } from "../services/crypto/eip712.js";
-import { SecretGenerator } from "../services/crypto/secret.js";
-import {
-  AuthwitGenerator,
-  formatAuthwitResponse,
-} from "../services/crypto/authwit.js";
+import { formatAuthwitResponse } from "../services/crypto/authwit.js";
+import type { ISecretGenerator } from "../services/crypto/types.js";
+import type { IAuthwitGenerator } from "../services/crypto/types.js";
 import type { Logger } from "../middleware/logger.js";
 
 export interface AuthwitRouteDeps {
   config: AgentConfig;
   evmClients: MultiChainEVMClient;
-  secretGenerator: SecretGenerator;
-  authwitGenerator: AuthwitGenerator;
+  secretGenerator: ISecretGenerator;
+  authwitGenerator: IAuthwitGenerator;
   logger: Logger;
 }
 
@@ -82,7 +80,7 @@ export function createAuthwitRouter(deps: AuthwitRouteDeps): Router {
       });
 
       // 4. Generate deterministic secret from txHash + sender
-      const secret = secretGenerator.generateSecret(body.evmTxHash, from);
+      const secret = await secretGenerator.generateSecret(body.evmTxHash, from);
 
       // 5. Generate authwit
       reqLogger.info("Generating authwit");

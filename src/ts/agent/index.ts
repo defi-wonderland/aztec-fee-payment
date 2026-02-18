@@ -26,6 +26,10 @@ export {
   formatAuthwitResponse,
 } from "./services/crypto/index.js";
 export type {
+  ISecretGenerator,
+  IAuthwitGenerator,
+} from "./services/crypto/index.js";
+export type {
   AgentConfig,
   AuthwitRequestBody,
   AuthwitResponse,
