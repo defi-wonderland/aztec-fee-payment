@@ -20,11 +20,9 @@ import {
   MeteredMintThenPayFeePaymentMethod,
 } from "../src/ts/fee-payment-methods/index.js";
 import {
-  advanceTime,
   createLocalNetworkContext,
   fundL2AddressWithFeeJuiceFromL1,
   LOCAL_AZTEC_NODE_URL,
-  METERED_CONFIG_DELAY,
 } from "../src/ts/test/harness.js";
 import { deployCounter } from "../src/ts/test/utils.js";
 import {
