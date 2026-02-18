@@ -15,6 +15,7 @@ import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 import { Fr } from "@aztec/foundation/curves/bn254";
 import { createLogger } from "@aztec/foundation/log";
 import { createExtendedL1Client } from "@aztec/ethereum/client";
+import { rmSync } from "node:fs";
 
 export const LOCAL_AZTEC_NODE_URL = "http://localhost:8080";
 
@@ -36,10 +37,13 @@ export async function createLocalNetworkContext(opts?: {
     await waitForNode(aztecNode);
   }
 
+  const dataDirectory = opts?.wallet?.dataDirectory ?? "pxe-test";
+  rmSync(dataDirectory, { recursive: true, force: true });
+
   const wallet = await TestWallet.create(
     aztecNode,
     {
-      dataDirectory: opts?.wallet?.dataDirectory ?? "pxe-test",
+      dataDirectory,
       proverEnabled: opts?.wallet?.proverEnabled ?? false,
     },
     {},

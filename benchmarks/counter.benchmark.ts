@@ -27,8 +27,9 @@ import {
 import { deployCounter } from "../src/ts/test/utils.js";
 import {
   maxFeesPerGasFromBaseFees,
-  REASONABLE_GAS_LIMITS,
-  REASONABLE_TEARDOWN_GAS_LIMITS,
+  maxGasCostFor,
+  ESTIMATION_GAS_LIMITS,
+  ESTIMATION_TEARDOWN_GAS_LIMITS,
 } from "../src/ts/utils/gas.js";
 import { deployMeteredContract } from "../src/ts/utils/deploy.js";
 
@@ -122,13 +123,8 @@ interface CounterBenchmarkContext extends BenchmarkContext {
   // Payment methods with account contract authwit verification
   mintAndPayFeeMethod: MeteredMintAndPayFeePaymentMethod;
   mintThenPayFeeMethod: MeteredMintThenPayFeePaymentMethod;
-  // Gas settings
-  gasSettingsNoTeardown: {
-    gasLimits: Gas;
-    teardownGasLimits: Gas;
-    maxFeesPerGas: GasFees;
-  };
-  gasSettingsWithTeardown: {
+  // Gas settings (uses estimation limits — see comment in setup())
+  gasSettings: {
     gasLimits: Gas;
     teardownGasLimits: Gas;
     maxFeesPerGas: GasFees;
@@ -168,24 +164,29 @@ export default class CounterContractBenchmark extends Benchmark {
     );
 
     // =========================================================================
-    // Pre-mint balance for MeteredFeePaymentMethod and MeteredExactFeePaymentMethod
-    // These methods require existing balance in the contract
+    // Gas settings
+    //
+    // The profiler calls simulate({ estimateGas: true }) before send(). The
+    // wallet's completeFeeOptionsForEstimation OVERRIDES any user-provided gas
+    // limits with hard-coded estimation constants, so the values passed to
+    // FeeWrappedInteraction are ignored during simulation. We use those same
+    // estimation limits here so maxGasCost (and note sizing) matches what the
+    // contract actually sees at runtime.
     // =========================================================================
-    const preMintAmount = 10_000_000_000_000_000_000n;
-    const preMintSecret = Fr.random();
-    const preMintAuthWitness = await createAuthWitness(
-      wallet,
-      deployer,
-      preMintSecret,
-      preMintAmount,
-      meteredFpc.address,
-    );
+    const baseFees: any = await (aztecNode as any).getCurrentBaseFees();
+    const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
 
-    await meteredFpc.methods
-      .mint(deployer, preMintAmount, preMintSecret)
-      .with({ authWitnesses: [preMintAuthWitness] })
-      .send({ from: deployer })
-      .wait();
+    const gasSettings = {
+      gasLimits: ESTIMATION_GAS_LIMITS,
+      teardownGasLimits: ESTIMATION_TEARDOWN_GAS_LIMITS,
+      maxFeesPerGas,
+    };
+
+    const maxGasCost = maxGasCostFor(
+      maxFeesPerGas,
+      ESTIMATION_GAS_LIMITS,
+      ESTIMATION_TEARDOWN_GAS_LIMITS,
+    );
 
     // =========================================================================
     // Create payment methods
@@ -197,10 +198,9 @@ export default class CounterContractBenchmark extends Benchmark {
       meteredFpc.address,
     );
 
-    // Amount to mint in fee payment - should cover gas costs
-    const mintAmount = 1_000_000_000_000_000n;
-
-    // MintAndPayFee - mints to account and pays fee (simple, no existing notes consumed)
+    // MintAndPayFee – mints to account and pays fee in one call.
+    // 3x covers the fee and leaves a 2x change note, enough for later benchmark cases.
+    const mintAmount = maxGasCost * 3n;
     const mintAndPayFeeSecret = Fr.random();
     const mintAndPayFeeAuthWitness = await createAuthWitness(
       wallet,
@@ -217,7 +217,8 @@ export default class CounterContractBenchmark extends Benchmark {
       mintAndPayFeeAuthWitness,
     );
 
-    // MintThenPayFee - two-step flow: mint creates note, then pay_fee consumes it
+    // MintThenPayFee – two-step: mint creates a note, then pay_fee consumes
+    // from the total balance.
     const mintThenPayFeeSecret = Fr.random();
     const mintThenPayFeeAuthWitness = await createAuthWitness(
       wallet,
@@ -235,22 +236,33 @@ export default class CounterContractBenchmark extends Benchmark {
     );
 
     // =========================================================================
-    // Gas settings
+    // Mint small notes to benchmark recursion in increment_metered_ten_notes,
+    // which runs first so only these notes exist.
+    //
+    // NUM_SMALL_NOTES notes are used. Recursion starts at the third note, since
+    // INITIAL_TRANSFER_CALL_MAX_NOTES = 2.
+    // Afterwards recursion happens every RECURSIVE_TRANSFER_CALL_MAX_NOTES = 8
+    //
+    // Later tests get balance from increment_mint_and_pay_fee's change note.
     // =========================================================================
-    const baseFees: any = await (aztecNode as any).getCurrentBaseFees();
-    const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
+    const NUM_SMALL_NOTES = 10;
+    const smallNoteValue = maxGasCost / BigInt(NUM_SMALL_NOTES) + 1n;
 
-    const gasSettingsNoTeardown = {
-      gasLimits: REASONABLE_GAS_LIMITS,
-      teardownGasLimits: Gas.from({ l2Gas: 0, daGas: 0 }),
-      maxFeesPerGas,
-    };
-
-    const gasSettingsWithTeardown = {
-      gasLimits: REASONABLE_GAS_LIMITS,
-      teardownGasLimits: REASONABLE_TEARDOWN_GAS_LIMITS,
-      maxFeesPerGas,
-    };
+    for (let i = 0; i < NUM_SMALL_NOTES; i++) {
+      const secret = Fr.random();
+      const authWit = await createAuthWitness(
+        wallet,
+        deployer,
+        secret,
+        smallNoteValue,
+        meteredFpc.address,
+      );
+      await meteredFpc.methods
+        .mint(deployer, smallNoteValue, secret)
+        .with({ authWitnesses: [authWit] })
+        .send({ from: deployer })
+        .wait();
+    }
 
     return {
       wallet,
@@ -262,8 +274,7 @@ export default class CounterContractBenchmark extends Benchmark {
       meteredExactPaymentMethod,
       mintAndPayFeeMethod,
       mintThenPayFeeMethod,
-      gasSettingsNoTeardown,
-      gasSettingsWithTeardown,
+      gasSettings,
     };
   }
 
@@ -279,10 +290,16 @@ export default class CounterContractBenchmark extends Benchmark {
       meteredExactPaymentMethod,
       mintAndPayFeeMethod,
       mintThenPayFeeMethod,
-      gasSettingsNoTeardown,
-      gasSettingsWithTeardown,
+      gasSettings,
     } = context;
 
+    // Methods are ordered so that note state flows correctly:
+    //   1. increment                – baseline, no notes consumed
+    //   2. increment_many_notes     – runs when ONLY small notes exist → recursion
+    //   3. increment_mint_and_pay   – self-contained; large change note funds later tests
+    //   4. increment_mint_then_pay  – mints + pay_fee from balance
+    //   5. increment_metered        – pay_fee from balance (big change note)
+    //   6. increment_metered_exact  – pay_fee_exact with teardown refund (last)
     const methods = [
       // Baseline: no custom fee payment
       {
@@ -294,31 +311,22 @@ export default class CounterContractBenchmark extends Benchmark {
           ),
         },
       },
-      // Metered: uses pre-minted balance (no teardown refund)
+      // Many small notes: forces recursion in _subtract_balance because
+      // only small notes exist at this point and the initial 2-note batch
+      // can't cover maxGasCost
       {
-        name: "increment_metered",
+        name: "increment_metered_ten_notes",
         interaction: {
           caller: deployer,
           action: new FeeWrappedInteraction(
             counterContract.withWallet(wallet).methods.increment(),
             meteredPaymentMethod,
-            gasSettingsNoTeardown,
+            gasSettings,
           ),
         },
       },
-      // Metered Exact: uses pre-minted balance with teardown refund
-      {
-        name: "increment_metered_exact",
-        interaction: {
-          caller: deployer,
-          action: new FeeWrappedInteraction(
-            counterContract.withWallet(wallet).methods.increment(),
-            meteredExactPaymentMethod,
-            gasSettingsWithTeardown,
-          ),
-        },
-      },
-      // MintAndPayFee: simple mint + pay, no existing notes consumed
+      // MintAndPayFee: mints a large amount, change note (amount - maxGasCost)
+      // provides balance for increment_metered and increment_metered_exact below
       {
         name: "increment_metered_mint_and_pay_fee",
         interaction: {
@@ -326,7 +334,7 @@ export default class CounterContractBenchmark extends Benchmark {
           action: new FeeWrappedInteraction(
             counterContract.withWallet(wallet).methods.increment(),
             mintAndPayFeeMethod,
-            gasSettingsNoTeardown,
+            gasSettings,
           ),
         },
       },
@@ -338,7 +346,32 @@ export default class CounterContractBenchmark extends Benchmark {
           action: new FeeWrappedInteraction(
             counterContract.withWallet(wallet).methods.increment(),
             mintThenPayFeeMethod,
-            gasSettingsNoTeardown,
+            gasSettings,
+          ),
+        },
+      },
+      // Metered: uses balance from mint_and_pay_fee change note (no teardown)
+      {
+        name: "increment_metered",
+        interaction: {
+          caller: deployer,
+          action: new FeeWrappedInteraction(
+            counterContract.withWallet(wallet).methods.increment(),
+            meteredPaymentMethod,
+            gasSettings,
+          ),
+        },
+      },
+      // Metered Exact: uses balance with teardown refund (last, since refund
+      // creates a partial note that doesn't affect earlier tests)
+      {
+        name: "increment_metered_exact",
+        interaction: {
+          caller: deployer,
+          action: new FeeWrappedInteraction(
+            counterContract.withWallet(wallet).methods.increment(),
+            meteredExactPaymentMethod,
+            gasSettings,
           ),
         },
       },
