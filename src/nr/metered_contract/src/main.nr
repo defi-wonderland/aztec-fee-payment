@@ -14,11 +14,14 @@ pub contract Metered {
         },
         messages::message_delivery::MessageDelivery,
         protocol_types::{address::AztecAddress, traits::{FromField, ToField}},
-        state_vars::{Owned, PublicImmutable, state_variable::StateVariable},
+        state_vars::{DelayedPublicMutable, Owned, PublicImmutable, state_variable::StateVariable},
     };
     use dep::balance_set::BalanceSet;
     use dep::uint_note::uint_note::{PartialUintNote, UintNote};
 
+    // Delay used for owner changes
+    // TODO: research & decide how much delay is needed
+    global CONFIG_DELAY: u64 = 60;
     // gas-optimized max notes for initial transfer call
     global INITIAL_TRANSFER_CALL_MAX_NOTES: u32 = 2;
     // max notes transfer for recursive transfer call if initial max notes are exceeded
@@ -26,7 +29,7 @@ pub contract Metered {
 
     #[storage]
     struct Storage<Context> {
-        owner: PublicImmutable<AztecAddress, Context>,
+        owner: DelayedPublicMutable<AztecAddress, CONFIG_DELAY, Context>,
         balances: Owned<BalanceSet<Context>, Context>,
     }
 
@@ -35,7 +38,17 @@ pub contract Metered {
     #[external("public")]
     #[initializer]
     fn constructor(owner: AztecAddress) {
-        self.storage.owner.initialize(owner);
+        self.storage.owner.schedule_value_change(owner);
+    }
+
+    #[external("public")]
+    fn update_owner(owner: AztecAddress) {
+        assert(
+            self.context.msg_sender().unwrap() == self.storage.owner.get_current_value(),
+            "caller is not owner",
+        );
+
+        self.storage.owner.schedule_value_change(owner);
     }
 
     /// Sponsors the transaction by deducting max gas cost from sender's balance.
@@ -133,7 +146,7 @@ pub contract Metered {
         let inner_hash = compute_inner_authwit_hash([secret, amount as Field]);
 
         // Delegate signature verification to the owner's account contract
-        let owner = self.storage.owner.read();
+        let owner = self.storage.owner.get_current_value();
         assert_inner_hash_valid_authwit(self.context, owner, inner_hash);
     }
 
