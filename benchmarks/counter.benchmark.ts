@@ -294,12 +294,12 @@ export default class CounterContractBenchmark extends Benchmark {
     } = context;
 
     // Methods are ordered so that note state flows correctly:
-    //   1. increment                – baseline, no notes consumed
-    //   2. increment_many_notes     – runs when ONLY small notes exist → recursion
-    //   3. increment_mint_and_pay   – self-contained; large change note funds later tests
-    //   4. increment_mint_then_pay  – mints + pay_fee from balance
-    //   5. increment_metered        – pay_fee from balance (big change note)
-    //   6. increment_metered_exact  – pay_fee_exact with teardown refund (last)
+    //   1. increment                            – baseline, no notes consumed
+    //   2. increment_metered_ten_notes          – runs when ONLY small notes exist → recursion
+    //   3. increment_metered_mint_and_pay_fee   – self-contained; large change note funds later tests
+    //   4. increment_metered_mint_then_pay_fee  – mints + pay_fee from balance
+    //   5. increment_metered                    – pay_fee from balance (big change note)
+    //   6. increment_metered_exact              – pay_fee_exact with teardown refund (last)
     const methods = [
       // Baseline: no custom fee payment
       {
@@ -372,30 +372,6 @@ export default class CounterContractBenchmark extends Benchmark {
             counterContract.withWallet(wallet).methods.increment(),
             meteredExactPaymentMethod,
             gasSettings,
-          ),
-        },
-      },
-      // MintAndPayFee: simple mint + pay, no existing notes consumed
-      {
-        name: "increment_metered_mint_and_pay_fee",
-        interaction: {
-          caller: deployer,
-          action: new FeeWrappedInteraction(
-            counterContract.withWallet(wallet).methods.increment(),
-            mintAndPayFeeMethod,
-            gasSettingsNoTeardown,
-          ),
-        },
-      },
-      // MintThenPayFee: two-step flow - mint creates note, pay_fee consumes it
-      {
-        name: "increment_metered_mint_then_pay_fee",
-        interaction: {
-          caller: deployer,
-          action: new FeeWrappedInteraction(
-            counterContract.withWallet(wallet).methods.increment(),
-            mintThenPayFeeMethod,
-            gasSettingsNoTeardown,
           ),
         },
       },
