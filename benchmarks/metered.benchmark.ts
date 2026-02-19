@@ -11,6 +11,17 @@ import {
   computeInnerAuthWitHash,
   type AuthWitness,
 } from "@aztec/stdlib/auth-witness";
+import { createAztecNodeClient, waitForNode } from "@aztec/aztec.js/node";
+import {
+  registerInitialLocalNetworkAccountsInWallet,
+  TestWallet,
+} from "@aztec/test-wallet/server";
+import { getPXEConfig } from "@aztec/pxe/config";
+import { Barretenberg } from "@aztec/bb.js";
+import { randomBytes } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { rmSync } from "node:fs";
 
 import { CounterContract } from "../src/artifacts/Counter.js";
 import { MeteredContract } from "../src/artifacts/Metered.js";
@@ -20,11 +31,7 @@ import {
   MeteredMintAndPayFeePaymentMethod,
   MeteredMintThenPayFeePaymentMethod,
 } from "../src/ts/fee-payment-methods/index.js";
-import {
-  createLocalNetworkContext,
-  fundL2AddressWithFeeJuiceFromL1,
-  LOCAL_AZTEC_NODE_URL,
-} from "../src/ts/test/harness.js";
+import { fundL2AddressWithFeeJuiceFromL1 } from "../src/ts/test/harness.js";
 import { deployCounter } from "../src/ts/test/utils.js";
 import {
   maxFeesPerGasFromBaseFees,
@@ -32,6 +39,11 @@ import {
   REASONABLE_TEARDOWN_GAS_LIMITS,
 } from "../src/ts/utils/gas.js";
 import { deployMeteredContract } from "../src/ts/utils/deploy.js";
+
+const { NODE_URL = "http://localhost:8080" } = process.env;
+const node = createAztecNodeClient(NODE_URL);
+await waitForNode(node);
+const pxeConfig = getPXEConfig();
 
 /**
  * Creates an AuthWitness for the owner's account contract via the wallet's
@@ -51,8 +63,13 @@ async function createAuthWitness(
 }
 
 /**
- * Wraps a ContractFunctionInteraction so the benchmark runner's profiler (which calls
- * request/simulate/profile/send without fee options) always uses a custom FeePaymentMethod.
+ * Wraps a ContractFunctionInteraction so the benchmark profiler (which calls
+ * request/simulate/profile/send) always uses a per-interaction FeePaymentMethod
+ * and gas settings. Needed because the profiler only supports a single global
+ * feePaymentMethod, but benchmarks require different methods per interaction.
+ *
+ * In v4, request() only accepts paymentMethod in its fee option (gas settings are
+ * resolved later by toSendOptions/toSimulateOptions), so we separate the two.
  */
 class FeeWrappedInteraction {
   constructor(
@@ -62,57 +79,50 @@ class FeeWrappedInteraction {
       gasLimits: Gas;
       teardownGasLimits: Gas;
       maxFeesPerGas: GasFees;
+      maxPriorityFeesPerGas?: GasFees;
     },
   ) {}
 
   async request(options: any = {}) {
     const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
-    const gasSettings = this.gasSettings;
     return paymentMethod
       ? this.inner.request({
           ...options,
-          fee: { ...(options.fee ?? {}), paymentMethod, gasSettings },
+          fee: { ...(options.fee ?? {}), paymentMethod },
         })
       : this.inner.request(options);
   }
 
-  async simulate(options: any) {
-    const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
-    const gasSettings = this.gasSettings;
-    return paymentMethod
-      ? this.inner.simulate({
-          ...options,
-          fee: { ...(options.fee ?? {}), paymentMethod, gasSettings },
-        })
-      : this.inner.simulate(options);
+  async simulate(options: any = {}) {
+    return this.inner.simulate(this.withFee(options));
   }
 
-  async profile(options: any) {
-    const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
-    const gasSettings = this.gasSettings;
-    return paymentMethod
-      ? this.inner.profile({
-          ...options,
-          fee: { ...(options.fee ?? {}), paymentMethod, gasSettings },
-        })
-      : this.inner.profile(options);
+  async profile(options: any = {}) {
+    return this.inner.profile(this.withFee(options));
   }
 
-  send(options: any) {
+  async send(options: any = {}) {
+    return this.inner.send(this.withFee(options));
+  }
+
+  private withFee(options: any): any {
     const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
-    const gasSettings = this.gasSettings;
-    return paymentMethod
-      ? this.inner.send({
-          ...options,
-          fee: { ...(options.fee ?? {}), paymentMethod, gasSettings },
-        })
-      : this.inner.send(options);
+    if (!paymentMethod) return options;
+    return {
+      ...options,
+      fee: {
+        ...(options.fee ?? {}),
+        paymentMethod,
+        ...(this.gasSettings && { gasSettings: this.gasSettings }),
+      },
+    };
   }
 }
 
 // Extend the BenchmarkContext from the new package
-interface CounterBenchmarkContext extends BenchmarkContext {
-  wallet: Wallet;
+interface MeteredBenchmarkContext extends BenchmarkContext {
+  cleanup: () => Promise<void>;
+  wallet: TestWallet;
   deployer: AztecAddress;
   accounts: AztecAddress[];
   counterContract: CounterContract;
@@ -142,12 +152,29 @@ export default class CounterContractBenchmark extends Benchmark {
    * Sets up the benchmark environment for the CounterContract.
    * Creates PXE client, gets accounts, and deploys the contract.
    */
-  async setup(): Promise<CounterBenchmarkContext> {
-    const { aztecNode, wallet, accounts, deployer } =
-      await createLocalNetworkContext({
-        nodeUrl: LOCAL_AZTEC_NODE_URL,
-        wallet: { proverEnabled: false },
-      });
+  async setup(): Promise<MeteredBenchmarkContext> {
+    await Barretenberg.destroySingleton();
+
+    const dataDirectory = join(
+      tmpdir(),
+      `aztec-metered-${randomBytes(8).toString("hex")}`,
+    );
+    const wallet = await TestWallet.create(node, {
+      ...pxeConfig,
+      dataDirectory,
+      proverEnabled: false,
+    });
+    const accounts = await registerInitialLocalNetworkAccountsInWallet(wallet);
+    const [deployer] = accounts;
+
+    const cleanup = async () => {
+      await wallet.stop();
+      try {
+        rmSync(dataDirectory, { recursive: true, force: true });
+      } catch {
+        // ignore cleanup errors
+      }
+    };
 
     const counterContract = await CounterContract.deploy(wallet).send({
       from: deployer,
@@ -155,18 +182,13 @@ export default class CounterContractBenchmark extends Benchmark {
 
     // Deploy and fund Metered FPC (deployer is the owner who authorizes mints)
     const meteredFpc = await deployMeteredContract(wallet, deployer);
-    await fundL2AddressWithFeeJuiceFromL1(
-      aztecNode,
-      wallet,
-      meteredFpc.address,
-      {
-        claimTxSender: deployer,
-        produceL2Block: async () => {
-          await deployCounter(wallet);
-        },
-        loggerName: "benchmark:metered",
+    await fundL2AddressWithFeeJuiceFromL1(node, wallet, meteredFpc.address, {
+      claimTxSender: deployer,
+      produceL2Block: async () => {
+        await deployCounter(wallet);
       },
-    );
+      loggerName: "benchmark:metered",
+    });
 
     // =========================================================================
     // Pre-mint balance for MeteredFeePaymentMethod and MeteredExactFeePaymentMethod
@@ -198,7 +220,7 @@ export default class CounterContractBenchmark extends Benchmark {
     );
 
     // Amount to mint in fee payment - should cover gas costs
-    const mintAmount = 1_000_000_000_000_000n;
+    const mintAmount = 100_000_000_000_000_000n;
 
     // MintAndPayFee - mints to account and pays fee (simple, no existing notes consumed)
     const mintAndPayFeeSecret = Fr.random();
@@ -237,7 +259,7 @@ export default class CounterContractBenchmark extends Benchmark {
     // =========================================================================
     // Gas settings
     // =========================================================================
-    const baseFees: any = await (aztecNode as any).getCurrentMinFees();
+    const baseFees: any = await (node as any).getCurrentMinFees();
     const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
 
     const gasSettingsNoTeardown = {
@@ -253,6 +275,7 @@ export default class CounterContractBenchmark extends Benchmark {
     };
 
     return {
+      cleanup,
       wallet,
       deployer,
       accounts,
@@ -270,7 +293,7 @@ export default class CounterContractBenchmark extends Benchmark {
   /**
    * Returns the list of CounterContract methods to be benchmarked.
    */
-  getMethods(context: CounterBenchmarkContext): any[] {
+  getMethods(context: MeteredBenchmarkContext): any[] {
     const {
       counterContract,
       wallet,
@@ -348,6 +371,6 @@ export default class CounterContractBenchmark extends Benchmark {
   }
 
   async teardown(context: BenchmarkContext): Promise<void> {
-    process.exit(0);
+    await (context as MeteredBenchmarkContext).cleanup();
   }
 }

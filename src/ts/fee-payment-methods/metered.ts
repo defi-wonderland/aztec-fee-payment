@@ -1,5 +1,9 @@
 import type { FeePaymentMethod } from "@aztec/aztec.js/fee";
-import { FunctionSelector, FunctionType } from "@aztec/stdlib/abi";
+import {
+  FunctionCall,
+  FunctionSelector,
+  FunctionType,
+} from "@aztec/stdlib/abi";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import type { GasSettings } from "@aztec/stdlib/gas";
 import { ExecutionPayload } from "@aztec/stdlib/tx";
@@ -26,17 +30,16 @@ export class MeteredFeePaymentMethod implements FeePaymentMethod {
   async getExecutionPayload(): Promise<ExecutionPayload> {
     return new ExecutionPayload(
       [
-        {
+        FunctionCall.from({
           name: "pay_fee",
           to: this.fpcAddress,
           selector: await FunctionSelector.fromSignature("pay_fee()"),
           type: FunctionType.PRIVATE,
           hideMsgSender: false,
           isStatic: false,
-          isPublicStatic: () => false,
           args: [],
           returnTypes: [],
-        },
+        }),
       ],
       [],
       [],
@@ -68,17 +71,16 @@ export class MeteredExactFeePaymentMethod implements FeePaymentMethod {
   async getExecutionPayload(): Promise<ExecutionPayload> {
     return new ExecutionPayload(
       [
-        {
+        FunctionCall.from({
           name: "pay_fee_exact",
           to: this.fpcAddress,
           selector: await FunctionSelector.fromSignature("pay_fee_exact()"),
           type: FunctionType.PRIVATE,
           hideMsgSender: false,
           isStatic: false,
-          isPublicStatic: () => false,
           args: [],
           returnTypes: [],
-        },
+        }),
       ],
       [],
       [],
@@ -117,7 +119,7 @@ export class MeteredMintAndPayFeePaymentMethod implements FeePaymentMethod {
   async getExecutionPayload(): Promise<ExecutionPayload> {
     return new ExecutionPayload(
       [
-        {
+        FunctionCall.from({
           name: "mint_and_pay_fee",
           to: this.fpcAddress,
           selector: await FunctionSelector.fromSignature(
@@ -128,7 +130,7 @@ export class MeteredMintAndPayFeePaymentMethod implements FeePaymentMethod {
           isStatic: false,
           args: [this.account.toField(), new Fr(this.amount), this.secret],
           returnTypes: [],
-        },
+        }),
       ],
       [this.authWitness],
       [],
@@ -167,7 +169,7 @@ export class MeteredMintThenPayFeePaymentMethod implements FeePaymentMethod {
   async getExecutionPayload(): Promise<ExecutionPayload> {
     return new ExecutionPayload(
       [
-        {
+        FunctionCall.from({
           name: "mint",
           to: this.fpcAddress,
           selector: await FunctionSelector.fromSignature(
@@ -178,8 +180,8 @@ export class MeteredMintThenPayFeePaymentMethod implements FeePaymentMethod {
           isStatic: false,
           args: [this.account.toField(), new Fr(this.amount), this.secret],
           returnTypes: [],
-        },
-        {
+        }),
+        FunctionCall.from({
           name: "pay_fee",
           to: this.fpcAddress,
           selector: await FunctionSelector.fromSignature("pay_fee()"),
@@ -188,7 +190,7 @@ export class MeteredMintThenPayFeePaymentMethod implements FeePaymentMethod {
           isStatic: false,
           args: [],
           returnTypes: [],
-        },
+        }),
       ],
       [this.authWitness],
       [],
