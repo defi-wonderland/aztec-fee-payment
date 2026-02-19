@@ -1,4 +1,4 @@
-use dep::aztec::macros::aztec;
+use aztec::macros::aztec;
 
 /// Metered Fee Payment Contract
 /// Tracks internal balances and deducts max gas cost per transaction.
@@ -9,15 +9,15 @@ pub contract Metered {
         authwit::auth::{assert_inner_hash_valid_authwit, compute_inner_authwit_hash},
         context::PrivateContext,
         macros::{
-            functions::{external, initializer, internal, nophasecheck, only_self},
+            functions::{external, initializer, internal, allow_phase_change, only_self},
             storage::storage,
         },
         messages::message_delivery::MessageDelivery,
-        protocol_types::{address::AztecAddress, traits::{FromField, ToField}},
-        state_vars::{DelayedPublicMutable, Owned, PublicImmutable, state_variable::StateVariable},
+        protocol::{address::AztecAddress, traits::{FromField, ToField}},
+        state_vars::{DelayedPublicMutable, Owned, PublicImmutable, StateVariable},
     };
-    use dep::balance_set::BalanceSet;
-    use dep::uint_note::uint_note::{PartialUintNote, UintNote};
+    use balance_set::BalanceSet;
+    use uint_note::{PartialUintNote, UintNote};
 
     // Delay used for owner changes
     // TODO: research & decide how much delay is needed
@@ -44,7 +44,7 @@ pub contract Metered {
     #[external("public")]
     fn update_owner(owner: AztecAddress) {
         assert(
-            self.context.msg_sender().unwrap() == self.storage.owner.get_current_value(),
+            self.msg_sender() == self.storage.owner.get_current_value(),
             "caller is not owner",
         );
 
@@ -55,9 +55,9 @@ pub contract Metered {
     /// If sender has insufficient balance, the transaction is invalid.
     /// NOTE: Does not refund unused gas - the full max_gas_cost is consumed.
     #[external("private")]
-    #[nophasecheck]
+    #[allow_phase_change]
     fn pay_fee() {
-        let sender = self.context.msg_sender().unwrap();
+        let sender = self.msg_sender();
         self.internal._deduct_max_gas_cost(sender);
 
         // Set the FPC as the fee payer of the tx.
@@ -69,9 +69,9 @@ pub contract Metered {
     /// Sponsors the transaction with exact fee refunds.
     /// Deducts max gas cost upfront, then refunds the difference in teardown.
     #[external("private")]
-    #[nophasecheck]
+    #[allow_phase_change]
     fn pay_fee_exact() {
-        let sender = self.context.msg_sender().unwrap();
+        let sender = self.msg_sender();
         let max_gas_cost = self.internal._deduct_max_gas_cost(sender);
 
         // Prepare the partial note for the refund.
@@ -99,7 +99,7 @@ pub contract Metered {
     /// @param amount The amount to mint
     /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
     #[external("private")]
-    #[nophasecheck]
+    #[allow_phase_change]
     fn mint_and_pay_fee(account: AztecAddress, amount: u128, secret: Field) {
         self.internal._verify_authwit(secret, amount);
 
@@ -107,7 +107,7 @@ pub contract Metered {
         let max_gas_cost = get_max_gas_cost(self.context);
 
         self.storage.balances.at(account).add(amount - max_gas_cost).deliver(
-            MessageDelivery.UNCONSTRAINED_ONCHAIN,
+            MessageDelivery.ONCHAIN_UNCONSTRAINED,
         );
 
         // Set the FPC as the fee payer of the tx.
@@ -124,7 +124,7 @@ pub contract Metered {
     #[external("private")]
     fn mint(account: AztecAddress, amount: u128, secret: Field) {
         self.internal._verify_authwit(secret, amount);
-        self.storage.balances.at(account).add(amount).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+        self.storage.balances.at(account).add(amount).deliver(MessageDelivery.ONCHAIN_UNCONSTRAINED);
     }
 
     /// Teardown function to refund unused gas.
@@ -162,7 +162,7 @@ pub contract Metered {
         // This happens in setup phase - if it fails, tx is invalid.
         let change =
             self.internal._subtract_balance(account, max_gas_cost, INITIAL_TRANSFER_CALL_MAX_NOTES);
-        self.storage.balances.at(account).add(change).deliver(MessageDelivery.UNCONSTRAINED_ONCHAIN);
+        self.storage.balances.at(account).add(change).deliver(MessageDelivery.ONCHAIN_UNCONSTRAINED);
 
         max_gas_cost
     }
