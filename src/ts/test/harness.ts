@@ -128,8 +128,7 @@ export async function fundL2AddressWithFeeJuiceFromL1(
       claim.claimSecret,
       new Fr(claim.messageLeafIndex),
     )
-    .send({ from: opts.claimTxSender })
-    .wait();
+    .send({ from: opts.claimTxSender });
 
   const { getFeeJuiceBalance } = await import("@aztec/aztec.js/utils");
   const balance = await getFeeJuiceBalance(recipient, aztecNode as any);

@@ -1,5 +1,4 @@
 use aztec::macros::aztec;
-pub mod test;
 
 #[aztec]
 pub contract Counter {

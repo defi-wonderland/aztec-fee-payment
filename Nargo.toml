@@ -5,4 +5,4 @@ members = [
 ]
 
 [benchmark]
-counter = "benchmarks/counter.benchmark.ts"
+metered = "benchmarks/metered.benchmark.ts"
