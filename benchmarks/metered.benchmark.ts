@@ -194,7 +194,7 @@ export default class CounterContractBenchmark extends Benchmark {
     // Pre-mint balance for MeteredFeePaymentMethod and MeteredExactFeePaymentMethod
     // These methods require existing balance in the contract
     // =========================================================================
-    const preMintAmount = 10_000_000_000_000_000_000n;
+    const preMintAmount = 100_000_000_000_000_000_000n;
     const preMintSecret = Fr.random();
     const preMintAuthWitness = await createAuthWitness(
       wallet,
@@ -220,7 +220,7 @@ export default class CounterContractBenchmark extends Benchmark {
     );
 
     // Amount to mint in fee payment - should cover gas costs
-    const mintAmount = 100_000_000_000_000_000n;
+    const mintAmount = 1_000_000_000_000_000_000n;
 
     // MintAndPayFee - mints to account and pays fee (simple, no existing notes consumed)
     const mintAndPayFeeSecret = Fr.random();
