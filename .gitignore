@@ -19,3 +19,5 @@ local-network-*/
 *-fpc-store-*/
 deployments/*/pending-claims.json
 src/ts/dist
+dist/
+export/
