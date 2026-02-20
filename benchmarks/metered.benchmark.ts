@@ -15,10 +15,10 @@ import {
 } from "../src/ts/test/harness.js";
 import { deployCounter } from "../src/ts/test/utils.js";
 import { deployMeteredContract } from "../src/ts/utils/deploy.js";
-import { TestWallet } from "@aztec/test-wallet/server";
+import { EmbeddedWallet } from "@aztec/wallets/embedded";
 
 interface MeteredBenchmarkContext extends BenchmarkContext {
-  wallet: TestWallet;
+  wallet: EmbeddedWallet;
   deployer: AztecAddress;
   accounts: AztecAddress[];
   counterContract: CounterContract;
