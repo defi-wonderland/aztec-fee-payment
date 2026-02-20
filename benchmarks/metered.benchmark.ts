@@ -31,7 +31,10 @@ import {
   MeteredMintAndPayFeePaymentMethod,
   MeteredMintThenPayFeePaymentMethod,
 } from "../src/ts/fee-payment-methods/index.js";
-import { fundL2AddressWithFeeJuiceFromL1 } from "../src/ts/test/harness.js";
+import {
+  fundL2AddressWithFeeJuiceFromL1,
+  warpL1Time,
+} from "../src/ts/test/harness.js";
 import { deployCounter } from "../src/ts/test/utils.js";
 import {
   maxFeesPerGasFromBaseFees,
@@ -203,6 +206,13 @@ export default class CounterContractBenchmark extends Benchmark {
 
     // Deploy and fund Metered FPC (deployer is the owner who authorizes mints)
     const meteredFpc = await deployMeteredContract(wallet, deployer);
+
+    // The contract stores owner as DelayedPublicMutable (CONFIG_DELAY = 600s).
+    // Private reads return zero until the delay elapses and add an
+    // expiration_timestamp constraint to the tx. Warp L1 time past the delay
+    // so the owner settles before any mint/authwit calls.
+    await warpL1Time(600);
+
     await fundL2AddressWithFeeJuiceFromL1(node, wallet, meteredFpc.address, {
       claimTxSender: deployer,
       produceL2Block: async () => {

@@ -15,9 +15,12 @@ import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 import { Fr } from "@aztec/foundation/curves/bn254";
 import { createLogger } from "@aztec/foundation/log";
 import { createExtendedL1Client } from "@aztec/ethereum/client";
+import { EthCheatCodes } from "@aztec/ethereum/test";
+import { DateProvider } from "@aztec/foundation/timer";
 import { rmSync } from "node:fs";
 
 export const LOCAL_AZTEC_NODE_URL = "http://localhost:8080";
+const DEFAULT_L1_RPC_URL = "http://127.0.0.1:8545";
 
 export type LocalNetworkContext = {
   aztecNode: AztecNode;
@@ -133,4 +136,38 @@ export async function fundL2AddressWithFeeJuiceFromL1(
   const { getFeeJuiceBalance } = await import("@aztec/aztec.js/utils");
   const balance = await getFeeJuiceBalance(recipient, aztecNode as any);
   return { balance, messageBlock };
+}
+
+/**
+ * Advance L1 time. After warping, the next L2 block picks up the new L1 timestamp.
+ *
+ * We don't use EthCheatCodes.warp() because it mines with `hardhat_mine`,
+ * which does not reliably honor a pending evm_setNextBlockTimestamp on
+ * Anvil. Instead we compose the individual EthCheatCodes helpers ourselves:
+ * pause interval mining → set timestamp → evm_mine → restore interval mining.
+ * Pausing interval mining prevents a race where an auto-mined block fires
+ * between setNextBlockTimestamp and evmMine, consuming the pending timestamp
+ * and causing the PXE to detect a reorg.
+ *
+ * @param seconds - How many seconds to advance (must be >= the contract's CONFIG_DELAY)
+ * @param l1RpcUrl - Anvil RPC endpoint (defaults to local 8545)
+ */
+export async function warpL1Time(
+  seconds: number,
+  l1RpcUrl: string = DEFAULT_L1_RPC_URL,
+): Promise<void> {
+  const cc = new EthCheatCodes([l1RpcUrl], new DateProvider());
+  const blockInterval = await cc.getIntervalMining();
+  try {
+    if (blockInterval !== null) {
+      await cc.setIntervalMining(0);
+    }
+    const before = await cc.timestamp();
+    await cc.setNextBlockTimestamp(before + seconds);
+    await cc.evmMine();
+  } finally {
+    if (blockInterval !== null && blockInterval > 0) {
+      await cc.setIntervalMining(blockInterval);
+    }
+  }
 }
