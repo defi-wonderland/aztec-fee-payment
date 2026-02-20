@@ -36,8 +36,8 @@ import { deployCounter } from "../src/ts/test/utils.js";
 import {
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
-  ESTIMATION_GAS_LIMITS,
-  ESTIMATION_TEARDOWN_GAS_LIMITS,
+  REASONABLE_GAS_LIMITS,
+  REASONABLE_TEARDOWN_GAS_LIMITS,
 } from "../src/ts/utils/gas.js";
 import { deployMeteredContract } from "../src/ts/utils/deploy.js";
 
@@ -95,7 +95,32 @@ class FeeWrappedInteraction {
   }
 
   async simulate(options: any = {}) {
-    return this.inner.simulate(this.withFee(options));
+    // Why: the profiler passes { estimateGas: true } which makes the wallet
+    // call completeFeeOptionsForEstimation, inflating gas limits to 2× block
+    // capacity. The Metered contract derives max_gas_cost from gas settings,
+    // so inflated limits change note values and recursion depth — producing
+    // gate counts and gas estimates that don't match profile()/send().
+    //
+    // How: we strip estimateGas and set includeMetadata instead. In
+    // ContractFunctionInteraction.simulate(), both flags trigger the same
+    // gas-estimation return path (the `if (includeMetadata || estimateGas)`
+    // branch), but only estimateGas triggers the wallet inflation.
+    //
+    // UPGRADE CHECK: on Aztec version bumps, verify that:
+    //   1. ContractFunctionInteraction.simulate() still returns estimatedGas
+    //      when includeMetadata is true (even without estimateGas)
+    //   2. BaseWallet.simulateTx() still only inflates limits when
+    //      opts.fee.estimateGas is truthy
+    const { estimateGas, estimatedGasPadding, ...restFee } = options.fee ?? {};
+    const adjusted = {
+      ...options,
+      includeMetadata: estimateGas || options.includeMetadata,
+      fee: {
+        ...restFee,
+        ...(estimatedGasPadding !== undefined && { estimatedGasPadding }),
+      },
+    };
+    return this.inner.simulate(this.withFee(adjusted));
   }
 
   async profile(options: any = {}) {
@@ -134,7 +159,7 @@ interface MeteredBenchmarkContext extends BenchmarkContext {
   // Payment methods with account contract authwit verification
   mintAndPayFeeMethod: MeteredMintAndPayFeePaymentMethod;
   mintThenPayFeeMethod: MeteredMintThenPayFeePaymentMethod;
-  // Gas settings (uses estimation limits — see comment in setup())
+  // Gas settings (reasonable limits, consistent across all profiler steps)
   gasSettings: {
     gasLimits: Gas;
     teardownGasLimits: Gas;
@@ -186,29 +211,20 @@ export default class CounterContractBenchmark extends Benchmark {
       loggerName: "benchmark:metered",
     });
 
-    // =========================================================================
-    // Gas settings
-    //
-    // The profiler calls simulate({ estimateGas: true }) before send(). The
-    // wallet's completeFeeOptionsForEstimation OVERRIDES any user-provided gas
-    // limits with hard-coded estimation constants, so the values passed to
-    // FeeWrappedInteraction are ignored during simulation. We use those same
-    // estimation limits here so maxGasCost (and note sizing) matches what the
-    // contract actually sees at runtime.
-    // =========================================================================
+    // All profiler steps use REASONABLE limits (see FeeWrappedInteraction.simulate).
     const baseFees: any = await (node as any).getCurrentMinFees();
     const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
 
     const gasSettings = {
-      gasLimits: ESTIMATION_GAS_LIMITS,
-      teardownGasLimits: ESTIMATION_TEARDOWN_GAS_LIMITS,
+      gasLimits: REASONABLE_GAS_LIMITS,
+      teardownGasLimits: REASONABLE_TEARDOWN_GAS_LIMITS,
       maxFeesPerGas,
     };
 
     const maxGasCost = maxGasCostFor(
       maxFeesPerGas,
-      ESTIMATION_GAS_LIMITS,
-      ESTIMATION_TEARDOWN_GAS_LIMITS,
+      REASONABLE_GAS_LIMITS,
+      REASONABLE_TEARDOWN_GAS_LIMITS,
     );
 
     // =========================================================================
