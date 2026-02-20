@@ -6,14 +6,32 @@
   "author": "Wonderland",
   "license": "MIT",
   "type": "module",
-  "workspaces": [
-    "src/ts"
-  ],
+  "exports": {
+    ".": {
+      "import": "./dist/src/ts/index.js",
+      "types": "./dist/src/ts/index.d.ts"
+    },
+    "./artifacts": {
+      "import": "./dist/src/artifacts/Metered.js",
+      "types": "./dist/src/artifacts/Metered.d.ts"
+    },
+    "./fee-payment-methods": {
+      "import": "./dist/src/ts/fee-payment-methods/index.js",
+      "types": "./dist/src/ts/fee-payment-methods/index.d.ts"
+    },
+    "./utils": {
+      "import": "./dist/src/ts/utils/index.js",
+      "types": "./dist/src/ts/utils/index.d.ts"
+    }
+  },
+  "main": "./dist/src/ts/index.js",
+  "types": "./dist/src/ts/index.d.ts",
+  "files": ["dist", "target"],
   "scripts": {
     "clean": "rm -rf ./src/artifacts/* ./target codegenCache.json",
     "codegen": "aztec codegen target --outdir src/artifacts -f",
     "compile": "aztec compile",
-    "build": "yarn compile && yarn codegen && yarn workspace @defi-wonderland/aztec-fee-payment build",
+    "build": "yarn compile && yarn codegen && bash scripts/build-package.sh",
     "test": "yarn test:nr && yarn test:js",
     "test:js": "rm -rf pxe-test-metered && vitest run && yarn test:agent",
     "test:nr": "aztec test",
