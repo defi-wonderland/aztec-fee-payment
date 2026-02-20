@@ -211,7 +211,7 @@ export default class CounterContractBenchmark extends Benchmark {
     // Private reads return zero until the delay elapses and add an
     // expiration_timestamp constraint to the tx. Warp L1 time past the delay
     // so the owner settles before any mint/authwit calls.
-    await warpL1Time(600);
+    await warpL1Time(node, 600);
 
     await fundL2AddressWithFeeJuiceFromL1(node, wallet, meteredFpc.address, {
       claimTxSender: deployer,

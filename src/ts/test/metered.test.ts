@@ -57,7 +57,7 @@ describe("Metered Fee Payment Contract", () => {
 
     // Warp L1 time past the DelayedPublicMutable delay so the owner is
     // readable in private (see harness.warpL1Time for details).
-    await warpL1Time(600);
+    await warpL1Time(aztecNode, 600);
 
     const { balance } = await fundL2AddressWithFeeJuiceFromL1(
       aztecNode,

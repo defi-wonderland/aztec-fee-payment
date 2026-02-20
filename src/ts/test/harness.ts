@@ -15,7 +15,7 @@ import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 import { Fr } from "@aztec/foundation/curves/bn254";
 import { createLogger } from "@aztec/foundation/log";
 import { createExtendedL1Client } from "@aztec/ethereum/client";
-import { EthCheatCodes } from "@aztec/ethereum/test";
+import { EthCheatCodes, RollupCheatCodes } from "@aztec/ethereum/test";
 import { DateProvider } from "@aztec/foundation/timer";
 import { rmSync } from "node:fs";
 
@@ -139,35 +139,38 @@ export async function fundL2AddressWithFeeJuiceFromL1(
 }
 
 /**
- * Advance L1 time. After warping, the next L2 block picks up the new L1 timestamp.
+ * Advance L1 time.
  *
- * We don't use EthCheatCodes.warp() because it mines with `hardhat_mine`,
- * which does not reliably honor a pending evm_setNextBlockTimestamp on
- * Anvil. Instead we compose the individual EthCheatCodes helpers ourselves:
- * pause interval mining → set timestamp → evm_mine → restore interval mining.
- * Pausing interval mining prevents a race where an auto-mined block fires
- * between setNextBlockTimestamp and evmMine, consuming the pending timestamp
- * and causing the PXE to detect a reorg.
+ * Warping L1 time skips L2 slots/epochs. Unproven blocks from skipped
+ * epochs get pruned by the rollup, which the PXE detects as a reorg —
+ * causing nullifier/note inconsistencies. To prevent this we mark all
+ * pending blocks as proven before the warp, using RollupCheatCodes.
  *
- * @param seconds - How many seconds to advance (must be >= the contract's CONFIG_DELAY)
+ * The warp itself pauses all Anvil block production (automine + interval
+ * mining) to avoid races where a background L1 tx consumes the pending
+ * timestamp.
+ *
+ * @param aztecNode - The Aztec node client (used to fetch L1 contract addresses)
+ * @param seconds - How many seconds to advance
  * @param l1RpcUrl - Anvil RPC endpoint (defaults to local 8545)
  */
 export async function warpL1Time(
+  aztecNode: Pick<AztecNode, "getL1ContractAddresses">,
   seconds: number,
   l1RpcUrl: string = DEFAULT_L1_RPC_URL,
 ): Promise<void> {
   const cc = new EthCheatCodes([l1RpcUrl], new DateProvider());
-  const blockInterval = await cc.getIntervalMining();
-  try {
-    if (blockInterval !== null) {
-      await cc.setIntervalMining(0);
-    }
+  const l1Addresses = await aztecNode.getL1ContractAddresses();
+  const rollupCheatCodes = new RollupCheatCodes(cc, l1Addresses);
+
+  // Mark all pending L2 blocks as proven so the rollup won't prune them
+  // when L1 time jumps past the proof submission window.
+  await rollupCheatCodes.markAsProven();
+
+  // Warp with all block production paused to prevent races.
+  await cc.execWithPausedAnvil(async () => {
     const before = await cc.timestamp();
     await cc.setNextBlockTimestamp(before + seconds);
     await cc.evmMine();
-  } finally {
-    if (blockInterval !== null && blockInterval > 0) {
-      await cc.setIntervalMining(blockInterval);
-    }
-  }
+  });
 }
