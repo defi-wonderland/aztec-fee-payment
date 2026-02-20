@@ -4,10 +4,6 @@ import {
   DEFAULT_L2_GAS_LIMIT,
   DEFAULT_TEARDOWN_DA_GAS_LIMIT,
   DEFAULT_TEARDOWN_L2_GAS_LIMIT,
-  GAS_ESTIMATION_DA_GAS_LIMIT,
-  GAS_ESTIMATION_L2_GAS_LIMIT,
-  GAS_ESTIMATION_TEARDOWN_DA_GAS_LIMIT,
-  GAS_ESTIMATION_TEARDOWN_L2_GAS_LIMIT,
 } from "@aztec/constants";
 
 /**
@@ -24,26 +20,6 @@ export const REASONABLE_GAS_LIMITS = Gas.from({
 export const REASONABLE_TEARDOWN_GAS_LIMITS = Gas.from({
   daGas: DEFAULT_TEARDOWN_DA_GAS_LIMIT,
   l2Gas: DEFAULT_TEARDOWN_L2_GAS_LIMIT,
-});
-
-/**
- * Gas limits the wallet actually uses during gas estimation.
- * The wallet's `completeFeeOptionsForEstimation` overrides any user-provided
- * gas limits with these hard-coded constants, so note sizing and maxGasCost
- * computations must use them to match what the contract sees at runtime.
- */
-export const ESTIMATION_GAS_LIMITS = Gas.from({
-  daGas: GAS_ESTIMATION_DA_GAS_LIMIT,
-  l2Gas: GAS_ESTIMATION_L2_GAS_LIMIT,
-});
-
-/**
- * Teardown gas limits the wallet actually uses during gas estimation.
- * @see ESTIMATION_GAS_LIMITS
- */
-export const ESTIMATION_TEARDOWN_GAS_LIMITS = Gas.from({
-  daGas: GAS_ESTIMATION_TEARDOWN_DA_GAS_LIMIT,
-  l2Gas: GAS_ESTIMATION_TEARDOWN_L2_GAS_LIMIT,
 });
 
 /**
