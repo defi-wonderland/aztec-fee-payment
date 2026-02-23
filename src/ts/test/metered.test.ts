@@ -18,6 +18,7 @@ import {
   LOCAL_AZTEC_NODE_URL,
   createLocalNetworkContext,
   fundL2AddressWithFeeJuiceFromL1,
+  warpL1Time,
 } from "./harness.js";
 
 import {
@@ -53,6 +54,11 @@ describe("Metered Fee Payment Contract", () => {
 
     // Deploy and fund the Metered FPC (alice is the owner who authorizes mints)
     fpc = await deployMeteredContract(wallet, alice);
+
+    // Warp L1 time past the DelayedPublicMutable delay so the owner is
+    // readable in private (see harness.warpL1Time for details).
+    await warpL1Time(aztecNode, 600);
+
     const { balance } = await fundL2AddressWithFeeJuiceFromL1(
       aztecNode,
       wallet,

@@ -21,7 +21,7 @@ pub contract Metered {
 
     // Delay used for owner changes
     // TODO: research & decide how much delay is needed
-    global CONFIG_DELAY: u64 = 60;
+    global CONFIG_DELAY: u64 = 600; // Roughly half a L2 epoch
     // gas-optimized max notes for initial transfer call
     global INITIAL_TRANSFER_CALL_MAX_NOTES: u32 = 2;
     // max notes transfer for recursive transfer call if initial max notes are exceeded
