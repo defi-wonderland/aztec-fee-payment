@@ -27,13 +27,15 @@ pub contract Metered {
     // max notes transfer for recursive transfer call if initial max notes are exceeded
     global RECURSIVE_TRANSFER_CALL_MAX_NOTES: u32 = 8;
 
+    /// @param owner The address of the account contract that authorizes mints
+    /// @param balances The private note-based balances mapping accounts to their internal FPC balance
     #[storage]
     struct Storage<Context> {
         owner: DelayedPublicMutable<AztecAddress, CONFIG_DELAY, Context>,
         balances: Owned<BalanceSet<Context>, Context>,
     }
 
-    /// Initializes the Metered FPC contract.
+    /// @notice Initializes the Metered FPC contract.
     /// @param owner The address of the account contract that authorizes mints
     #[external("public")]
     #[initializer]
@@ -41,6 +43,8 @@ pub contract Metered {
         self.storage.owner.schedule_value_change(owner);
     }
 
+    /// @notice Schedules an owner change after the CONFIG_DELAY period.
+    /// @param owner The new owner address
     #[external("public")]
     fn update_owner(owner: AztecAddress) {
         assert(
@@ -51,9 +55,8 @@ pub contract Metered {
         self.storage.owner.schedule_value_change(owner);
     }
 
-    /// Sponsors the transaction by deducting max gas cost from sender's balance.
-    /// If sender has insufficient balance, the transaction is invalid.
-    /// NOTE: Does not refund unused gas - the full max_gas_cost is consumed.
+    /// @notice Sponsors the transaction by deducting max gas cost from sender's balance.
+    /// @dev Does not refund unused gas - the full max_gas_cost is consumed.
     #[external("private")]
     #[allow_phase_change]
     fn pay_fee() {
@@ -66,8 +69,8 @@ pub contract Metered {
         self.context.end_setup();
     }
 
-    /// Sponsors the transaction with exact fee refunds.
-    /// Deducts max gas cost upfront, then refunds the difference in teardown.
+    /// @notice Sponsors the transaction with exact fee refunds.
+    /// @dev Refunds `max_gas_cost - transaction_fee` via a partial note completed in teardown.
     #[external("private")]
     #[allow_phase_change]
     fn pay_fee_exact() {
@@ -92,11 +95,9 @@ pub contract Metered {
         self.context.end_setup();
     }
 
-    /// Mints tokens and pays fee in a single transaction.
-    /// Verifies authorization via the owner's account contract, mints the specified amount,
-    /// then deducts max gas cost. The minted amount must be >= max_gas_cost.
+    /// @notice Mints tokens and pays fee in a single transaction.
     /// @param account The address to mint tokens to
-    /// @param amount The amount to mint
+    /// @param amount The amount to mint (must be >= max_gas_cost)
     /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
     #[external("private")]
     #[allow_phase_change]
@@ -116,8 +117,7 @@ pub contract Metered {
         self.context.end_setup();
     }
 
-    /// Mints internal balance to an account.
-    /// Requires authorization via the owner's account contract.
+    /// @notice Mints internal balance to an account.
     /// @param account The address to mint tokens to
     /// @param amount The amount to mint
     /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
@@ -127,7 +127,9 @@ pub contract Metered {
         self.storage.balances.at(account).add(amount).deliver(MessageDelivery.ONCHAIN_UNCONSTRAINED);
     }
 
-    /// Teardown function to refund unused gas.
+    /// @notice Teardown function that refunds unused gas to the sender.
+    /// @param max_gas_cost The max gas cost deducted during setup
+    /// @param partial_note The partial note to complete with the refund amount
     #[external("public")]
     #[only_self]
     fn _refund(max_gas_cost: u128, partial_note: PartialUintNote) {
@@ -137,10 +139,8 @@ pub contract Metered {
     }
 
     /// @notice Verifies authorization via the owner's account contract.
-    /// Computes an inner hash from secret and amount, then delegates verification
-    /// to the owner's account contract via verify_private_authwit.
     /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
-    /// @param amount The amount value
+    /// @param amount The amount to authorize
     #[internal("private")]
     fn _verify_authwit(secret: Field, amount: u128) {
         let inner_hash = compute_inner_authwit_hash([secret, amount as Field]);
@@ -152,7 +152,7 @@ pub contract Metered {
 
     /// @notice Computes the max gas cost and deducts it from the account's balance.
     /// @param account The address to deduct the gas cost from
-    /// @return max_gas_cost
+    /// @return The max gas cost that was deducted
     #[internal("private")]
     fn _deduct_max_gas_cost(account: AztecAddress) -> u128 {
         // Calculate the max gas cost from transaction settings.
@@ -167,8 +167,8 @@ pub contract Metered {
         max_gas_cost
     }
 
-    /// @notice Subtracts balance from private balance
-    /// @dev Subtracts amount from private balance and returns the change to the owner, recursively if necessary
+    /// @notice Subtracts balance from private balance.
+    /// @dev Recurses via `recurse_subtract_balance_internal` if `max_notes` is insufficient.
     /// @param account The address of the account to subtract the balance from
     /// @param amount The amount of tokens to subtract
     /// @param max_notes The maximum number of notes to process in a single call
@@ -191,8 +191,7 @@ pub contract Metered {
         }
     }
 
-    /// @notice Recursively subtracts balance from private balance
-    /// @dev Used to subtract private balances that exceed the max notes limit
+    /// @notice Recursively subtracts balance from private balance.
     /// @param account The address of the account to subtract the balance from
     /// @param amount The amount of tokens to subtract
     /// @return The change to return to the owner
@@ -202,13 +201,22 @@ pub contract Metered {
         self.internal._subtract_balance(account, amount, RECURSIVE_TRANSFER_CALL_MAX_NOTES)
     }
 
-    /// Returns the internal balance of an account.
+    /// @notice Returns the private balance of an account
+    /// @param account The address to query
+    /// @return The private balance of the account
     #[external("utility")]
     unconstrained fn balance_of(account: AztecAddress) -> u128 {
         self.storage.balances.at(account).balance_of()
     }
 
-    /// Calculates the maximum gas cost from transaction gas settings.
+    /// @notice Calculates the worst-case gas cost from transaction gas settings.
+    /// @dev max_fee_per_da_gas * (da_gas_limit + da_teardown_gas_limit)
+    ///    + max_fee_per_l2_gas * (l2_gas_limit + l2_teardown_gas_limit)
+    ///
+    /// `max_priority_fees_per_gas` is intentionally excluded: following EIP-1559
+    /// semantics, `max_fees_per_gas` already bounds the per-gas cost.
+    /// @param context The context of the private call
+    /// @return The maximum gas cost for the transaction
     #[contract_library_method]
     pub fn get_max_gas_cost(context: &mut PrivateContext) -> u128 {
         let gas_settings = context.gas_settings();
