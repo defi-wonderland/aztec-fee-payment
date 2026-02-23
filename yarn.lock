@@ -648,6 +648,30 @@
     "@aztec/stdlib" "4.0.0-devnet.1-patch.0"
     tslib "^2.4.0"
 
+"@aztec/accounts@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/accounts/-/accounts-4.0.0-spartan.20260211.tgz#2a7d6b0277704e31361234f298d74e5f87b2700d"
+  integrity sha512-lxygNzMKg6BXi1RRBptWanEIsxpINE0lu+81+dB4H22Bt7Kou0znrkGhwAxwDLsMQHSzSTArDCjq8dNLIq/aPg==
+  dependencies:
+    "@aztec/aztec.js" "4.0.0-spartan.20260211"
+    "@aztec/entrypoints" "4.0.0-spartan.20260211"
+    "@aztec/ethereum" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    tslib "^2.4.0"
+
+"@aztec/accounts@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/accounts/-/accounts-4.0.0-spartan.20260218.tgz#7df23df4e205c35300da447f287f7f584813cd50"
+  integrity sha512-vDqeBJKuupSQwGIClvDdgbLR0xgpHpIjZ7g2M1VGgG7UNtFcZWA7QOtbqdZUqzgMht8u7+ZWCpvuJAgMLoNk9w==
+  dependencies:
+    "@aztec/aztec.js" "4.0.0-spartan.20260218"
+    "@aztec/entrypoints" "4.0.0-spartan.20260218"
+    "@aztec/ethereum" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/stdlib" "4.0.0-spartan.20260218"
+    tslib "^2.4.0"
+
 "@aztec/aztec.js@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/aztec.js/-/aztec.js-4.0.0-devnet.1-patch.0.tgz#c93dbda06bb1ac01627b8e524fa4244be608e94d"
@@ -660,6 +684,40 @@
     "@aztec/l1-artifacts" "4.0.0-devnet.1-patch.0"
     "@aztec/protocol-contracts" "4.0.0-devnet.1-patch.0"
     "@aztec/stdlib" "4.0.0-devnet.1-patch.0"
+    axios "^1.12.0"
+    tslib "^2.4.0"
+    viem "npm:@aztec/viem@2.38.2"
+    zod "^3.23.8"
+
+"@aztec/aztec.js@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/aztec.js/-/aztec.js-4.0.0-spartan.20260211.tgz#eaaee4495cccba15bfc35a99fbac14c883182a21"
+  integrity sha512-9J+xieVye442TRjNfnwZqHloXP3buEeWV6FYtyiyCbnMmfnYXSDuqswcSKf743OIe0fs3/Jvs3/XKRsEkgHNqw==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260211"
+    "@aztec/entrypoints" "4.0.0-spartan.20260211"
+    "@aztec/ethereum" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/l1-artifacts" "4.0.0-spartan.20260211"
+    "@aztec/protocol-contracts" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    axios "^1.12.0"
+    tslib "^2.4.0"
+    viem "npm:@aztec/viem@2.38.2"
+    zod "^3.23.8"
+
+"@aztec/aztec.js@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/aztec.js/-/aztec.js-4.0.0-spartan.20260218.tgz#c038f31386a38accc1a1711324749aa310717264"
+  integrity sha512-XMSKVPaXUMnna1ZuTADxgu7Z6GJd9/EMilvSDWEUgGMC/wCqydctGU3bommlKKXKvrq9MQE+fveQQwN8hDq2HA==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260218"
+    "@aztec/entrypoints" "4.0.0-spartan.20260218"
+    "@aztec/ethereum" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/l1-artifacts" "4.0.0-spartan.20260218"
+    "@aztec/protocol-contracts" "4.0.0-spartan.20260218"
+    "@aztec/stdlib" "4.0.0-spartan.20260218"
     axios "^1.12.0"
     tslib "^2.4.0"
     viem "npm:@aztec/viem@2.38.2"
@@ -685,10 +743,74 @@
     source-map-support "^0.5.21"
     tslib "^2.4.0"
 
+"@aztec/bb-prover@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/bb-prover/-/bb-prover-4.0.0-spartan.20260211.tgz#97c25cc879a63fd3b8219a3cb610c4a2594474de"
+  integrity sha512-+asqWwaU0Vik6GwvPYRux5ebjMlg3k6Wjhf05/Tvv8MgPrxNsE/oLjmAAVrTXTL01o8GTfnUWIfjhm7FJdsmQQ==
+  dependencies:
+    "@aztec/bb.js" "4.0.0-spartan.20260211"
+    "@aztec/constants" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/noir-noirc_abi" "4.0.0-spartan.20260211"
+    "@aztec/noir-protocol-circuits-types" "4.0.0-spartan.20260211"
+    "@aztec/noir-types" "4.0.0-spartan.20260211"
+    "@aztec/simulator" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    "@aztec/telemetry-client" "4.0.0-spartan.20260211"
+    "@aztec/world-state" "4.0.0-spartan.20260211"
+    commander "^12.1.0"
+    pako "^2.1.0"
+    source-map-support "^0.5.21"
+    tslib "^2.4.0"
+
+"@aztec/bb-prover@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/bb-prover/-/bb-prover-4.0.0-spartan.20260218.tgz#6cd4a3ca967766c28c70ab364be5da2b04de28f0"
+  integrity sha512-DadLlYOGVyyt8t3gjSwyp42833OH3su9I8x6nUmbVP7bvc1KX8N4vZ7WIHh8iw1HvlQ+yCA3AhPLcN+bnRvAsA==
+  dependencies:
+    "@aztec/bb.js" "4.0.0-spartan.20260218"
+    "@aztec/constants" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/noir-noirc_abi" "4.0.0-spartan.20260218"
+    "@aztec/noir-protocol-circuits-types" "4.0.0-spartan.20260218"
+    "@aztec/noir-types" "4.0.0-spartan.20260218"
+    "@aztec/simulator" "4.0.0-spartan.20260218"
+    "@aztec/stdlib" "4.0.0-spartan.20260218"
+    "@aztec/telemetry-client" "4.0.0-spartan.20260218"
+    "@aztec/world-state" "4.0.0-spartan.20260218"
+    commander "^12.1.0"
+    pako "^2.1.0"
+    source-map-support "^0.5.21"
+    tslib "^2.4.0"
+
 "@aztec/bb.js@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/bb.js/-/bb.js-4.0.0-devnet.1-patch.0.tgz#4225c42b57bfbe9de790445969d4d80031bd5d45"
   integrity sha512-fxDdzMsv+CND5bzXAoxWuPBa/ZRcfAQwPSHJuZ4OsJ3VSkB5szUobQUYClrqj7yu9fwKrOzYhIEVTzWh9TCBhQ==
+  dependencies:
+    comlink "^4.4.1"
+    commander "^12.1.0"
+    idb-keyval "^6.2.1"
+    msgpackr "^1.11.2"
+    pako "^2.1.0"
+    tslib "^2.4.0"
+
+"@aztec/bb.js@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/bb.js/-/bb.js-4.0.0-spartan.20260211.tgz#ca4d7c7ea4a015f622329e9466c20fd9c9b96b81"
+  integrity sha512-0OZGl3SfEfBm4f6HS1tkaNHF5EkJs0MrcwXWbiiQE86lLdRqoCwFtg00/A8lBI5ja9/ouGRpp6+3lIIneMdnwQ==
+  dependencies:
+    comlink "^4.4.1"
+    commander "^12.1.0"
+    idb-keyval "^6.2.1"
+    msgpackr "^1.11.2"
+    pako "^2.1.0"
+    tslib "^2.4.0"
+
+"@aztec/bb.js@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/bb.js/-/bb.js-4.0.0-spartan.20260218.tgz#1784e8182e17241af71ed9ef0dcb69bf16c0aa2c"
+  integrity sha512-e7zjp8KHWIEqecnPTlyEjE8NglGoWGmaRWc/M1/1Nop5eSwKvTCpx5kljBD2xeKHDyIaAuEgITFO35jpx8qtAg==
   dependencies:
     comlink "^4.4.1"
     commander "^12.1.0"
@@ -707,6 +829,26 @@
     "@crate-crypto/node-eth-kzg" "^0.10.0"
     tslib "^2.4.0"
 
+"@aztec/blob-lib@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/blob-lib/-/blob-lib-4.0.0-spartan.20260211.tgz#a11bb415678e12e39bc4825b48fc15fc6846b528"
+  integrity sha512-p5JNtU/cy7+UbmZQRcrliI9TgrPcm4/faTtmNbRLjSugFzvC8EsQz0sJicncMghT3+IYrMNKqCCGG75u/gJrdA==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@crate-crypto/node-eth-kzg" "^0.10.0"
+    tslib "^2.4.0"
+
+"@aztec/blob-lib@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/blob-lib/-/blob-lib-4.0.0-spartan.20260218.tgz#e256a02774542b84cfec8b2884ede481a64db889"
+  integrity sha512-GFFyYyHnlRAyp2bCkaeHJ6xu+Zr7GmEeodaYXdHzWbEk6kKtEwkR6febnnOYBcOSAIiUXcKLdDqwFE25QaZODQ==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@crate-crypto/node-eth-kzg" "^0.10.0"
+    tslib "^2.4.0"
+
 "@aztec/builder@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/builder/-/builder-4.0.0-devnet.1-patch.0.tgz#e1f7f25183cf8c0bde336a0315bb308b0e875fc9"
@@ -716,12 +858,46 @@
     "@aztec/stdlib" "4.0.0-devnet.1-patch.0"
     commander "^12.1.0"
 
+"@aztec/builder@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/builder/-/builder-4.0.0-spartan.20260211.tgz#943f46136dd226039b507e76615cfeec206fab8e"
+  integrity sha512-ajEMPN5DrCD2xK0NxR2M9dv71ZrLjyyEir54iyHL9F4xsDOyMSq33ilvA2WLEDmlJUK9bptAPd+vkmRcqD3i8Q==
+  dependencies:
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    commander "^12.1.0"
+
+"@aztec/builder@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/builder/-/builder-4.0.0-spartan.20260218.tgz#5bacfba386e39d62989d65a7267d3b2c3b5ff38b"
+  integrity sha512-EnjHljuCotVdA6A8fuLOVp7roV+79sgr/E36sp5Dg6nZrtsPie96hqBk5hAG3p3mXYpQ6IpdrU3LZXMJZcHClw==
+  dependencies:
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/stdlib" "4.0.0-spartan.20260218"
+    commander "^12.1.0"
+
 "@aztec/constants@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/constants/-/constants-4.0.0-devnet.1-patch.0.tgz#4944cbe51441999e09de74fe63e1277363e7a037"
   integrity sha512-U0NG1KtvaA08Hf9q9lkDCN9QYIxSDDltTllBB6//6PsOPQ3k8+wBWy5uQY8zvvWikkwQ+nqhZcDkTiDuXdGxJQ==
   dependencies:
     "@aztec/foundation" "4.0.0-devnet.1-patch.0"
+    tslib "^2.4.0"
+
+"@aztec/constants@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/constants/-/constants-4.0.0-spartan.20260211.tgz#3335cba1f7eadddd13021b8d6f5592163f0949cf"
+  integrity sha512-lyAKMNH0Lwd2byekU870kDH8iowzFlrwva9i4mNfJMGTbr3FZEU5qWZVENQV/NxhjDN2J3FrrWEH3xFSKfO9OA==
+  dependencies:
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    tslib "^2.4.0"
+
+"@aztec/constants@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/constants/-/constants-4.0.0-spartan.20260218.tgz#984eab0708538e7c85c32ea52e99e57c1db7c0fb"
+  integrity sha512-EKJ2/QC5xJzaaPjqrKQD3oqBs5qdcdKNF7QAeX45JlGy5/Hoh1q5s5sMoJdj7nLWsyiEFhD4i3CxXWTfy715Qw==
+  dependencies:
+    "@aztec/foundation" "4.0.0-spartan.20260218"
     tslib "^2.4.0"
 
 "@aztec/entrypoints@4.0.0-devnet.1-patch.0":
@@ -733,6 +909,30 @@
     "@aztec/foundation" "4.0.0-devnet.1-patch.0"
     "@aztec/protocol-contracts" "4.0.0-devnet.1-patch.0"
     "@aztec/stdlib" "4.0.0-devnet.1-patch.0"
+    tslib "^2.4.0"
+    zod "^3.23.8"
+
+"@aztec/entrypoints@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/entrypoints/-/entrypoints-4.0.0-spartan.20260211.tgz#bd9b2d35373effe270eb63d48e9318e372a086f9"
+  integrity sha512-g4uAuVw5NJJGmGY5TUhZGAO4+lUSjGPlGtbgi/vBRNhM24W8BYrrGnZ9oV1yHdH9RjBpUOqinRwaJgHw9mHpog==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/protocol-contracts" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    tslib "^2.4.0"
+    zod "^3.23.8"
+
+"@aztec/entrypoints@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/entrypoints/-/entrypoints-4.0.0-spartan.20260218.tgz#ad9f8148492e2df59b903cc81c382e89ce075e0c"
+  integrity sha512-fVgk8j6mOiqfWE5mbvZLIr2trDgtrL5+ACNKquiGGwAHrlI9PDSfWRx/t9VK8X0iJpPOVe9BMGHGAzD2sq3F8Q==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/protocol-contracts" "4.0.0-spartan.20260218"
+    "@aztec/stdlib" "4.0.0-spartan.20260218"
     tslib "^2.4.0"
     zod "^3.23.8"
 
@@ -753,12 +953,46 @@
     viem "npm:@aztec/viem@2.38.2"
     zod "^3.23.8"
 
-"@aztec/foundation@4.0.0-devnet.1-patch.0":
-  version "4.0.0-devnet.1-patch.0"
-  resolved "https://registry.yarnpkg.com/@aztec/foundation/-/foundation-4.0.0-devnet.1-patch.0.tgz#a893c2cc1b8bd9d828f22a73dcd24ef2c513ec15"
-  integrity sha512-RR0F3Ee8SVNmcgWuuOzTdQQYToa4hMD9Ur7qus1qaQwo+47hRHIdfxGXhMyHF/vKjNwzrw3sDnJxkZqy0vjh/Q==
+"@aztec/ethereum@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/ethereum/-/ethereum-4.0.0-spartan.20260211.tgz#3873f7e0b9bfbc4c7bcab20fcbfa007d12cdd704"
+  integrity sha512-/wRqEp671P7cl8Ytl0T0Ah3KxEEEmXFDyTAb+abDqnX1UyqJ8DlhDE+aFiQS4rBU6qcRHkpYprYW+BvQ7MmxtA==
   dependencies:
-    "@aztec/bb.js" "4.0.0-devnet.1-patch.0"
+    "@aztec/blob-lib" "4.0.0-spartan.20260211"
+    "@aztec/constants" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/l1-artifacts" "4.0.0-spartan.20260211"
+    "@viem/anvil" "^0.0.10"
+    dotenv "^16.0.3"
+    lodash.chunk "^4.2.0"
+    lodash.pickby "^4.5.0"
+    tslib "^2.4.0"
+    viem "npm:@aztec/viem@2.38.2"
+    zod "^3.23.8"
+
+"@aztec/ethereum@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/ethereum/-/ethereum-4.0.0-spartan.20260218.tgz#7d0a8745249ecf6a8be0053577cfc330511c0c25"
+  integrity sha512-bg2wepv3SSIuzVXHrVSGJwlDaWEusxOXyU4jTZ50PGodZuA208d3g8tcKaQHsu1W7A3XFqkMZa065DsgLDAbUg==
+  dependencies:
+    "@aztec/blob-lib" "4.0.0-spartan.20260218"
+    "@aztec/constants" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/l1-artifacts" "4.0.0-spartan.20260218"
+    "@viem/anvil" "^0.0.10"
+    dotenv "^16.0.3"
+    lodash.chunk "^4.2.0"
+    lodash.pickby "^4.5.0"
+    tslib "^2.4.0"
+    viem "npm:@aztec/viem@2.38.2"
+    zod "^3.23.8"
+
+"@aztec/foundation@4.0.0-devnet.1-patch.0", "@aztec/foundation@4.0.0-spartan.20260211", "@aztec/foundation@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/foundation/-/foundation-4.0.0-spartan.20260218.tgz#bae6c15a444f2b91d3cde0e18c08016a720fea98"
+  integrity sha512-ZDv7UfSl32JZ7t7q2myJk7++dQQxvsOcvtmapsUpVBkc18lOc03suGOKPV8BWmVHQ7tUoqIVsTGpfCids4jLCg==
+  dependencies:
+    "@aztec/bb.js" "4.0.0-spartan.20260218"
     "@koa/cors" "^5.0.0"
     "@noble/curves" "=1.7.0"
     "@noble/hashes" "^1.6.1"
@@ -792,6 +1026,28 @@
     "@aztec/stdlib" "4.0.0-devnet.1-patch.0"
     tslib "^2.4.0"
 
+"@aztec/key-store@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/key-store/-/key-store-4.0.0-spartan.20260211.tgz#90f634b69d72fadcd1d0c4da2fc7b30c0bfd7764"
+  integrity sha512-sGrhJxv277RAJBT1iHW8Iv3J61uxFz+tLTPXWtSaZ/f+OKQ5pXUs0t/tzzsbaJuKOy/1tOkN+HJsLOoiiWlzaw==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/kv-store" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    tslib "^2.4.0"
+
+"@aztec/key-store@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/key-store/-/key-store-4.0.0-spartan.20260218.tgz#e7f87aa8a1c650c0ccd171e6f9ce971101d15c45"
+  integrity sha512-TH2I5xi4baoSiXf1bSP27NcUhNFvItiClzTiffznLFhHhXCpOhhy1Bc5XXqUbShPhq/jscNtZmYovJLKVmKfXA==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/kv-store" "4.0.0-spartan.20260218"
+    "@aztec/stdlib" "4.0.0-spartan.20260218"
+    tslib "^2.4.0"
+
 "@aztec/kv-store@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/kv-store/-/kv-store-4.0.0-devnet.1-patch.0.tgz#1792f78b27b678f25df2c8570808c0f43218a88d"
@@ -808,10 +1064,56 @@
     ohash "^2.0.11"
     ordered-binary "^1.5.3"
 
+"@aztec/kv-store@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/kv-store/-/kv-store-4.0.0-spartan.20260211.tgz#1e9cb3a5b76cdf7114697e3c070d29e27e6367a4"
+  integrity sha512-dJudy9c+Cp8kDI3Pf6BV5H2b2rxp/H2j+W5qjx4xNHks/7ZGAJ1zZ9nPXy1QQsR7bm6CxqeWcT0AxnEAdzOP/g==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260211"
+    "@aztec/ethereum" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/native" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    idb "^8.0.0"
+    lmdb "^3.2.0"
+    msgpackr "^1.11.2"
+    ohash "^2.0.11"
+    ordered-binary "^1.5.3"
+
+"@aztec/kv-store@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/kv-store/-/kv-store-4.0.0-spartan.20260218.tgz#43408c7b35bda59916a82c91e0ac95fc317556e6"
+  integrity sha512-ne+vDgYEy2S4nGImpYcwxs31nHBjNnXnAziy5Y4/IvnigaQ5zAecalEHW6AP0klwBYYxOuLm7x8ISIJGXy2+hA==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260218"
+    "@aztec/ethereum" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/native" "4.0.0-spartan.20260218"
+    "@aztec/stdlib" "4.0.0-spartan.20260218"
+    idb "^8.0.0"
+    lmdb "^3.2.0"
+    msgpackr "^1.11.2"
+    ohash "^2.0.11"
+    ordered-binary "^1.5.3"
+
 "@aztec/l1-artifacts@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/l1-artifacts/-/l1-artifacts-4.0.0-devnet.1-patch.0.tgz#731334b1eec314c721adc1a437628f54b7d708e2"
   integrity sha512-1s+9MhRZCC25wuaLsAQjDTp1au0kn8Ht6+J4IZdAPnzqKlpKoCgzBkcqNGIeMce9tKc5O72qxRpwRrOo7PhhCQ==
+  dependencies:
+    tslib "^2.4.0"
+
+"@aztec/l1-artifacts@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/l1-artifacts/-/l1-artifacts-4.0.0-spartan.20260211.tgz#9320b23cfdabf08a52e3ad927cc8218a688ea88e"
+  integrity sha512-DmMY7y2cqk2lSD+15oBnw6ZOEB4zU0aywBIavKMttubiclKlzQPNIi5sE0hC91XZoquJjsDIy5N/ijJ7C+ntNQ==
+  dependencies:
+    tslib "^2.4.0"
+
+"@aztec/l1-artifacts@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/l1-artifacts/-/l1-artifacts-4.0.0-spartan.20260218.tgz#7a2598a9791aaab9467c82fe9131e81bdc82eb89"
+  integrity sha512-qrtsfOP6gnAISRBeQPUk6KEGDPRwxTL+nhSC2uW8I+oAxS6+KRthpRsuYpv0Q41XW024V5BCPIFfp8hYLmMJFA==
   dependencies:
     tslib "^2.4.0"
 
@@ -826,6 +1128,28 @@
     sha256 "^0.2.0"
     tslib "^2.4.0"
 
+"@aztec/merkle-tree@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/merkle-tree/-/merkle-tree-4.0.0-spartan.20260211.tgz#2399bcbee5927105f137123080745927329190dd"
+  integrity sha512-DI+pbpRNJe1cxyygnGTg781upywJjlM7JvRHoDEP4/Ui6porE+RYHfmIkPkx6EmWCb+eU6PNBCVnQz4z0vpZ9g==
+  dependencies:
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/kv-store" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    sha256 "^0.2.0"
+    tslib "^2.4.0"
+
+"@aztec/merkle-tree@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/merkle-tree/-/merkle-tree-4.0.0-spartan.20260218.tgz#abdbbf5d958f86121b2dfa687cf98a7d7525fd2a"
+  integrity sha512-8nyhA8S8ExChc6Xo/KA9PuBdT+OOmfkybpMjWj1f6y+Ih1zE0Juwz4aye18S6HcgEAcogjvuDPaWUQCp5k2IdQ==
+  dependencies:
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/kv-store" "4.0.0-spartan.20260218"
+    "@aztec/stdlib" "4.0.0-spartan.20260218"
+    sha256 "^0.2.0"
+    tslib "^2.4.0"
+
 "@aztec/native@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/native/-/native-4.0.0-devnet.1-patch.0.tgz#9d056f05b0effe7641ea0550555dc939631cd9a2"
@@ -835,10 +1159,38 @@
     "@aztec/foundation" "4.0.0-devnet.1-patch.0"
     msgpackr "^1.11.2"
 
+"@aztec/native@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/native/-/native-4.0.0-spartan.20260211.tgz#926418a01a1c06e34b2870bbe6441203282ebff1"
+  integrity sha512-UQPF1K/h8jEOStmEhzowvzlOE9d3/1FsaY74ZDyAeWtw0N1SZMtGXCz39/M/BRWK/Q65QYRvlrtNvL+Vwf/nCQ==
+  dependencies:
+    "@aztec/bb.js" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    msgpackr "^1.11.2"
+
+"@aztec/native@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/native/-/native-4.0.0-spartan.20260218.tgz#c075c34fa1b3f8e4c28e80434dfa38b2d1b1fa9e"
+  integrity sha512-FHKFPgwUrSL/ntxX3x2pbbI4HcPKO9Hmf4Ob3XrEXkPhoSsoo6Dwl0dAYsr4F+RsZVeNVjjMeFOAZ5Y4X/EIlA==
+  dependencies:
+    "@aztec/bb.js" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    msgpackr "^1.11.2"
+
 "@aztec/noir-acvm_js@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/noir-acvm_js/-/noir-acvm_js-4.0.0-devnet.1-patch.0.tgz#aea0aca24b9fae8ff15430bf542ee558a96305b1"
   integrity sha512-dJSp+1W4F3pfVd5IsgtR1jWmZF07YpHNCKIaXBrNbq547WTQoyB9v5AzTKxKOcRzh0mdtsRR9MBUWioiD62RUA==
+
+"@aztec/noir-acvm_js@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/noir-acvm_js/-/noir-acvm_js-4.0.0-spartan.20260211.tgz#09eb7a3e8ed1846c547f5f7212f149209ebb620d"
+  integrity sha512-WD29gHW/gaqKC8tQrpUiN/weAXpJvBfSVIF8pZ30uMFqhwgywe9nSdp5+pLylZmhsGOvjjJihvKqn89SdAXDog==
+
+"@aztec/noir-acvm_js@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/noir-acvm_js/-/noir-acvm_js-4.0.0-spartan.20260218.tgz#a97c0c03c82b56fd1a67986143cf86dedbf8f63f"
+  integrity sha512-qTJhKt4n1tdSU8G2wkwWkKB8BnFJMuuA9MT9LbnWfDZEhrE8LrOL0ItS18WFriZfsw8Af0b9mf+bWlLw90ks6A==
 
 "@aztec/noir-contracts.js@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
@@ -846,6 +1198,22 @@
   integrity sha512-fVB7bsw7gwHtP/tKH6wA9XFTfUTkhyqnU5Gw7tq41FSzrHxYlAih+f+r1r0UalKsg7l/vy058DYWOIE+XJA9bw==
   dependencies:
     "@aztec/aztec.js" "4.0.0-devnet.1-patch.0"
+    tslib "^2.4.0"
+
+"@aztec/noir-contracts.js@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/noir-contracts.js/-/noir-contracts.js-4.0.0-spartan.20260211.tgz#aacc337e9a27aec8eba67eef07b6378e96a73137"
+  integrity sha512-wWH/YaZ8QsNVfCCMKAmg0XsImUxv9q2qOHSKOyiFkkNsHyHHi8Ty7rijpPx6/BiKPlxxMTdMkMV7i8imRdIx7w==
+  dependencies:
+    "@aztec/aztec.js" "4.0.0-spartan.20260211"
+    tslib "^2.4.0"
+
+"@aztec/noir-contracts.js@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/noir-contracts.js/-/noir-contracts.js-4.0.0-spartan.20260218.tgz#46ae0e3ee800b7a6ed1312329765279e379548aa"
+  integrity sha512-CNXTZlf9JpZxK4oOZ6y45/Rx0kD67mnZBT6FA/sXX6/KCegrmBjOoPzL49HgVk4qBMW0fIGaMmxk3lQHcojaFg==
+  dependencies:
+    "@aztec/aztec.js" "4.0.0-spartan.20260218"
     tslib "^2.4.0"
 
 "@aztec/noir-noir_codegen@4.0.0-devnet.1-patch.0":
@@ -857,12 +1225,44 @@
     glob "^13.0.0"
     ts-command-line-args "^2.5.1"
 
+"@aztec/noir-noir_codegen@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/noir-noir_codegen/-/noir-noir_codegen-4.0.0-spartan.20260211.tgz#a6e8a2a24395f3defac8d67a07d5a560d68195f2"
+  integrity sha512-ac3be0jAb1n+Q4EHeGcLKHE0jKVmuix9XRbojBwVKZ1BhR/zPWy1tFygawydKKziFBKnYc1KNGdcg0lZCoCc2A==
+  dependencies:
+    "@aztec/noir-types" "4.0.0-spartan.20260211"
+    glob "^13.0.0"
+    ts-command-line-args "^2.5.1"
+
+"@aztec/noir-noir_codegen@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/noir-noir_codegen/-/noir-noir_codegen-4.0.0-spartan.20260218.tgz#6926fcbcb31d1283b96d3c1dcd75f6b66a0c3d04"
+  integrity sha512-c2tMoHEAbg9G5kX7691jnFoOcfnyqfpiIygAkGJfuFFbp3lzhH4kpj5/QPC2aWlbeGFzYaU2mag+9M3UB0IvFQ==
+  dependencies:
+    "@aztec/noir-types" "4.0.0-spartan.20260218"
+    glob "^13.0.0"
+    ts-command-line-args "^2.5.1"
+
 "@aztec/noir-noirc_abi@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/noir-noirc_abi/-/noir-noirc_abi-4.0.0-devnet.1-patch.0.tgz#263f2a58db41bede66f8bc3bdcbc6e29a79875da"
   integrity sha512-lphqr1W9kGcVjycS9KseLD4KBtz4g4iWFto9SNpTomzGlPd9bYgRDqSkUkuv3NURuElQwxrdFAVTh93D7P/Htg==
   dependencies:
     "@aztec/noir-types" "4.0.0-devnet.1-patch.0"
+
+"@aztec/noir-noirc_abi@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/noir-noirc_abi/-/noir-noirc_abi-4.0.0-spartan.20260211.tgz#d0ca2ee5b4830602282d8ab9232c94f950d7a9c8"
+  integrity sha512-cayM7syoo/k8WzY+9qMbDgcO+m27cCmFSLvybq3AqxGCBlveYP+/jtFmxklXSfgmquPG+5R8NDB4iOtg2ipT0A==
+  dependencies:
+    "@aztec/noir-types" "4.0.0-spartan.20260211"
+
+"@aztec/noir-noirc_abi@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/noir-noirc_abi/-/noir-noirc_abi-4.0.0-spartan.20260218.tgz#43628873ec1a6871aa1ce35d4e35e7dd5659808f"
+  integrity sha512-BmsUeBg6g3HnpDWrQPqjAfjiCcYnEtpFNMUa88RUIiRAgcjAQF4w+lStFRm3iz74EjS1BFS/uj9YjNvdyMVOFQ==
+  dependencies:
+    "@aztec/noir-types" "4.0.0-spartan.20260218"
 
 "@aztec/noir-protocol-circuits-types@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
@@ -880,10 +1280,52 @@
     change-case "^5.4.4"
     tslib "^2.4.0"
 
+"@aztec/noir-protocol-circuits-types@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/noir-protocol-circuits-types/-/noir-protocol-circuits-types-4.0.0-spartan.20260211.tgz#df808a19de46d908dc75c08867bb64705ba95a33"
+  integrity sha512-IRUT4hUG3AqMEHDzsBawMmCE799danKBySo5n5RE2Is7JmW0rGPA37ycWBJUwAUQUHvZ5GC1VC3/Iv35nwKu8A==
+  dependencies:
+    "@aztec/blob-lib" "4.0.0-spartan.20260211"
+    "@aztec/constants" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/noir-acvm_js" "4.0.0-spartan.20260211"
+    "@aztec/noir-noir_codegen" "4.0.0-spartan.20260211"
+    "@aztec/noir-noirc_abi" "4.0.0-spartan.20260211"
+    "@aztec/noir-types" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    change-case "^5.4.4"
+    tslib "^2.4.0"
+
+"@aztec/noir-protocol-circuits-types@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/noir-protocol-circuits-types/-/noir-protocol-circuits-types-4.0.0-spartan.20260218.tgz#1a4fe2e6a3db3ce307443af0c72d5353b6840713"
+  integrity sha512-D9L2asYlT50eB7zYlKlVh14cS/uWPrk+AR7aeyZeJbEtu7rQLyrXkgTp2I3DcIBqIEdUluVJlyafQ6VZUhx1IA==
+  dependencies:
+    "@aztec/blob-lib" "4.0.0-spartan.20260218"
+    "@aztec/constants" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/noir-acvm_js" "4.0.0-spartan.20260218"
+    "@aztec/noir-noir_codegen" "4.0.0-spartan.20260218"
+    "@aztec/noir-noirc_abi" "4.0.0-spartan.20260218"
+    "@aztec/noir-types" "4.0.0-spartan.20260218"
+    "@aztec/stdlib" "4.0.0-spartan.20260218"
+    change-case "^5.4.4"
+    tslib "^2.4.0"
+
 "@aztec/noir-types@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/noir-types/-/noir-types-4.0.0-devnet.1-patch.0.tgz#fa681cd4ecc290cd319718be70f249cbfd47c5b9"
   integrity sha512-VVtp8lF4pLLxQ+k+HheorUSyY2w0izP2P+XpvgsCqArkOfmODDj3m5Nh8+cUCO8N/mK035cEj5MF/aScixwdAQ==
+
+"@aztec/noir-types@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/noir-types/-/noir-types-4.0.0-spartan.20260211.tgz#e2dafa7f3264894875814e38fe08dc424a7f88f8"
+  integrity sha512-Ny0PwfZEMGmOz3gkYNnnGFk3yenG7ZcuiX5Zdf0D/m2WUMxDRntWsxFDETsIAbE26ZtE0XPQ2gqBeRRM2QYfuw==
+
+"@aztec/noir-types@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/noir-types/-/noir-types-4.0.0-spartan.20260218.tgz#0fd935c33bd70b5aa86da1f004f453beeec0503e"
+  integrity sha512-rGgShQx1sD2Hc8lxEL0PfYF6bE59Gl+QEXgPMugNeiv0mD3UjoTl5Hosg5UIoIh1/OapELetF2FAgvGmRqQXzA==
 
 "@aztec/protocol-contracts@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
@@ -893,6 +1335,30 @@
     "@aztec/constants" "4.0.0-devnet.1-patch.0"
     "@aztec/foundation" "4.0.0-devnet.1-patch.0"
     "@aztec/stdlib" "4.0.0-devnet.1-patch.0"
+    lodash.chunk "^4.2.0"
+    lodash.omit "^4.5.0"
+    tslib "^2.4.0"
+
+"@aztec/protocol-contracts@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/protocol-contracts/-/protocol-contracts-4.0.0-spartan.20260211.tgz#055b6946bae8b2e713769c07e90aa853062a6b35"
+  integrity sha512-D5OG6+dTAOZRBg1GveGyfZZ7rtDUv8b07KJV8qg1MsqTu5jNgTGKl+S6WKJ4kSr0WWaVTjxyBLs9kfopuSp+Uw==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    lodash.chunk "^4.2.0"
+    lodash.omit "^4.5.0"
+    tslib "^2.4.0"
+
+"@aztec/protocol-contracts@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/protocol-contracts/-/protocol-contracts-4.0.0-spartan.20260218.tgz#923ef2fb850c44ee5ec4ebebd5305308f4fb2dd6"
+  integrity sha512-0kxgsPSHnJTlQJqgJGalOuvbf4wddwW1qqOb5sw/4UeAaLuvOb1/r9CcsrnYs8VSKOEjHc39bkZmaq0ftmXfMA==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/stdlib" "4.0.0-spartan.20260218"
     lodash.chunk "^4.2.0"
     lodash.omit "^4.5.0"
     tslib "^2.4.0"
@@ -922,6 +1388,56 @@
     tslib "^2.4.0"
     viem "npm:@aztec/viem@2.38.2"
 
+"@aztec/pxe@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/pxe/-/pxe-4.0.0-spartan.20260211.tgz#60c88226c7b265321df78691845bec527f07bb9d"
+  integrity sha512-qHQGWfLFCR2Qm5rK5g5QHDDDxo36ioNPpBJFb1Su35y4sHz48rd4JvEJ+9d8KFV7suwAhYYhZF5IJ8nL7dm/+Q==
+  dependencies:
+    "@aztec/bb-prover" "4.0.0-spartan.20260211"
+    "@aztec/bb.js" "4.0.0-spartan.20260211"
+    "@aztec/builder" "4.0.0-spartan.20260211"
+    "@aztec/constants" "4.0.0-spartan.20260211"
+    "@aztec/ethereum" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/key-store" "4.0.0-spartan.20260211"
+    "@aztec/kv-store" "4.0.0-spartan.20260211"
+    "@aztec/noir-protocol-circuits-types" "4.0.0-spartan.20260211"
+    "@aztec/noir-types" "4.0.0-spartan.20260211"
+    "@aztec/protocol-contracts" "4.0.0-spartan.20260211"
+    "@aztec/simulator" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    koa "^2.16.1"
+    koa-router "^13.1.1"
+    lodash.omit "^4.5.0"
+    sha3 "^2.1.4"
+    tslib "^2.4.0"
+    viem "npm:@aztec/viem@2.38.2"
+
+"@aztec/pxe@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/pxe/-/pxe-4.0.0-spartan.20260218.tgz#494a53688d407e40d78643d0387b4f591bdb712b"
+  integrity sha512-GUCAQ9242JwYj5apo9luvcLqm77tyRVRlhz9ia2KA70hlCVKnvdRlOFzjZIBt8kqUwCc66MQJeoj+V2MZvxifg==
+  dependencies:
+    "@aztec/bb-prover" "4.0.0-spartan.20260218"
+    "@aztec/bb.js" "4.0.0-spartan.20260218"
+    "@aztec/builder" "4.0.0-spartan.20260218"
+    "@aztec/constants" "4.0.0-spartan.20260218"
+    "@aztec/ethereum" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/key-store" "4.0.0-spartan.20260218"
+    "@aztec/kv-store" "4.0.0-spartan.20260218"
+    "@aztec/noir-protocol-circuits-types" "4.0.0-spartan.20260218"
+    "@aztec/noir-types" "4.0.0-spartan.20260218"
+    "@aztec/protocol-contracts" "4.0.0-spartan.20260218"
+    "@aztec/simulator" "4.0.0-spartan.20260218"
+    "@aztec/stdlib" "4.0.0-spartan.20260218"
+    koa "^2.16.1"
+    koa-router "^13.1.1"
+    lodash.omit "^4.5.0"
+    sha3 "^2.1.4"
+    tslib "^2.4.0"
+    viem "npm:@aztec/viem@2.38.2"
+
 "@aztec/simulator@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/simulator/-/simulator-4.0.0-devnet.1-patch.0.tgz#b678f7469262730755d2fe8d553b4445cd1d131c"
@@ -942,6 +1458,46 @@
     lodash.merge "^4.6.2"
     tslib "^2.4.0"
 
+"@aztec/simulator@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/simulator/-/simulator-4.0.0-spartan.20260211.tgz#f0ad6ee0e9e348b137e64c9e546ed33fd12cb0d3"
+  integrity sha512-4j78uNtz/h08MOEF5oI3aosGCwkYvEsfJYqS1e5mo2VaQxRS6wGl9nD3ftknk7m6K38k/k8euwnVXdIRXtXZXQ==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/native" "4.0.0-spartan.20260211"
+    "@aztec/noir-acvm_js" "4.0.0-spartan.20260211"
+    "@aztec/noir-noirc_abi" "4.0.0-spartan.20260211"
+    "@aztec/noir-protocol-circuits-types" "4.0.0-spartan.20260211"
+    "@aztec/noir-types" "4.0.0-spartan.20260211"
+    "@aztec/protocol-contracts" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    "@aztec/telemetry-client" "4.0.0-spartan.20260211"
+    "@aztec/world-state" "4.0.0-spartan.20260211"
+    lodash.clonedeep "^4.5.0"
+    lodash.merge "^4.6.2"
+    tslib "^2.4.0"
+
+"@aztec/simulator@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/simulator/-/simulator-4.0.0-spartan.20260218.tgz#fd4b1c7479c474478c81d3952119c66f50444e2a"
+  integrity sha512-dDx+0LHFrO26tx97XcG+Fpz+M2sHYoWZr4Gbaj48Z6/eBgO3eGsFdbxPgOX2VnfPShxEXfDUYeAfCobvnCPFXA==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/native" "4.0.0-spartan.20260218"
+    "@aztec/noir-acvm_js" "4.0.0-spartan.20260218"
+    "@aztec/noir-noirc_abi" "4.0.0-spartan.20260218"
+    "@aztec/noir-protocol-circuits-types" "4.0.0-spartan.20260218"
+    "@aztec/noir-types" "4.0.0-spartan.20260218"
+    "@aztec/protocol-contracts" "4.0.0-spartan.20260218"
+    "@aztec/stdlib" "4.0.0-spartan.20260218"
+    "@aztec/telemetry-client" "4.0.0-spartan.20260218"
+    "@aztec/world-state" "4.0.0-spartan.20260218"
+    lodash.clonedeep "^4.5.0"
+    lodash.merge "^4.6.2"
+    tslib "^2.4.0"
+
 "@aztec/stdlib@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/stdlib/-/stdlib-4.0.0-devnet.1-patch.0.tgz#578598dda71129bda1007d0ba71b3c5bf4d8922f"
@@ -956,6 +1512,60 @@
     "@aztec/l1-artifacts" "4.0.0-devnet.1-patch.0"
     "@aztec/noir-noirc_abi" "4.0.0-devnet.1-patch.0"
     "@aztec/validator-ha-signer" "4.0.0-devnet.1-patch.0"
+    "@google-cloud/storage" "^7.15.0"
+    axios "^1.12.0"
+    json-stringify-deterministic "1.0.12"
+    lodash.chunk "^4.2.0"
+    lodash.isequal "^4.5.0"
+    lodash.omit "^4.5.0"
+    lodash.times "^4.3.2"
+    msgpackr "^1.11.2"
+    pako "^2.1.0"
+    tslib "^2.4.0"
+    viem "npm:@aztec/viem@2.38.2"
+    zod "^3.23.8"
+
+"@aztec/stdlib@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/stdlib/-/stdlib-4.0.0-spartan.20260211.tgz#57424fea241645aeb6fd94fa1804ae7eb2987dbc"
+  integrity sha512-cNNVeuz8fl24l22ulsvNAg86GURNM7BFJjeUPSz+MhrDS+RoenSs1KjQy6eVJHqo9HEXBuT5qKPWuC06/DxoCg==
+  dependencies:
+    "@aws-sdk/client-s3" "^3.892.0"
+    "@aztec/bb.js" "4.0.0-spartan.20260211"
+    "@aztec/blob-lib" "4.0.0-spartan.20260211"
+    "@aztec/constants" "4.0.0-spartan.20260211"
+    "@aztec/ethereum" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/l1-artifacts" "4.0.0-spartan.20260211"
+    "@aztec/noir-noirc_abi" "4.0.0-spartan.20260211"
+    "@aztec/validator-ha-signer" "4.0.0-spartan.20260211"
+    "@google-cloud/storage" "^7.15.0"
+    axios "^1.12.0"
+    json-stringify-deterministic "1.0.12"
+    lodash.chunk "^4.2.0"
+    lodash.isequal "^4.5.0"
+    lodash.omit "^4.5.0"
+    lodash.times "^4.3.2"
+    msgpackr "^1.11.2"
+    pako "^2.1.0"
+    tslib "^2.4.0"
+    viem "npm:@aztec/viem@2.38.2"
+    zod "^3.23.8"
+
+"@aztec/stdlib@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/stdlib/-/stdlib-4.0.0-spartan.20260218.tgz#94b606915ad1de8538fa8552361abffc40fe7536"
+  integrity sha512-0+6mwTG3DKdhrc52lQWeIISLFa4wf8nqfcvEGMpaxEJtYp0p9VO7luyL+Gfhw0BnX7jYyP528/twstYX0GauhQ==
+  dependencies:
+    "@aws-sdk/client-s3" "^3.892.0"
+    "@aztec/bb.js" "4.0.0-spartan.20260218"
+    "@aztec/blob-lib" "4.0.0-spartan.20260218"
+    "@aztec/constants" "4.0.0-spartan.20260218"
+    "@aztec/ethereum" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/l1-artifacts" "4.0.0-spartan.20260218"
+    "@aztec/noir-noirc_abi" "4.0.0-spartan.20260218"
+    "@aztec/validator-ha-signer" "4.0.0-spartan.20260218"
     "@google-cloud/storage" "^7.15.0"
     axios "^1.12.0"
     json-stringify-deterministic "1.0.12"
@@ -993,6 +1603,54 @@
     prom-client "^15.1.3"
     viem "npm:@aztec/viem@2.38.2"
 
+"@aztec/telemetry-client@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/telemetry-client/-/telemetry-client-4.0.0-spartan.20260211.tgz#d41d3a521ba381f620220a6b094f0407bc60ad5e"
+  integrity sha512-Vwd3FOD9N4dX5HyId67fx3CzDrDyTdJ4uAwY+n9mfTNjU72KzqaKaGDX9On4AZPgRGQiIw8eMf37p62mIKGEqg==
+  dependencies:
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    "@opentelemetry/api" "^1.9.0"
+    "@opentelemetry/api-logs" "^0.55.0"
+    "@opentelemetry/core" "^1.28.0"
+    "@opentelemetry/exporter-logs-otlp-http" "^0.55.0"
+    "@opentelemetry/exporter-metrics-otlp-http" "^0.55.0"
+    "@opentelemetry/exporter-trace-otlp-http" "^0.55.0"
+    "@opentelemetry/host-metrics" "^0.36.2"
+    "@opentelemetry/otlp-exporter-base" "^0.55.0"
+    "@opentelemetry/resource-detector-gcp" "^0.32.0"
+    "@opentelemetry/resources" "^1.28.0"
+    "@opentelemetry/sdk-logs" "^0.55.0"
+    "@opentelemetry/sdk-metrics" "^1.28.0"
+    "@opentelemetry/sdk-trace-node" "^1.28.0"
+    "@opentelemetry/semantic-conventions" "^1.28.0"
+    prom-client "^15.1.3"
+    viem "npm:@aztec/viem@2.38.2"
+
+"@aztec/telemetry-client@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/telemetry-client/-/telemetry-client-4.0.0-spartan.20260218.tgz#7cec1afafa361e7fce98505554c1d816d456db1d"
+  integrity sha512-d5yOVb3HHV+fDePhHRjhRJLTxfhCkrjS1/nTx1NnBHdbHuHitxlHyw2xjQeDTd6qaKA7sIKmIjhsZEwdZbBYBQ==
+  dependencies:
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/stdlib" "4.0.0-spartan.20260218"
+    "@opentelemetry/api" "^1.9.0"
+    "@opentelemetry/api-logs" "^0.55.0"
+    "@opentelemetry/core" "^1.28.0"
+    "@opentelemetry/exporter-logs-otlp-http" "^0.55.0"
+    "@opentelemetry/exporter-metrics-otlp-http" "^0.55.0"
+    "@opentelemetry/exporter-trace-otlp-http" "^0.55.0"
+    "@opentelemetry/host-metrics" "^0.36.2"
+    "@opentelemetry/otlp-exporter-base" "^0.55.0"
+    "@opentelemetry/resource-detector-gcp" "^0.32.0"
+    "@opentelemetry/resources" "^1.28.0"
+    "@opentelemetry/sdk-logs" "^0.55.0"
+    "@opentelemetry/sdk-metrics" "^1.28.0"
+    "@opentelemetry/sdk-trace-node" "^1.28.0"
+    "@opentelemetry/semantic-conventions" "^1.28.0"
+    prom-client "^15.1.3"
+    viem "npm:@aztec/viem@2.38.2"
+
 "@aztec/test-wallet@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/test-wallet/-/test-wallet-4.0.0-devnet.1-patch.0.tgz#a027e252b21643810d423e615c942c9dcdb307d8"
@@ -1007,6 +1665,20 @@
     "@aztec/stdlib" "4.0.0-devnet.1-patch.0"
     "@aztec/wallet-sdk" "4.0.0-devnet.1-patch.0"
 
+"@aztec/test-wallet@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/test-wallet/-/test-wallet-4.0.0-spartan.20260211.tgz#b59a07e27bb0ae19f19fd919a5cfdffd3d86ea85"
+  integrity sha512-FbC9Nkwpe5KiFZz9JHQB6hCOZ9LtCQUqmFpoP3+1rG/OIDuok5G6vLyD6LHB/0JSfAuwNdwvmyHYOYjjSC+KTw==
+  dependencies:
+    "@aztec/accounts" "4.0.0-spartan.20260211"
+    "@aztec/aztec.js" "4.0.0-spartan.20260211"
+    "@aztec/entrypoints" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/noir-contracts.js" "4.0.0-spartan.20260211"
+    "@aztec/pxe" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    "@aztec/wallet-sdk" "4.0.0-spartan.20260211"
+
 "@aztec/validator-ha-signer@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/validator-ha-signer/-/validator-ha-signer-4.0.0-devnet.1-patch.0.tgz#d2d51016f1d2ed5fc752106767951d732a660972"
@@ -1014,6 +1686,30 @@
   dependencies:
     "@aztec/ethereum" "4.0.0-devnet.1-patch.0"
     "@aztec/foundation" "4.0.0-devnet.1-patch.0"
+    node-pg-migrate "^8.0.4"
+    pg "^8.11.3"
+    tslib "^2.4.0"
+    zod "^3.23.8"
+
+"@aztec/validator-ha-signer@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/validator-ha-signer/-/validator-ha-signer-4.0.0-spartan.20260211.tgz#4215ec2055b634fab95051a3204d2710af3a5232"
+  integrity sha512-SHoIXmWAbpk8PZcSmsWVZMFOFlIIYkreIkgw92QKJvLv/ERALjMHz79oByZw5vwyDCc4O0sH9mxaUhMWhcYWpw==
+  dependencies:
+    "@aztec/ethereum" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    node-pg-migrate "^8.0.4"
+    pg "^8.11.3"
+    tslib "^2.4.0"
+    zod "^3.23.8"
+
+"@aztec/validator-ha-signer@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/validator-ha-signer/-/validator-ha-signer-4.0.0-spartan.20260218.tgz#aeac9ecc2522431af5aec56f623ed17def301940"
+  integrity sha512-IoMf1K1wf8gtHE5ZaH+kVfGp4Kccmo5XpJN0LKAJvGS3CgwL657ASTDwPTbORGADYBFESkV2gyhsUeb7jrrevQ==
+  dependencies:
+    "@aztec/ethereum" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
     node-pg-migrate "^8.0.4"
     pg "^8.11.3"
     tslib "^2.4.0"
@@ -1031,6 +1727,18 @@
     "@aztec/pxe" "4.0.0-devnet.1-patch.0"
     "@aztec/stdlib" "4.0.0-devnet.1-patch.0"
 
+"@aztec/wallet-sdk@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/wallet-sdk/-/wallet-sdk-4.0.0-spartan.20260211.tgz#d3a458fe426b1ff25876bebbee8ec758215dc125"
+  integrity sha512-9krLv8x25eVtnMHUpLhn9c+ru/yVRDeYMQzYMZeQXtPU2pw9Dw2+0mAH6O7l6GetHo7OTq3Pt54//4SlZ2njDA==
+  dependencies:
+    "@aztec/aztec.js" "4.0.0-spartan.20260211"
+    "@aztec/constants" "4.0.0-spartan.20260211"
+    "@aztec/entrypoints" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/pxe" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+
 "@aztec/world-state@4.0.0-devnet.1-patch.0":
   version "4.0.0-devnet.1-patch.0"
   resolved "https://registry.yarnpkg.com/@aztec/world-state/-/world-state-4.0.0-devnet.1-patch.0.tgz#0b85576dca9a5471e1581ef90002f16934626eb1"
@@ -1044,6 +1752,38 @@
     "@aztec/protocol-contracts" "4.0.0-devnet.1-patch.0"
     "@aztec/stdlib" "4.0.0-devnet.1-patch.0"
     "@aztec/telemetry-client" "4.0.0-devnet.1-patch.0"
+    tslib "^2.4.0"
+    zod "^3.23.8"
+
+"@aztec/world-state@4.0.0-spartan.20260211":
+  version "4.0.0-spartan.20260211"
+  resolved "https://registry.yarnpkg.com/@aztec/world-state/-/world-state-4.0.0-spartan.20260211.tgz#1c73926717134709f46abd0ecdc559198b3698c6"
+  integrity sha512-pOpgG3ct5nUX30nIrz4F0hQ1zyHvILDgp4IaBzrd8XA1V37d9nxduDTsZR0uLrrGz6EZKL+yF7zjziLvA5+1+w==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260211"
+    "@aztec/foundation" "4.0.0-spartan.20260211"
+    "@aztec/kv-store" "4.0.0-spartan.20260211"
+    "@aztec/merkle-tree" "4.0.0-spartan.20260211"
+    "@aztec/native" "4.0.0-spartan.20260211"
+    "@aztec/protocol-contracts" "4.0.0-spartan.20260211"
+    "@aztec/stdlib" "4.0.0-spartan.20260211"
+    "@aztec/telemetry-client" "4.0.0-spartan.20260211"
+    tslib "^2.4.0"
+    zod "^3.23.8"
+
+"@aztec/world-state@4.0.0-spartan.20260218":
+  version "4.0.0-spartan.20260218"
+  resolved "https://registry.yarnpkg.com/@aztec/world-state/-/world-state-4.0.0-spartan.20260218.tgz#69c35ac452a6463df5270a5c45c2cdc66dec7708"
+  integrity sha512-NTJ/upF48GdKKHtfIgXB6tSL+hKzbc+31quh3FwdrWnF6FW1lJaApa7Yxk8kjnKAPi5ztaUlDfoNVuXG7pOmxg==
+  dependencies:
+    "@aztec/constants" "4.0.0-spartan.20260218"
+    "@aztec/foundation" "4.0.0-spartan.20260218"
+    "@aztec/kv-store" "4.0.0-spartan.20260218"
+    "@aztec/merkle-tree" "4.0.0-spartan.20260218"
+    "@aztec/native" "4.0.0-spartan.20260218"
+    "@aztec/protocol-contracts" "4.0.0-spartan.20260218"
+    "@aztec/stdlib" "4.0.0-spartan.20260218"
+    "@aztec/telemetry-client" "4.0.0-spartan.20260218"
     tslib "^2.4.0"
     zod "^3.23.8"
 

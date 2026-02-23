@@ -44,17 +44,17 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
-    "@aztec/accounts": "4.0.0-devnet.1-patch.0",
-    "@aztec/aztec.js": "4.0.0-devnet.1-patch.0",
-    "@aztec/constants": "4.0.0-devnet.1-patch.0",
-    "@aztec/entrypoints": "4.0.0-devnet.1-patch.0",
-    "@aztec/ethereum": "4.0.0-devnet.1-patch.0",
-    "@aztec/foundation": "4.0.0-devnet.1-patch.0",
-    "@aztec/noir-contracts.js": "4.0.0-devnet.1-patch.0",
-    "@aztec/protocol-contracts": "4.0.0-devnet.1-patch.0",
-    "@aztec/pxe": "4.0.0-devnet.1-patch.0",
-    "@aztec/stdlib": "4.0.0-devnet.1-patch.0",
-    "@aztec/test-wallet": "4.0.0-devnet.1-patch.0",
+    "@aztec/accounts": "4.0.0-spartan.20260218",
+    "@aztec/aztec.js": "4.0.0-spartan.20260218",
+    "@aztec/constants": "4.0.0-spartan.20260218",
+    "@aztec/entrypoints": "4.0.0-spartan.20260218",
+    "@aztec/ethereum": "4.0.0-spartan.20260218",
+    "@aztec/foundation": "4.0.0-spartan.20260218",
+    "@aztec/noir-contracts.js": "4.0.0-spartan.20260218",
+    "@aztec/protocol-contracts": "4.0.0-spartan.20260218",
+    "@aztec/pxe": "4.0.0-spartan.20260218",
+    "@aztec/stdlib": "4.0.0-spartan.20260218",
+    "@aztec/test-wallet": "4.0.0-spartan.20260211",
     "@commitlint/cli": "20.4.1",
     "@commitlint/config-conventional": "20.4.1",
     "@defi-wonderland/aztec-benchmark": "4.0.0-devnet.1-patch.0",
@@ -82,6 +82,6 @@
   },
   "resolutions": {
     "@noble/hashes": "1.8.0",
-    "@aztec/foundation": "4.0.0-devnet.1-patch.0"
+    "@aztec/foundation": "4.0.0-spartan.20260218"
   }
 }
