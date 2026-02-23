@@ -9,12 +9,12 @@ pub contract Metered {
         authwit::auth::{assert_inner_hash_valid_authwit, compute_inner_authwit_hash},
         context::PrivateContext,
         macros::{
-            functions::{external, initializer, internal, allow_phase_change, only_self},
+            functions::{allow_phase_change, external, initializer, internal, only_self},
             storage::storage,
         },
         messages::message_delivery::MessageDelivery,
-        protocol::{address::AztecAddress, traits::{FromField, ToField}},
-        state_vars::{DelayedPublicMutable, Owned, PublicImmutable, StateVariable},
+        protocol::address::AztecAddress,
+        state_vars::{DelayedPublicMutable, Owned, StateVariable},
     };
     use balance_set::BalanceSet;
     use uint_note::{PartialUintNote, UintNote};
@@ -47,10 +47,7 @@ pub contract Metered {
     /// @param owner The new owner address
     #[external("public")]
     fn update_owner(owner: AztecAddress) {
-        assert(
-            self.msg_sender() == self.storage.owner.get_current_value(),
-            "caller is not owner",
-        );
+        assert(self.msg_sender() == self.storage.owner.get_current_value(), "caller is not owner");
 
         self.storage.owner.schedule_value_change(owner);
     }
