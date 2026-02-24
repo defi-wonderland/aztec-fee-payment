@@ -132,7 +132,9 @@ pub contract Metered {
     fn _refund(max_gas_cost: u128, partial_note: PartialUintNote) {
         let transaction_fee = self.context.transaction_fee();
         let refund_amount = max_gas_cost - (transaction_fee as u128);
-        partial_note.complete(self.context, self.address, refund_amount);
+        if refund_amount > 0 {
+            partial_note.complete(self.context, self.address, refund_amount);
+        }
     }
 
     /// @notice Verifies authorization via the owner's account contract.
