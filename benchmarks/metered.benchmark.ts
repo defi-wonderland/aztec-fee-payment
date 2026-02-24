@@ -11,7 +11,11 @@ import {
   computeInnerAuthWitHash,
   type AuthWitness,
 } from "@aztec/stdlib/auth-witness";
-import { createAztecNodeClient, waitForNode } from "@aztec/aztec.js/node";
+import {
+  createAztecNodeClient,
+  waitForNode,
+  type AztecNode,
+} from "@aztec/aztec.js/node";
 import {
   registerInitialLocalNetworkAccountsInWallet,
   TestWallet,
@@ -45,7 +49,7 @@ import {
 import { deployMeteredContract } from "../src/ts/utils/deploy.js";
 
 const { NODE_URL = "http://localhost:8080" } = process.env;
-const node = createAztecNodeClient(NODE_URL);
+const node: AztecNode = createAztecNodeClient(NODE_URL);
 await waitForNode(node);
 const pxeConfig = getPXEConfig();
 
@@ -222,7 +226,7 @@ export default class CounterContractBenchmark extends Benchmark {
     });
 
     // All profiler steps use REASONABLE limits (see FeeWrappedInteraction.simulate).
-    const baseFees: any = await (node as any).getCurrentMinFees();
+    const baseFees = await node.getCurrentMinFees();
     const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
 
     const gasSettings = {
