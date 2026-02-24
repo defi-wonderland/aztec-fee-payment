@@ -21,3 +21,5 @@ deployments/*/pending-claims.json
 src/ts/dist
 dist/
 export/
+wallet_data_*
+pxe_data_*
