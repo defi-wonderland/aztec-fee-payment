@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
-import { TestWallet } from "@aztec/test-wallet/server";
+import { EmbeddedWallet } from "@aztec/wallets/embedded";
 import type { AztecNode } from "@aztec/aztec.js/node";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { TxStatus } from "@aztec/aztec.js/tx";
@@ -30,7 +30,7 @@ import {
 } from "./utils.js";
 
 describe("Metered Fee Payment Contract", () => {
-  let wallet: TestWallet;
+  let wallet: EmbeddedWallet;
   let alice: AztecAddress;
   let counter: CounterContract;
   let aztecNode: AztecNode;

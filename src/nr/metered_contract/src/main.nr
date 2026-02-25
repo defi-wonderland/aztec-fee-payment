@@ -5,7 +5,7 @@ use aztec::macros::aztec;
 /// Users must have sufficient balance to cover estimated fees.
 #[aztec]
 pub contract Metered {
-    use dep::aztec::{
+    use aztec::{
         authwit::auth::{assert_inner_hash_valid_authwit, compute_inner_authwit_hash},
         context::PrivateContext,
         macros::{
