@@ -15,8 +15,12 @@ import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 import { Fr } from "@aztec/foundation/curves/bn254";
 import { createLogger } from "@aztec/foundation/log";
 import { createExtendedL1Client } from "@aztec/ethereum/client";
+import { EthCheatCodes, RollupCheatCodes } from "@aztec/ethereum/test";
+import { DateProvider } from "@aztec/foundation/timer";
+import { rmSync } from "node:fs";
 
 export const LOCAL_AZTEC_NODE_URL = "http://localhost:8080";
+const DEFAULT_L1_RPC_URL = "http://127.0.0.1:8545";
 
 export type LocalNetworkContext = {
   aztecNode: AztecNode;
@@ -36,10 +40,13 @@ export async function createLocalNetworkContext(opts?: {
     await waitForNode(aztecNode);
   }
 
+  const dataDirectory = opts?.wallet?.dataDirectory ?? "pxe-test";
+  rmSync(dataDirectory, { recursive: true, force: true });
+
   const wallet = await TestWallet.create(
     aztecNode,
     {
-      dataDirectory: opts?.wallet?.dataDirectory ?? "pxe-test",
+      dataDirectory,
       proverEnabled: opts?.wallet?.proverEnabled ?? false,
     },
     {},
@@ -124,10 +131,46 @@ export async function fundL2AddressWithFeeJuiceFromL1(
       claim.claimSecret,
       new Fr(claim.messageLeafIndex),
     )
-    .send({ from: opts.claimTxSender })
-    .wait();
+    .send({ from: opts.claimTxSender });
 
   const { getFeeJuiceBalance } = await import("@aztec/aztec.js/utils");
   const balance = await getFeeJuiceBalance(recipient, aztecNode as any);
   return { balance, messageBlock };
+}
+
+/**
+ * Advance L1 time.
+ *
+ * Warping L1 time skips L2 slots/epochs. Unproven blocks from skipped
+ * epochs get pruned by the rollup, which the PXE detects as a reorg —
+ * causing nullifier/note inconsistencies. To prevent this we mark all
+ * pending blocks as proven before the warp, using RollupCheatCodes.
+ *
+ * The warp itself pauses all Anvil block production (automine + interval
+ * mining) to avoid races where a background L1 tx consumes the pending
+ * timestamp.
+ *
+ * @param aztecNode - The Aztec node client (used to fetch L1 contract addresses)
+ * @param seconds - How many seconds to advance
+ * @param l1RpcUrl - Anvil RPC endpoint (defaults to local 8545)
+ */
+export async function warpL1Time(
+  aztecNode: Pick<AztecNode, "getL1ContractAddresses">,
+  seconds: number,
+  l1RpcUrl: string = DEFAULT_L1_RPC_URL,
+): Promise<void> {
+  const cc = new EthCheatCodes([l1RpcUrl], new DateProvider());
+  const l1Addresses = await aztecNode.getL1ContractAddresses();
+  const rollupCheatCodes = new RollupCheatCodes(cc, l1Addresses);
+
+  // Mark all pending L2 blocks as proven so the rollup won't prune them
+  // when L1 time jumps past the proof submission window.
+  await rollupCheatCodes.markAsProven();
+
+  // Warp with all block production paused to prevent races.
+  await cc.execWithPausedAnvil(async () => {
+    const before = await cc.timestamp();
+    await cc.setNextBlockTimestamp(before + seconds);
+    await cc.evmMine();
+  });
 }

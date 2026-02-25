@@ -9,7 +9,8 @@ import {
   type AuthWitness,
 } from "@aztec/stdlib/auth-witness";
 
-import { CounterContract, MeteredContract } from "../artifacts/index.js";
+import { CounterContract } from "../../artifacts/Counter.js";
+import { MeteredContract } from "../../artifacts/Metered.js";
 import {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
@@ -23,6 +24,7 @@ import {
   LOCAL_AZTEC_NODE_URL,
   createLocalNetworkContext,
   fundL2AddressWithFeeJuiceFromL1,
+  warpL1Time,
 } from "./harness.js";
 
 import {
@@ -73,6 +75,11 @@ describe("Metered Fee Payment Contract", () => {
 
     // Deploy and fund the Metered FPC (alice is the owner who authorizes mints)
     fpc = await deployMeteredContract(wallet, alice);
+
+    // Warp L1 time past the DelayedPublicMutable delay so the owner is
+    // readable in private (see harness.warpL1Time for details).
+    await warpL1Time(aztecNode, 600);
+
     const { balance } = await fundL2AddressWithFeeJuiceFromL1(
       aztecNode,
       wallet,
@@ -105,8 +112,7 @@ describe("Metered Fee Payment Contract", () => {
     await fpc.methods
       .mint(alice, MINT_AMOUNT, secret)
       .with({ authWitnesses: [authWitness] })
-      .send({ from: alice })
-      .wait();
+      .send({ from: alice });
   });
 
   // --- pay_fee (no refund) tests ---
@@ -122,18 +128,15 @@ describe("Metered Fee Payment Contract", () => {
       const { maxFeesPerGas, gasLimits, teardownGasLimits, maxGasCost } =
         await getGasSetup(aztecNode);
 
-      const receipt = await counter.methods
-        .increment()
-        .send({
-          from: alice,
-          fee: {
-            paymentMethod,
-            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
-          },
-        })
-        .wait();
+      const receipt = await counter.methods.increment().send({
+        from: alice,
+        fee: {
+          paymentMethod,
+          gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+        },
+      });
 
-      expect(receipt.status).toBe(TxStatus.SUCCESS);
+      expect(receipt.status).toBe(TxStatus.CHECKPOINTED);
 
       const fpcBalanceAfter = await getBalance(fpc.address, aztecNode);
       const internalBalanceAfter = await fpc.methods
@@ -167,18 +170,15 @@ describe("Metered Fee Payment Contract", () => {
       const { maxFeesPerGas, gasLimits, teardownGasLimits, maxGasCost } =
         await getGasSetupWithTeardown(aztecNode);
 
-      const receipt = await counter.methods
-        .increment()
-        .send({
-          from: alice,
-          fee: {
-            paymentMethod: exactPaymentMethod,
-            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
-          },
-        })
-        .wait();
+      const receipt = await counter.methods.increment().send({
+        from: alice,
+        fee: {
+          paymentMethod: exactPaymentMethod,
+          gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+        },
+      });
 
-      expect(receipt.status).toBe(TxStatus.SUCCESS);
+      expect(receipt.status).toBe(TxStatus.CHECKPOINTED);
 
       const fpcBalanceAfter = await getBalance(fpc.address, aztecNode);
       const internalBalanceAfter = await fpc.methods
@@ -245,16 +245,13 @@ describe("Metered Fee Payment Contract", () => {
 
       // Should fail because alice has no internal balance
       await expect(
-        freshCounter.methods
-          .increment()
-          .send({
-            from: alice,
-            fee: {
-              paymentMethod: freshPaymentMethod,
-              gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
-            },
-          })
-          .wait(),
+        freshCounter.methods.increment().send({
+          from: alice,
+          fee: {
+            paymentMethod: freshPaymentMethod,
+            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+          },
+        }),
       ).rejects.toThrow();
     },
     TEST_TIMEOUT,

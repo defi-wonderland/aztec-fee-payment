@@ -33,7 +33,7 @@ import {
 const fpc = await deployMeteredContract(wallet);
 
 // Mint internal balance for user
-await fpc.methods.mint(userAddress, 1_000_000_000_000n).send().wait();
+await fpc.methods.mint(userAddress, 1_000_000_000_000n).send();
 
 // User can now use the FPC
 await someContract.methods.doSomething()
@@ -44,7 +44,7 @@ await someContract.methods.doSomething()
       gasSettings: { gasLimits: REASONABLE_GAS_LIMITS, ... }
     }
   })
-  .wait();
+  ;
 ```
 
 ## Transaction Behavior

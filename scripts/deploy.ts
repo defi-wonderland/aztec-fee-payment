@@ -36,7 +36,7 @@ import { poseidon2Hash } from "@aztec/foundation/crypto/poseidon";
 import {
   MeteredContract,
   MeteredContractArtifact,
-} from "../src/ts/artifacts/Metered.js";
+} from "../src/artifacts/Metered.js";
 
 import {
   DeployedContracts,
@@ -360,8 +360,7 @@ export async function deployMetered(
     universalDeploy: true,
   };
 
-  const result = await deployMethod.send({ ...options }).wait({ timeout: 120 });
-  const contract = result.contract;
+  const contract = await deployMethod.send({ ...options });
 
   logger.info(`Metered deployed at: ${contract.address.toString()}`);
 

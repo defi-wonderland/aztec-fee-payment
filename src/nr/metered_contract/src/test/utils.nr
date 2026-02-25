@@ -26,7 +26,7 @@ use crate::Metered;
 use aztec::{
     authwit::auth::{compute_authwit_message_hash, compute_inner_authwit_hash},
     oracle::random::random,
-    protocol_types::address::AztecAddress,
+    protocol::address::AztecAddress,
     test::helpers::{test_environment::TestEnvironment, txe_oracles},
 };
 
