@@ -157,9 +157,8 @@ sequenceDiagram
     Wallet->>FPC: pay_fee() [setup phase]
     activate FPC
     FPC->>FPC: Calculate max_gas_cost from gas_settings
-    FPC->>FPC: try_sub(max_gas_cost, max_notes=1) from sender balance
-    FPC->>FPC: Assert subtracted >= max_gas_cost
-    FPC->>FPC: Add change note (subtracted - max_gas_cost) if any
+    FPC->>FPC: _deduct_max_gas_cost(sender)
+    Note right of FPC: Recursive try_sub (max_notes=2, then 8)
     FPC->>FPC: set_as_fee_payer()
     FPC->>FPC: end_setup()
     deactivate FPC
@@ -188,9 +187,8 @@ sequenceDiagram
     Wallet->>FPC: pay_fee_exact() [setup phase]
     activate FPC
     FPC->>FPC: Calculate max_gas_cost from gas_settings
-    FPC->>FPC: try_sub(max_gas_cost, max_notes=1) from sender balance
-    FPC->>FPC: Assert subtracted >= max_gas_cost
-    FPC->>FPC: Add change note (subtracted - max_gas_cost) if any
+    FPC->>FPC: _deduct_max_gas_cost(sender)
+    Note right of FPC: Recursive try_sub (max_notes=2, then 8)
     FPC->>FPC: Create PartialUintNote for sender
     FPC->>FPC: Set teardown: _refund(max_gas_cost, partial_note)
     FPC->>FPC: set_as_fee_payer()
