@@ -226,7 +226,7 @@ export default class CounterContractBenchmark extends Benchmark {
     });
 
     // All profiler steps use REASONABLE limits (see FeeWrappedInteraction.simulate).
-    const baseFees: any = await node.getCurrentMinFees();
+    const baseFees = await node.getCurrentMinFees();
     const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
 
     const gasSettings = {
