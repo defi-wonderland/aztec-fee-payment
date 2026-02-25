@@ -17,19 +17,17 @@ import {
   MeteredMintAndPayFeePaymentMethod,
   MeteredMintThenPayFeePaymentMethod,
 } from "../fee-payment-methods/index.js";
-import { deployMeteredContract } from "../utils/deploy.js";
-import { maxGasCostFor } from "../utils/gas.js";
-
 import {
   LOCAL_AZTEC_NODE_URL,
   createLocalNetworkContext,
   fundL2AddressWithFeeJuiceFromL1,
-  warpL1Time,
 } from "./harness.js";
 
 import {
   TEST_TIMEOUT,
   deployCounter,
+  deploySettledMetered,
+  deployUnsettledMetered,
   getGasSetup,
   getGasSetupWithTeardown,
   getBalance,
@@ -43,7 +41,7 @@ async function createMintAuthWit(
   amount: bigint,
   secret: Fr,
 ): Promise<AuthWitness> {
-  const innerHash = await computeInnerAuthWitHash([secret, new Fr(amount)]);
+  const innerHash = await computeInnerAuthWitHash([new Fr(amount), secret]);
   return wallet.createAuthWit(signer, {
     consumer: fpcAddress,
     innerHash,
@@ -73,12 +71,8 @@ describe("Metered Fee Payment Contract", () => {
     // Deploy counter for testing
     counter = await deployCounter(wallet);
 
-    // Deploy and fund the Metered FPC (alice is the owner who authorizes mints)
-    fpc = await deployMeteredContract(wallet, alice);
-
-    // Warp L1 time past the DelayedPublicMutable delay so the owner is
-    // readable in private (see harness.warpL1Time for details).
-    await warpL1Time(aztecNode, 600);
+    // Deploy the Metered FPC with settled owner (alice authorizes mints)
+    fpc = await deploySettledMetered(wallet, alice, aztecNode);
 
     const { balance } = await fundL2AddressWithFeeJuiceFromL1(
       aztecNode,
@@ -222,33 +216,34 @@ describe("Metered Fee Payment Contract", () => {
   it(
     "pay_fee INVALID: fails when user has insufficient balance (tx not included)",
     async () => {
-      const freshCounter = await deployCounter(wallet);
+      const testCounter = await deployCounter(wallet);
       const { maxFeesPerGas, gasLimits, teardownGasLimits } =
         await getGasSetup(aztecNode);
 
-      // Create a fresh FPC without minting internal balance
-      const freshFpc = await deployMeteredContract(wallet, alice);
+      // Deploy FPC without minting internal balance (owner unsettled is fine
+      // since pay_fee doesn't read the owner)
+      const emptyFpc = await deployUnsettledMetered(wallet, alice);
       await fundL2AddressWithFeeJuiceFromL1(
         aztecNode,
         wallet,
-        freshFpc.address,
+        emptyFpc.address,
         {
           claimTxSender: alice,
           produceL2Block: async () => {
             await deployCounter(wallet);
           },
-          loggerName: "test:metered-fresh",
+          loggerName: "test:metered-empty",
         },
       );
 
-      const freshPaymentMethod = new MeteredFeePaymentMethod(freshFpc.address);
+      const emptyPaymentMethod = new MeteredFeePaymentMethod(emptyFpc.address);
 
       // Should fail because alice has no internal balance
       await expect(
-        freshCounter.methods.increment().send({
+        testCounter.methods.increment().send({
           from: alice,
           fee: {
-            paymentMethod: freshPaymentMethod,
+            paymentMethod: emptyPaymentMethod,
             gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
           },
         }),
@@ -260,41 +255,39 @@ describe("Metered Fee Payment Contract", () => {
   it(
     "pay_fee_exact INVALID: fails when user has zero balance",
     async () => {
-      const freshCounter = await deployCounter(wallet);
+      const testCounter = await deployCounter(wallet);
       const { maxFeesPerGas, gasLimits, teardownGasLimits } =
         await getGasSetupWithTeardown(aztecNode);
 
-      // Create a fresh FPC without minting internal balance
-      const freshFpc = await deployMeteredContract(wallet, alice);
+      // Deploy FPC without minting internal balance (owner unsettled is fine
+      // since pay_fee_exact doesn't read the owner)
+      const emptyFpc = await deployUnsettledMetered(wallet, alice);
       await fundL2AddressWithFeeJuiceFromL1(
         aztecNode,
         wallet,
-        freshFpc.address,
+        emptyFpc.address,
         {
           claimTxSender: alice,
           produceL2Block: async () => {
             await deployCounter(wallet);
           },
-          loggerName: "test:metered-exact-fresh",
+          loggerName: "test:metered-exact-empty",
         },
       );
 
-      const freshExactPaymentMethod = new MeteredExactFeePaymentMethod(
-        freshFpc.address,
+      const emptyExactPaymentMethod = new MeteredExactFeePaymentMethod(
+        emptyFpc.address,
       );
 
       // Should fail because alice has no internal balance
       await expect(
-        freshCounter.methods
-          .increment()
-          .send({
-            from: alice,
-            fee: {
-              paymentMethod: freshExactPaymentMethod,
-              gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
-            },
-          })
-          .wait(),
+        testCounter.methods.increment().send({
+          from: alice,
+          fee: {
+            paymentMethod: emptyExactPaymentMethod,
+            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+          },
+        }),
       ).rejects.toThrow();
     },
     TEST_TIMEOUT,
@@ -331,18 +324,15 @@ describe("Metered Fee Payment Contract", () => {
         authWitness,
       );
 
-      const receipt = await counter.methods
-        .increment()
-        .send({
-          from: alice,
-          fee: {
-            paymentMethod: mintAndPayMethod,
-            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
-          },
-        })
-        .wait();
+      const receipt = await counter.methods.increment().send({
+        from: alice,
+        fee: {
+          paymentMethod: mintAndPayMethod,
+          gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+        },
+      });
 
-      expect(receipt.status).toBe(TxStatus.SUCCESS);
+      expect(receipt.status).toBe(TxStatus.CHECKPOINTED);
 
       const internalBalanceAfter = await fpc.methods
         .balance_of(alice)
@@ -388,16 +378,13 @@ describe("Metered Fee Payment Contract", () => {
 
       // Should revert: amount - max_gas_cost underflows (u128)
       await expect(
-        counter.methods
-          .increment()
-          .send({
-            from: alice,
-            fee: {
-              paymentMethod: mintAndPayMethod,
-              gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
-            },
-          })
-          .wait(),
+        counter.methods.increment().send({
+          from: alice,
+          fee: {
+            paymentMethod: mintAndPayMethod,
+            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+          },
+        }),
       ).rejects.toThrow();
     },
     TEST_TIMEOUT,
@@ -434,18 +421,15 @@ describe("Metered Fee Payment Contract", () => {
         authWitness,
       );
 
-      const receipt = await counter.methods
-        .increment()
-        .send({
-          from: alice,
-          fee: {
-            paymentMethod: mintThenPayMethod,
-            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
-          },
-        })
-        .wait();
+      const receipt = await counter.methods.increment().send({
+        from: alice,
+        fee: {
+          paymentMethod: mintThenPayMethod,
+          gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+        },
+      });
 
-      expect(receipt.status).toBe(TxStatus.SUCCESS);
+      expect(receipt.status).toBe(TxStatus.CHECKPOINTED);
 
       const internalBalanceAfter = await fpc.methods
         .balance_of(alice)
@@ -469,8 +453,8 @@ describe("Metered Fee Payment Contract", () => {
   it(
     "pay_fee INVALID: fails when FPC has no FeeJuice (even with user balance)",
     async () => {
-      // Deploy a fresh FPC but do NOT fund it with FeeJuice
-      const unfundedFpc = await deployMeteredContract(wallet, alice);
+      // Deploy FPC but do NOT fund it with FeeJuice
+      const unfundedFpc = await deploySettledMetered(wallet, alice, aztecNode);
 
       // Mint internal balance so the user side is fine
       const secret = Fr.random();
@@ -484,8 +468,7 @@ describe("Metered Fee Payment Contract", () => {
       await unfundedFpc.methods
         .mint(alice, MINT_AMOUNT, secret)
         .with({ authWitnesses: [authWitness] })
-        .send({ from: alice })
-        .wait();
+        .send({ from: alice });
 
       const { maxFeesPerGas, gasLimits, teardownGasLimits } =
         await getGasSetup(aztecNode);
@@ -497,16 +480,13 @@ describe("Metered Fee Payment Contract", () => {
       // Should fail: user has internal balance, but the FPC itself
       // cannot cover the sequencer fee (no FeeJuice)
       await expect(
-        counter.methods
-          .increment()
-          .send({
-            from: alice,
-            fee: {
-              paymentMethod: unfundedPaymentMethod,
-              gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
-            },
-          })
-          .wait(),
+        counter.methods.increment().send({
+          from: alice,
+          fee: {
+            paymentMethod: unfundedPaymentMethod,
+            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+          },
+        }),
       ).rejects.toThrow();
     },
     TEST_TIMEOUT,
@@ -515,8 +495,8 @@ describe("Metered Fee Payment Contract", () => {
   it(
     "pay_fee_exact INVALID: fails when FPC has no FeeJuice (even with user balance)",
     async () => {
-      // Deploy a fresh FPC but do NOT fund it with FeeJuice
-      const unfundedFpc = await deployMeteredContract(wallet, alice);
+      // Deploy FPC but do NOT fund it with FeeJuice
+      const unfundedFpc = await deploySettledMetered(wallet, alice, aztecNode);
 
       // Mint internal balance so the user side is fine
       const secret = Fr.random();
@@ -530,8 +510,7 @@ describe("Metered Fee Payment Contract", () => {
       await unfundedFpc.methods
         .mint(alice, MINT_AMOUNT, secret)
         .with({ authWitnesses: [authWitness] })
-        .send({ from: alice })
-        .wait();
+        .send({ from: alice });
 
       const { maxFeesPerGas, gasLimits, teardownGasLimits } =
         await getGasSetupWithTeardown(aztecNode);
@@ -543,16 +522,13 @@ describe("Metered Fee Payment Contract", () => {
       // Should fail: user has internal balance, but the FPC itself
       // cannot cover the sequencer fee (no FeeJuice)
       await expect(
-        counter.methods
-          .increment()
-          .send({
-            from: alice,
-            fee: {
-              paymentMethod: unfundedExactPaymentMethod,
-              gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
-            },
-          })
-          .wait(),
+        counter.methods.increment().send({
+          from: alice,
+          fee: {
+            paymentMethod: unfundedExactPaymentMethod,
+            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+          },
+        }),
       ).rejects.toThrow();
     },
     TEST_TIMEOUT,
@@ -589,18 +565,15 @@ describe("Metered Fee Payment Contract", () => {
         authWitness,
       );
 
-      const receipt = await counter.methods
-        .increment()
-        .send({
-          from: alice,
-          fee: {
-            paymentMethod: mintAndPayMethod,
-            gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
-          },
-        })
-        .wait();
+      const receipt = await counter.methods.increment().send({
+        from: alice,
+        fee: {
+          paymentMethod: mintAndPayMethod,
+          gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+        },
+      });
 
-      expect(receipt.status).toBe(TxStatus.SUCCESS);
+      expect(receipt.status).toBe(TxStatus.CHECKPOINTED);
 
       const internalBalanceAfter = await fpc.methods
         .balance_of(alice)
@@ -632,12 +605,11 @@ describe("Metered Fee Payment Contract", () => {
       await fpc.methods
         .mint(alice, amount, secret)
         .with({ authWitnesses: [authWitness1] })
-        .send({ from: alice })
-        .wait();
+        .send({ from: alice });
 
-      // Second mint with the same (secret, amount): the nullifier for this
+      // Second mint with the same (amount, secret): the nullifier for this
       // message hash was already emitted, so this must fail regardless of
-      // having a fresh valid auth witness (Schnorr is non-deterministic)
+      // having a valid auth witness (Schnorr is non-deterministic)
       const authWitness2 = await createMintAuthWit(
         wallet,
         alice,
@@ -649,8 +621,7 @@ describe("Metered Fee Payment Contract", () => {
         fpc.methods
           .mint(alice, amount, secret)
           .with({ authWitnesses: [authWitness2] })
-          .send({ from: alice })
-          .wait(),
+          .send({ from: alice }),
       ).rejects.toThrow();
     },
     TEST_TIMEOUT,

@@ -55,7 +55,7 @@ const pxeConfig = getPXEConfig();
 
 /**
  * Creates an AuthWitness for the owner's account contract via the wallet's
- * authwit mechanism. The inner hash is computed from [secret, amount].
+ * authwit mechanism. The inner hash is computed from [amount, secret].
  * The wallet's account contract handles the actual signature verification.
  */
 async function createAuthWitness(
