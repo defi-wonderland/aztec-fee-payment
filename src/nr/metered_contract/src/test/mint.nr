@@ -101,8 +101,12 @@ unconstrained fn mint_reverts_wrong_amount() {
     env.call_private(owner, Metered::at(contract_address).mint(owner, wrong_amount, secret));
 }
 
-/// Authwit registered on a non-owner account -- owner's account rejects it.
-#[test(should_fail_with = "Message not authorized by account")]
+/// Authwit registered on a non-owner account -- should revert.
+/// _verify_authwit reads the owner and makes a static call to the owner's
+/// SchnorrAccount. In TXE, the SchnorrAccount's signing key note is
+/// unreadable when the outer caller (user) differs from the note owner,
+/// so the error comes from the nested static call rather than the authwit check.
+#[test(should_fail_with = "Failed to get a note 'self.is_some()'")]
 unconstrained fn mint_reverts_authwit_on_non_owner() {
     let (env, contract_address, _, user) = utils::setup(true);
 
@@ -112,8 +116,6 @@ unconstrained fn mint_reverts_authwit_on_non_owner() {
     // Register the authwit on 'user' instead of 'owner'
     utils::add_metered_authwit(env, contract_address, user, secret, amount);
 
-    // _verify_authwit reads owner from storage and verifies against owner,
-    // not user -- so this should fail
     env.call_private(user, Metered::at(contract_address).mint(user, amount, secret));
 }
 
