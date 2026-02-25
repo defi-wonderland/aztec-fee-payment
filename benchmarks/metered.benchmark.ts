@@ -65,7 +65,7 @@ async function createAuthWitness(
   amount: bigint,
   fpcAddress: AztecAddress,
 ): Promise<AuthWitness> {
-  const innerHash = await computeInnerAuthWitHash([secret, new Fr(amount)]);
+  const innerHash = await computeInnerAuthWitHash([new Fr(amount), secret]);
   const intent = { consumer: fpcAddress, innerHash };
   return wallet.createAuthWit(ownerAddress, intent);
 }

@@ -100,7 +100,7 @@ pub contract Metered {
     #[external("private")]
     #[allow_phase_change]
     fn mint_and_pay_fee(account: AztecAddress, amount: u128, secret: Field) {
-        self.internal._verify_authwit(secret, amount);
+        self.internal._verify_authwit(amount, secret);
 
         // Calculate the max gas cost from transaction settings.
         let max_gas_cost = get_max_gas_cost(self.context);
@@ -121,7 +121,7 @@ pub contract Metered {
     /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
     #[external("private")]
     fn mint(account: AztecAddress, amount: u128, secret: Field) {
-        self.internal._verify_authwit(secret, amount);
+        self.internal._verify_authwit(amount, secret);
         self.storage.balances.at(account).add(amount).deliver(MessageDelivery.ONCHAIN_UNCONSTRAINED);
     }
 
@@ -139,11 +139,11 @@ pub contract Metered {
     }
 
     /// @notice Verifies authorization via the owner's account contract.
-    /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
     /// @param amount The amount to authorize
+    /// @param secret A unique value (typically a signed tx hash) to enforce uniqueness
     #[internal("private")]
-    fn _verify_authwit(secret: Field, amount: u128) {
-        let inner_hash = compute_inner_authwit_hash([secret, amount as Field]);
+    fn _verify_authwit(amount: u128, secret: Field) {
+        let inner_hash = compute_inner_authwit_hash([amount as Field, secret]);
 
         // Delegate signature verification to the owner's account contract
         let owner = self.storage.owner.get_current_value();
