@@ -25,7 +25,7 @@ unconstrained fn mint_and_pay_fee_reverts_invalid_authwit() {
 //     let (env, contract_address, owner, _) = utils::setup(true);
 //     let amount: u128 = 100_000_000;
 //     let secret = random();
-//     utils::add_metered_authwit(env, contract_address, owner, secret, amount);
+//     utils::add_metered_authwit(env, contract_address, owner, amount, secret);
 //     env.call_private(
 //         owner,
 //         Metered::at(contract_address).mint_and_pay_fee(owner, amount, secret),
@@ -44,7 +44,7 @@ unconstrained fn mint_and_pay_fee_reverts_invalid_authwit() {
 //     // amount must equal max_gas_cost from the tx gas settings
 //     let amount: u128 = 100;
 //     let secret = random();
-//     utils::add_metered_authwit(env, contract_address, owner, secret, amount);
+//     utils::add_metered_authwit(env, contract_address, owner, amount, secret);
 //     env.call_private(
 //         owner,
 //         Metered::at(contract_address).mint_and_pay_fee(owner, amount, secret),
@@ -62,7 +62,7 @@ unconstrained fn mint_and_pay_fee_reverts_invalid_authwit() {
 //     // amount must be less than max_gas_cost from the tx gas settings
 //     let amount: u128 = 1;
 //     let secret = random();
-//     utils::add_metered_authwit(env, contract_address, owner, secret, amount);
+//     utils::add_metered_authwit(env, contract_address, owner, amount, secret);
 //     env.call_private(
 //         owner,
 //         Metered::at(contract_address).mint_and_pay_fee(owner, amount, secret),

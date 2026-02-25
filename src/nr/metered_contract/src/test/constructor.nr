@@ -39,7 +39,7 @@ unconstrained fn constructor_owner_not_effective_before_delay() {
     let contract_address = utils::deploy_contract_unsettled(&mut env, owner);
 
     let secret = random();
-    utils::add_metered_authwit(env, contract_address, owner, secret, utils::MINT_AMOUNT);
+    utils::add_metered_authwit(env, contract_address, owner, utils::MINT_AMOUNT, secret);
 
     // This should fail because the owner hasn't settled yet
     env.call_private(owner, Metered::at(contract_address).mint(owner, utils::MINT_AMOUNT, secret));

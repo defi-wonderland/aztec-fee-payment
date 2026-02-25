@@ -79,7 +79,7 @@ unconstrained fn mint_reverts_wrong_secret() {
     let amount: u128 = 1000;
 
     // Register authwit with registered_secret
-    utils::add_metered_authwit(env, contract_address, owner, registered_secret, amount);
+    utils::add_metered_authwit(env, contract_address, owner, amount, registered_secret);
 
     // Call mint with wrong_secret -- different inner hash, no matching authwit
     env.call_private(owner, Metered::at(contract_address).mint(owner, amount, wrong_secret));
@@ -95,7 +95,7 @@ unconstrained fn mint_reverts_wrong_amount() {
     let wrong_amount: u128 = 2000;
 
     // Register authwit with registered_amount
-    utils::add_metered_authwit(env, contract_address, owner, secret, registered_amount);
+    utils::add_metered_authwit(env, contract_address, owner, registered_amount, secret);
 
     // Call mint with wrong_amount -- different inner hash, no matching authwit
     env.call_private(owner, Metered::at(contract_address).mint(owner, wrong_amount, secret));
@@ -114,12 +114,12 @@ unconstrained fn mint_reverts_authwit_on_non_owner() {
     let amount: u128 = 1000;
 
     // Register the authwit on 'user' instead of 'owner'
-    utils::add_metered_authwit(env, contract_address, user, secret, amount);
+    utils::add_metered_authwit(env, contract_address, user, amount, secret);
 
     env.call_private(user, Metered::at(contract_address).mint(user, amount, secret));
 }
 
-/// Authwit replay: same (secret, amount) used twice should be rejected
+/// Authwit replay: same (amount, secret) used twice should be rejected
 #[test(should_fail_with = "failed with duplicate nullifier")]
 unconstrained fn mint_reverts_authwit_replay() {
     let (env, contract_address, owner, _) = utils::setup(true);
@@ -128,7 +128,7 @@ unconstrained fn mint_reverts_authwit_replay() {
     let amount: u128 = 1000;
 
     // First mint: register authwit and spend it successfully
-    utils::add_metered_authwit(env, contract_address, owner, secret, amount);
+    utils::add_metered_authwit(env, contract_address, owner, amount, secret);
     env.call_private(owner, Metered::at(contract_address).mint(owner, amount, secret));
 
     // Second mint with the same parameters: the nullifier for this message hash

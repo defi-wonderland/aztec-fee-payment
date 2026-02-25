@@ -7,7 +7,7 @@
 // Implementation notes:
 //
 //   - Authwit pattern: the Metered contract uses a custom inner-hash authwit
-//     computed from [secret, amount as Field]. The add_metered_authwit helper
+//     computed from [amount as Field, secret]. The add_metered_authwit helper
 //     registers this with the owner's account contract via TXE oracles.
 //
 //   - The "consumer" in the authwit message hash is the Metered contract
@@ -86,16 +86,16 @@ pub unconstrained fn settle_owner(env: TestEnvironment) {
 }
 
 /// Registers a custom inner-hash authwit for the Metered contract's _verify_authwit.
-/// The inner hash is computed from [secret, amount as Field] and the consumer
+/// The inner hash is computed from [amount as Field, secret] and the consumer
 /// (message_hash target) is the Metered contract address.
 pub unconstrained fn add_metered_authwit(
     env: TestEnvironment,
     contract_address: AztecAddress,
     owner: AztecAddress,
-    secret: Field,
     amount: u128,
+    secret: Field,
 ) {
-    let inner_hash = compute_inner_authwit_hash([secret, amount as Field]);
+    let inner_hash = compute_inner_authwit_hash([amount as Field, secret]);
     let (chain_id, version) =
         env.utility_context(|context| (context.chain_id(), context.version()));
     let message_hash =
@@ -113,7 +113,7 @@ pub unconstrained fn mint_balance(
     amount: u128,
 ) {
     let secret = random();
-    add_metered_authwit(env, contract_address, owner, secret, amount);
+    add_metered_authwit(env, contract_address, owner, amount, secret);
     env.call_private(owner, Metered::at(contract_address).mint(account, amount, secret));
 }
 

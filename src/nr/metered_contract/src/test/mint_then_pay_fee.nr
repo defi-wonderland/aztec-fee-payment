@@ -16,7 +16,7 @@
 //     let secret = random();
 //
 //     // Step 1: owner authorizes and mints balance to user
-//     utils::add_metered_authwit(env, contract_address, owner, secret, mint_amount);
+//     utils::add_metered_authwit(env, contract_address, owner, mint_amount, secret);
 //     env.call_private(
 //         owner,
 //         Metered::at(contract_address).mint(user, mint_amount, secret),
