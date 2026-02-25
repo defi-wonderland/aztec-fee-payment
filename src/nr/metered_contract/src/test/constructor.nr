@@ -1,18 +1,20 @@
 // constructor(owner: AztecAddress)
-// Sets the owner in public immutable storage.
-// See src/ts/test/README.md for the full test tree and coverage matrix.
+// Schedules the owner via DelayedPublicMutable. The value becomes
+// effective only after CONFIG_DELAY elapses and a block is mined.
+// See src/TEST-PLAN.md for the full test tree and coverage matrix.
 
 use crate::{Metered, test::utils};
+use aztec::{oracle::random::random, test::helpers::test_environment::TestEnvironment};
 
-/// Verifies that the constructor correctly sets the owner by performing a mint
-/// (which internally calls _verify_authwit against the stored owner). If the
-/// owner was not set correctly, the authwit would fail.
+/// Verifies that the constructor correctly schedules the owner by performing
+/// a mint after the delay has elapsed (which internally calls _verify_authwit
+/// against the stored owner). If the owner was not scheduled correctly, the
+/// authwit would fail.
 #[test]
 unconstrained fn constructor_sets_owner() {
+    // setup() calls deploy_contract() which settles owner automatically
     let (env, contract_address, owner, _) = utils::setup(true);
 
-    // Mint uses _verify_authwit which reads the stored owner -- this proves
-    // the constructor set it correctly.
     utils::mint_balance(env, contract_address, owner, owner, utils::MINT_AMOUNT);
     let balance = utils::get_balance(env, contract_address, owner);
     assert(balance == utils::MINT_AMOUNT, "Owner should have minted balance");
@@ -23,6 +25,25 @@ unconstrained fn constructor_sets_owner() {
 unconstrained fn constructor_reverts_on_reinit() {
     let (env, contract_address, owner, _) = utils::setup(false);
 
-    // Attempt to call constructor again -- should revert (already initialized)
     env.call_public(owner, Metered::at(contract_address).constructor(owner));
+}
+
+/// Before CONFIG_DELAY elapses the owner reads as zero, so authwit
+/// verification should fail when attempting to mint.
+#[test(should_fail)]
+unconstrained fn constructor_owner_not_effective_before_delay() {
+    let mut env = TestEnvironment::new();
+    let owner = env.create_contract_account();
+
+    // Deploy WITHOUT settling -- owner is scheduled but not yet effective
+    let contract_address = utils::deploy_contract_unsettled(&mut env, owner);
+
+    let secret = random();
+    utils::add_metered_authwit(env, contract_address, owner, secret, utils::MINT_AMOUNT);
+
+    // This should fail because the owner hasn't settled yet
+    env.call_private(
+        owner,
+        Metered::at(contract_address).mint(owner, utils::MINT_AMOUNT, secret),
+    );
 }

@@ -4,8 +4,15 @@
 
 ```
 constructor(owner)
-├── sets owner in public immutable storage
+├── schedules owner via DelayedPublicMutable (CONFIG_DELAY)
+├── owner not effective before delay elapses              ⇒ REVERT
 └── reverts on re-initialization                          ⇒ REVERT
+
+update_owner(owner)
+├── current owner can schedule a new owner
+├── non-owner caller                                      ⇒ REVERT
+├── after delay, new owner can authorize mints
+└── after delay, old owner is rejected                    ⇒ REVERT
 
 mint(account, amount, secret)
 ├── valid authwit from owner
@@ -60,6 +67,9 @@ balance_of(account)
 
 ## Unit Test Notes (Noir/TXE)
 
+- `owner` is `DelayedPublicMutable` (`CONFIG_DELAY = 600`): the scheduled
+  value only becomes effective after the delay. `deploy_contract` advances
+  time to settle the owner; `deploy_contract_unsettled` skips this.
 - `_verify_authwit` is `#[internal]` and cannot be called directly via the
   contract interface. Authwit edge cases are tested through `mint()` as the
   thinnest external wrapper.
@@ -79,8 +89,14 @@ balance_of(account)
                                     Unit (Noir/TXE)    Integration (TS)
                                     ───────────────    ────────────────
 constructor
-  sets owner                              x
+  schedules owner (DelayedPublicMutable)  x
+  owner not effective before delay        x
   reverts re-init                         x
+
+update_owner
+  non-owner reverts                       x
+  new owner effective after delay         x
+  old owner rejected after transfer       x
 
 balance_of
   returns balance                         x
@@ -99,21 +115,21 @@ mint
   replay                                  x                  x
 
 pay_fee
-  success (deducts maxGasCost)            x*                 x
-  no refund (overpays vs tx fee)                             x
-  insufficient user balance                                  x
-  FPC has no FeeJuice                                        x
+  success (deducts maxGasCost)            BLOCKED₁           x
+  no refund (overpays vs tx fee)          BLOCKED₁₂          x
+  insufficient user balance               BLOCKED₁₂          x
+  FPC has no FeeJuice                     BLOCKED₁₂          x
 
 pay_fee_exact
-  success + refund > 0                    BLOCKED            x
-  success + refund == 0                   BLOCKED            SKIPPED†
+  success + refund > 0                    BLOCKED₁           x
+  success + refund == 0                   BLOCKED₁           SKIPPED†
   zero user balance                       x                  x
-  FPC has no FeeJuice                                        x
+  FPC has no FeeJuice                     BLOCKED₁₂          x
 
 mint_and_pay_fee
-  success (amount > cost)                 BLOCKED            x
-  amount == cost (credits 0)                                 x
-  amount < cost (underflow)               x**                x
+  success (amount > cost)                 BLOCKED₁           x
+  amount == cost (credits 0)              BLOCKED₁₂          x
+  amount < cost (underflow)               BLOCKED₁₂          x
   invalid authwit                         x
 
 mint_then_pay_fee
@@ -122,12 +138,15 @@ mint_then_pay_fee
 _refund
   only_self guard                         x
 
-x       = tested
-x*      = tested but weak (TXE gas settings default to 0)
-x**     = may hit TXE bug; added defensively
-BLOCKED = disabled in Noir due to TXE nonce-generator bug
-†SKIPPED = needs maxGasCost == txFee exactly; receipt lacks per-dimension
-           gas breakdown and estimation under-counts setup-phase overhead
+x        = tested
+BLOCKED₁ = TXE's `call_private` bypasses the account-contract entrypoint,
+           so functions calling `end_setup()` break its simplified kernel
+           simulation (phase-counter / nonce-generator assertions)
+BLOCKED₂ = TXE gas settings default to 0 (`GasSettings.empty()`), so
+           `max_gas_cost` is always 0 and gas-dependent scenarios are
+           infeasible in unit tests
+†SKIPPED  = needs maxGasCost == txFee exactly; receipt lacks per-dimension
+            gas breakdown and estimation under-counts setup-phase overhead
 ```
 
 ## Fee Payment Strategies (TS)

@@ -31,6 +31,8 @@ use aztec::{
 };
 
 pub global MINT_AMOUNT: u128 = 1_000_000;
+// Mirrors Metered::CONFIG_DELAY (must be kept in sync)
+global CONFIG_DELAY: u64 = 600;
 
 /// Deploys the Metered contract and creates two accounts (owner + user).
 /// Use `with_account_contracts = true` when authwit verification is needed.
@@ -53,13 +55,34 @@ pub unconstrained fn setup(
     (env, contract_address, owner, user)
 }
 
-/// Deploys and initializes the Metered contract with the given owner.
+/// Deploys and initializes the Metered contract with the given owner,
+/// then advances time past CONFIG_DELAY so the owner becomes effective.
 pub unconstrained fn deploy_contract(
+    env: &mut TestEnvironment,
+    owner: AztecAddress,
+) -> AztecAddress {
+    let contract_address = deploy_contract_unsettled(env, owner);
+    env.advance_next_block_timestamp_by(CONFIG_DELAY + 1);
+    env.mine_block();
+    contract_address
+}
+
+/// Deploys and initializes the Metered contract WITHOUT advancing time.
+/// The scheduled owner value will NOT yet be readable in private.
+/// Use this when testing pre-settlement behavior.
+pub unconstrained fn deploy_contract_unsettled(
     env: &mut TestEnvironment,
     owner: AztecAddress,
 ) -> AztecAddress {
     let initializer = Metered::interface().constructor(owner);
     env.deploy("Metered").with_public_initializer(owner, initializer)
+}
+
+/// Advances the block timestamp past CONFIG_DELAY and mines a block,
+/// causing any pending DelayedPublicMutable values to take effect.
+pub unconstrained fn settle_owner(env: TestEnvironment) {
+    env.advance_next_block_timestamp_by(CONFIG_DELAY + 1);
+    env.mine_block();
 }
 
 /// Registers a custom inner-hash authwit for the Metered contract's _verify_authwit.
