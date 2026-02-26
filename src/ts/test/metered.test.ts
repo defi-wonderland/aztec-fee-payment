@@ -3,6 +3,8 @@ import { TestWallet } from "@aztec/test-wallet/server";
 import type { AztecNode } from "@aztec/aztec.js/node";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { TxStatus } from "@aztec/aztec.js/tx";
+import { Fr } from "@aztec/aztec.js/fields";
+import { computeInnerAuthWitHash } from "@aztec/stdlib/auth-witness";
 
 import { CounterContract } from "../../artifacts/Counter.js";
 import { MeteredContract } from "../../artifacts/Metered.js";
@@ -16,6 +18,7 @@ import {
   LOCAL_AZTEC_NODE_URL,
   createLocalNetworkContext,
   fundL2AddressWithFeeJuiceFromL1,
+  warpL1Time,
 } from "./harness.js";
 
 import {
@@ -49,8 +52,13 @@ describe("Metered Fee Payment Contract", () => {
     // Deploy counter for testing
     counter = await deployCounter(wallet);
 
-    // Deploy and fund the Metered FPC
-    fpc = await deployMeteredContract(wallet);
+    // Deploy and fund the Metered FPC (alice is the owner who authorizes mints)
+    fpc = await deployMeteredContract(wallet, alice);
+
+    // Warp L1 time past the DelayedPublicMutable delay so the owner is
+    // readable in private (see harness.warpL1Time for details).
+    await warpL1Time(aztecNode, 600);
+
     const { balance } = await fundL2AddressWithFeeJuiceFromL1(
       aztecNode,
       wallet,
@@ -71,7 +79,20 @@ describe("Metered Fee Payment Contract", () => {
 
   beforeEach(async () => {
     // Mint internal balance for alice before each test
-    await fpc.methods.mint(alice, MINT_AMOUNT).send({ from: alice });
+    const secret = Fr.random();
+    const innerHash = await computeInnerAuthWitHash([
+      new Fr(MINT_AMOUNT),
+      secret,
+    ]);
+    const authWitness = await wallet.createAuthWit(alice, {
+      consumer: fpc.address,
+      innerHash,
+    });
+
+    await fpc.methods
+      .mint(alice, MINT_AMOUNT, secret)
+      .with({ authWitnesses: [authWitness] })
+      .send({ from: alice });
   });
 
   // --- pay_fee (no refund) tests ---
@@ -159,7 +180,7 @@ describe("Metered Fee Payment Contract", () => {
         await getGasSetup(aztecNode);
 
       // Create a fresh FPC without minting internal balance
-      const freshFpc = await deployMeteredContract(wallet);
+      const freshFpc = await deployMeteredContract(wallet, alice);
       await fundL2AddressWithFeeJuiceFromL1(
         aztecNode,
         wallet,

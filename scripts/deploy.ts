@@ -307,13 +307,14 @@ export async function deployMetered(
   pxe: PXE,
   salt: Fr,
   options: DeployOptions,
+  owner: AztecAddress,
 ): Promise<{ contract: MeteredContract; status: "deployed" | "existing" }> {
   logger.info("Checking Metered contract...");
 
   const instance = await getContractInstanceFromInstantiationParams(
     MeteredContractArtifact,
     {
-      constructorArgs: [],
+      constructorArgs: [owner],
       salt,
       publicKeys: PublicKeys.default(),
       deployer: AztecAddress.ZERO,
@@ -350,7 +351,7 @@ export async function deployMetered(
     MeteredContractArtifact,
     (address) =>
       Contract.at(address.address, MeteredContractArtifact, deployer),
-    [],
+    [owner],
   );
 
   options = {
@@ -389,9 +390,10 @@ export async function deployMeteredWithRetry(
   salt: Fr,
   options: DeployOptions,
   retryOptions: RetryOptions,
+  owner: AztecAddress,
 ): Promise<{ contract: MeteredContract; status: "deployed" | "existing" }> {
   return withRetry(
-    () => deployMetered(deployer, node, pxe, salt, options),
+    () => deployMetered(deployer, node, pxe, salt, options, owner),
     "Deploy Metered",
     retryOptions,
   );
@@ -558,6 +560,7 @@ export async function deployToNetwork(
         meteredSalt,
         deployOptions,
         config.deployment.retryOptions,
+        deployer.account.getAddress(),
       );
     }
 
