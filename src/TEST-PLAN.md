@@ -74,14 +74,11 @@ balance_of(account)
   contract interface. Authwit edge cases are tested through `mint()` as the
   thinnest external wrapper.
 - TXE gas settings default to 0, so `max_gas_cost` is 0 in unit tests. This
-  makes insufficient-balance scenarios infeasible (marked `x*` below).
+  makes insufficient-balance scenarios infeasible (marked `BLOCKED` below).
 - `set_as_teardown()` and `set_as_fee_payer()` trigger an internal TXE
   nonce-generator assertion when combined with nullifier-emitting calls.
   Tests requiring these are marked `BLOCKED` and covered by integration tests.
   [Relevant TXE source.](https://github.com/AztecProtocol/aztec-packages/blob/v3.0.0-devnet.6-patch.1/yarn-project/pxe/src/contract_function_simulator/contract_function_simulator.ts#L402)
-- `_refund` requires a valid `PartialUintNote` (created by `UintNote::partial()`
-  in `pay_fee_exact`). Creating one in isolation needs protocol support not
-  available in TXE; the full refund flow is tested via integration tests.
 
 ## What's Tested Where
 
@@ -112,41 +109,40 @@ mint
   wrong secret                            x
   wrong amount                            x
   non-owner signer                        x
-  replay                                  x                  x
+  replay                                  x                  WIP
 
 pay_fee
-  success (deducts maxGasCost)            BLOCKED₁           x
-  no refund (overpays vs tx fee)          BLOCKED₁₂          x
-  insufficient user balance               BLOCKED₁₂          x
-  FPC has no FeeJuice                     BLOCKED₁₂          x
+  success (deducts maxGasCost)            BLOCKED₁           WIP
+  no refund (overpays vs tx fee)          BLOCKED₁₂          WIP
+  insufficient user balance               BLOCKED₁₂          WIP
+  FPC has no FeeJuice                     BLOCKED₁₂          WIP
 
 pay_fee_exact
-  success + refund > 0                    BLOCKED₁           x
-  success + refund == 0                   BLOCKED₁           SKIPPED†
-  zero user balance                       x                  x
-  FPC has no FeeJuice                     BLOCKED₁₂          x
+  success + refund > 0                    BLOCKED₁           WIP
+  success + refund == 0                   BLOCKED₁           WIP
+  zero user balance                       x                  WIP
+  FPC has no FeeJuice                     BLOCKED₁₂          WIP
 
 mint_and_pay_fee
-  success (amount > cost)                 BLOCKED₁           x
-  amount == cost (credits 0)              BLOCKED₁₂          x
-  amount < cost (underflow)               BLOCKED₁₂          x
+  success (amount > cost)                 BLOCKED₁           WIP
+  amount == cost (credits 0)              BLOCKED₁₂          WIP
+  amount < cost (underflow)               BLOCKED₁₂          WIP
   invalid authwit                         x
 
 mint_then_pay_fee
-  success (two-step)                                         x
+  success (two-step)                                         WIP
 
 _refund
   only_self guard                         x
 
 x        = tested
+WIP      = integration test being implemented in a separate branch
 BLOCKED₁ = TXE's `call_private` bypasses the account-contract entrypoint,
            so functions calling `end_setup()` break its simplified kernel
            simulation (phase-counter / nonce-generator assertions)
 BLOCKED₂ = TXE gas settings default to 0 (`GasSettings.empty()`), so
            `max_gas_cost` is always 0 and gas-dependent scenarios are
            infeasible in unit tests
-†SKIPPED  = needs maxGasCost == txFee exactly; receipt lacks per-dimension
-            gas breakdown and estimation under-counts setup-phase overhead
 ```
 
 ## Fee Payment Strategies (TS)
