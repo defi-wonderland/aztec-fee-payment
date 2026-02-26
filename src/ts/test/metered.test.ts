@@ -81,8 +81,8 @@ describe("Metered Fee Payment Contract", () => {
     // Mint internal balance for alice before each test
     const secret = Fr.random();
     const innerHash = await computeInnerAuthWitHash([
-      secret,
       new Fr(MINT_AMOUNT),
+      secret,
     ]);
     const authWitness = await wallet.createAuthWit(alice, {
       consumer: fpc.address,
