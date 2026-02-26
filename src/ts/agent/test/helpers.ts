@@ -12,10 +12,8 @@ export const TEST_KEY =
   "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6" as Hex;
 export const OTHER_KEY =
   "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" as Hex;
-export const FEE_COLLECTOR =
+export const TOPUP_CONTRACT =
   "0x1111111111111111111111111111111111111111" as Address;
-export const AZT_TOKEN =
-  "0x2222222222222222222222222222222222222222" as Address;
 export const USER = "0x3333333333333333333333333333333333333333" as Address;
 export const TX_HASH =
   "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890" as Hex;
@@ -29,34 +27,32 @@ export const BN254_FR_MODULUS =
 
 export const silentLogger = pino({ level: "silent" });
 
-// ── ERC20 Transfer log helpers ──────────────────────────────────────────────
+// ── TopUp event log helpers ─────────────────────────────────────────────────
 
-const ERC20_TRANSFER_ABI = [
+const TOPUP_EVENT_ABI = [
   {
     type: "event" as const,
-    name: "Transfer" as const,
+    name: "TopUp" as const,
     inputs: [
       { name: "from", type: "address" as const, indexed: true },
-      { name: "to", type: "address" as const, indexed: true },
-      { name: "value", type: "uint256" as const, indexed: false },
+      { name: "amount", type: "uint256" as const, indexed: false },
     ],
   },
 ];
 
-export function makeTransferLog(
-  token: Address,
+export function makeTopUpLog(
+  contract: Address,
   from: Address,
-  to: Address,
   amount: bigint,
 ): Log<bigint, number, false> {
   const topics = encodeEventTopics({
-    abi: ERC20_TRANSFER_ABI,
-    eventName: "Transfer",
-    args: { from, to },
+    abi: TOPUP_EVENT_ABI,
+    eventName: "TopUp",
+    args: { from },
   });
   const data = encodeAbiParameters([{ type: "uint256" }], [amount]);
   return {
-    address: token,
+    address: contract,
     topics: topics as [`0x${string}`, ...`0x${string}`[]],
     data,
     blockNumber: 100n,
@@ -80,9 +76,7 @@ export function createMockClient(
       status: "success",
       blockNumber: 100n,
       from: USER,
-      logs: [
-        makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 1000000000000000000n),
-      ],
+      logs: [makeTopUpLog(TOPUP_CONTRACT, USER, 1000000000000000000n)],
     } as unknown as TransactionReceipt),
     getBlockNumber: vi.fn().mockResolvedValue(120n),
     ...overrides,
@@ -98,8 +92,7 @@ export function validatorOpts(
     client,
     txHash: TX_HASH,
     from: USER,
-    feeCollectorAddress: FEE_COLLECTOR,
-    aztTokenAddress: AZT_TOKEN,
+    topUpContractAddress: TOPUP_CONTRACT,
     requiredConfirmations: 6,
     minAmount: 1n,
     logger: silentLogger,
@@ -120,8 +113,7 @@ export function createTestConfig(
       [CHAIN_ID]: {
         name: "base-sepolia",
         rpcUrl: "https://sepolia.base.org",
-        feeCollectorAddress: FEE_COLLECTOR,
-        aztTokenAddress: AZT_TOKEN,
+        topUpContractAddress: TOPUP_CONTRACT,
         requiredConfirmations: 6,
       },
     },
@@ -145,8 +137,7 @@ export function createTestEnv(
     LOG_LEVEL: "info",
     CHAIN_84532_NAME: "base-sepolia",
     CHAIN_84532_RPC_URL: "https://sepolia.base.org",
-    CHAIN_84532_FEE_COLLECTOR: FEE_COLLECTOR,
-    CHAIN_84532_AZT_TOKEN: AZT_TOKEN,
+    CHAIN_84532_TOPUP_CONTRACT: TOPUP_CONTRACT,
     CHAIN_84532_CONFIRMATIONS: "6",
     ...overrides,
   };

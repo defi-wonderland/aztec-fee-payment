@@ -3,16 +3,15 @@ import type { Address } from "viem";
 import { validateTransaction } from "../services/evm/validator.js";
 import { AppError } from "../errors.js";
 import {
-  FEE_COLLECTOR,
-  AZT_TOKEN,
+  TOPUP_CONTRACT,
   USER,
-  makeTransferLog,
+  makeTopUpLog,
   createMockClient,
   validatorOpts,
 } from "./helpers.js";
 
 function receiptWith(
-  logs: ReturnType<typeof makeTransferLog>[],
+  logs: ReturnType<typeof makeTopUpLog>[],
   from: Address = USER,
 ) {
   return { status: "success", blockNumber: 100n, from, logs };
@@ -89,15 +88,14 @@ describe("Transaction Validator", () => {
     expect(getBlockNumber).not.toHaveBeenCalled();
   });
 
-  it("throws WRONG_RECIPIENT when no matching transfers", async () => {
-    const wrongToken = "0x9999999999999999999999999999999999999999" as Address;
+  it("throws WRONG_RECIPIENT when no matching events", async () => {
+    const wrongContract =
+      "0x9999999999999999999999999999999999999999" as Address;
     const client = createMockClient({
       getTransactionReceipt: vi
         .fn()
         .mockResolvedValue(
-          receiptWith([
-            makeTransferLog(wrongToken, USER, FEE_COLLECTOR, 1000n),
-          ]),
+          receiptWith([makeTopUpLog(wrongContract, USER, 1000n)]),
         ),
     });
     await expect(
@@ -105,14 +103,14 @@ describe("Transaction Validator", () => {
     ).rejects.toMatchObject({ code: "WRONG_RECIPIENT" });
   });
 
-  it("sums multiple matching transfers", async () => {
+  it("sums multiple matching events", async () => {
     const client = createMockClient({
       getTransactionReceipt: vi
         .fn()
         .mockResolvedValue(
           receiptWith([
-            makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 500n),
-            makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 300n),
+            makeTopUpLog(TOPUP_CONTRACT, USER, 500n),
+            makeTopUpLog(TOPUP_CONTRACT, USER, 300n),
           ]),
         ),
     });
@@ -120,12 +118,12 @@ describe("Transaction Validator", () => {
     expect(result.amount).toBe(800n);
   });
 
-  it("throws INVALID_AMOUNT when transfer amount is zero", async () => {
+  it("throws INVALID_AMOUNT when event amount is zero", async () => {
     const client = createMockClient({
       getTransactionReceipt: vi
         .fn()
         .mockResolvedValue(
-          receiptWith([makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 0n)]),
+          receiptWith([makeTopUpLog(TOPUP_CONTRACT, USER, 0n)]),
         ),
     });
     await expect(
@@ -138,7 +136,7 @@ describe("Transaction Validator", () => {
       getTransactionReceipt: vi
         .fn()
         .mockResolvedValue(
-          receiptWith([makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 500n)]),
+          receiptWith([makeTopUpLog(TOPUP_CONTRACT, USER, 500n)]),
         ),
     });
     try {
@@ -158,7 +156,7 @@ describe("Transaction Validator", () => {
       getTransactionReceipt: vi
         .fn()
         .mockResolvedValue(
-          receiptWith([makeTransferLog(AZT_TOKEN, USER, FEE_COLLECTOR, 1000n)]),
+          receiptWith([makeTopUpLog(TOPUP_CONTRACT, USER, 1000n)]),
         ),
     });
     const result = await validateTransaction(

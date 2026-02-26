@@ -1,74 +1,66 @@
 import { decodeEventLog, type Address, type TransactionReceipt } from "viem";
 
-const ERC20_TRANSFER_EVENT_ABI = [
+const TOPUP_EVENT_ABI = [
   {
     type: "event",
-    name: "Transfer",
+    name: "TopUp",
     inputs: [
       { name: "from", type: "address", indexed: true },
-      { name: "to", type: "address", indexed: true },
-      { name: "value", type: "uint256", indexed: false },
+      { name: "amount", type: "uint256", indexed: false },
     ],
   },
 ] as const;
 
-export interface ParsedTransfer {
-  token: Address;
+export interface ParsedTopUp {
+  contract: Address;
   from: Address;
-  to: Address;
   amount: bigint;
 }
 
 /**
- * Parse all ERC20 Transfer events from a transaction receipt.
+ * Parse all TopUp events from a transaction receipt.
  */
-export function parseTransferEvents(
-  receipt: TransactionReceipt,
-): ParsedTransfer[] {
-  const transfers: ParsedTransfer[] = [];
+export function parseTopUpEvents(receipt: TransactionReceipt): ParsedTopUp[] {
+  const events: ParsedTopUp[] = [];
 
   for (const log of receipt.logs) {
     try {
       const decoded = decodeEventLog({
-        abi: ERC20_TRANSFER_EVENT_ABI,
+        abi: TOPUP_EVENT_ABI,
         data: log.data,
         topics: log.topics,
       });
 
-      if (decoded.eventName === "Transfer") {
-        transfers.push({
-          token: log.address as Address,
+      if (decoded.eventName === "TopUp") {
+        events.push({
+          contract: log.address as Address,
           from: decoded.args.from,
-          to: decoded.args.to,
-          amount: decoded.args.value,
+          amount: decoded.args.amount,
         });
       }
     } catch {
-      // Not a Transfer event — skip
+      // Not a TopUp event — skip
     }
   }
 
-  return transfers;
+  return events;
 }
 
 /**
- * Find all AZT token transfers to the fee collector address.
- * Filters by both `aztTokenAddress` and `feeCollectorAddress`.
+ * Find all TopUp events emitted by the expected contract from the given sender.
+ * Filters by both `topUpContractAddress` and `from`.
  */
-export function findFeeCollectorTransfers(
-  transfers: ParsedTransfer[],
-  feeCollectorAddress: Address,
-  aztTokenAddress: Address,
+export function findMatchingTopUpEvents(
+  events: ParsedTopUp[],
+  topUpContractAddress: Address,
   from: Address,
-): ParsedTransfer[] {
-  const feeCollectorLower = feeCollectorAddress.toLowerCase();
-  const aztTokenLower = aztTokenAddress.toLowerCase();
+): ParsedTopUp[] {
+  const contractLower = topUpContractAddress.toLowerCase();
   const fromLower = from.toLowerCase();
 
-  return transfers.filter(
-    (t) =>
-      t.from.toLowerCase() === fromLower &&
-      t.to.toLowerCase() === feeCollectorLower &&
-      t.token.toLowerCase() === aztTokenLower,
+  return events.filter(
+    (e) =>
+      e.from.toLowerCase() === fromLower &&
+      e.contract.toLowerCase() === contractLower,
   );
 }

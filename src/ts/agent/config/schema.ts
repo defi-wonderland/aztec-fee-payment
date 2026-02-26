@@ -7,8 +7,7 @@ const CHAIN_ENV_PREFIX = "CHAIN_";
  *
  * Expected format per chain:
  *   CHAIN_8453_RPC_URL=https://...
- *   CHAIN_8453_FEE_COLLECTOR=0x...
- *   CHAIN_8453_AZT_TOKEN=0x...
+ *   CHAIN_8453_TOPUP_CONTRACT=0x...
  *   CHAIN_8453_CONFIRMATIONS=12
  */
 export function parseChainsFromEnv(
@@ -26,15 +25,13 @@ export function parseChainsFromEnv(
 
   for (const chainId of chainIds) {
     const rpcUrl = env[`CHAIN_${chainId}_RPC_URL`];
-    const feeCollector = env[`CHAIN_${chainId}_FEE_COLLECTOR`];
-    const aztToken = env[`CHAIN_${chainId}_AZT_TOKEN`];
+    const topUpContract = env[`CHAIN_${chainId}_TOPUP_CONTRACT`];
     const confirmations = env[`CHAIN_${chainId}_CONFIRMATIONS`];
 
-    if (!rpcUrl || !feeCollector || !aztToken) {
+    if (!rpcUrl || !topUpContract) {
       const missing = [
         !rpcUrl && "RPC_URL",
-        !feeCollector && "FEE_COLLECTOR",
-        !aztToken && "AZT_TOKEN",
+        !topUpContract && "TOPUP_CONTRACT",
       ].filter(Boolean);
       console.warn(`Chain ${chainId}: skipped — missing ${missing.join(", ")}`);
       continue;
@@ -43,8 +40,7 @@ export function parseChainsFromEnv(
     chains[chainId] = {
       name: env[`CHAIN_${chainId}_NAME`] ?? `chain-${chainId}`,
       rpcUrl,
-      feeCollectorAddress: feeCollector as `0x${string}`,
-      aztTokenAddress: aztToken as `0x${string}`,
+      topUpContractAddress: topUpContract as `0x${string}`,
       requiredConfirmations: confirmations ? Number(confirmations) : 1,
     };
   }

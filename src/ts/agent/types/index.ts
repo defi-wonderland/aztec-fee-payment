@@ -81,8 +81,7 @@ export const configSchema = z.object({
       z.object({
         name: z.string().min(1),
         rpcUrl: z.string().url(),
-        feeCollectorAddress: hexAddress,
-        aztTokenAddress: hexAddress,
+        topUpContractAddress: hexAddress,
         requiredConfirmations: z.number().int().min(0).default(1),
       }),
     )

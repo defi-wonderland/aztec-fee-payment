@@ -87,8 +87,7 @@ describe("Configuration", () => {
       const env = createTestEnv({
         CHAIN_8453_NAME: "base-mainnet",
         CHAIN_8453_RPC_URL: "https://mainnet.base.org",
-        CHAIN_8453_FEE_COLLECTOR: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        CHAIN_8453_AZT_TOKEN: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        CHAIN_8453_TOPUP_CONTRACT: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         CHAIN_8453_CONFIRMATIONS: "12",
       });
 
@@ -118,8 +117,8 @@ describe("Configuration", () => {
     it("parses chain env vars correctly", () => {
       const env = {
         CHAIN_84532_RPC_URL: "https://sepolia.base.org",
-        CHAIN_84532_FEE_COLLECTOR: "0x1111111111111111111111111111111111111111",
-        CHAIN_84532_AZT_TOKEN: "0x2222222222222222222222222222222222222222",
+        CHAIN_84532_TOPUP_CONTRACT:
+          "0x1111111111111111111111111111111111111111",
         CHAIN_84532_CONFIRMATIONS: "6",
       };
 
@@ -133,8 +132,7 @@ describe("Configuration", () => {
     it("uses default name when CHAIN_<id>_NAME is not set", () => {
       const env = {
         CHAIN_1_RPC_URL: "https://eth.rpc",
-        CHAIN_1_FEE_COLLECTOR: "0x1111111111111111111111111111111111111111",
-        CHAIN_1_AZT_TOKEN: "0x2222222222222222222222222222222222222222",
+        CHAIN_1_TOPUP_CONTRACT: "0x1111111111111111111111111111111111111111",
       };
 
       const chains = parseChainsFromEnv(env);
@@ -145,8 +143,7 @@ describe("Configuration", () => {
     it("defaults confirmations to 1 when not set", () => {
       const env = {
         CHAIN_1_RPC_URL: "https://eth.rpc",
-        CHAIN_1_FEE_COLLECTOR: "0x1111111111111111111111111111111111111111",
-        CHAIN_1_AZT_TOKEN: "0x2222222222222222222222222222222222222222",
+        CHAIN_1_TOPUP_CONTRACT: "0x1111111111111111111111111111111111111111",
       };
 
       const chains = parseChainsFromEnv(env);
@@ -154,10 +151,9 @@ describe("Configuration", () => {
       expect(chains[1].requiredConfirmations).toBe(1);
     });
 
-    it("skips incomplete chain configs (missing RPC_URL)", () => {
+    it("skips incomplete chain configs (missing TOPUP_CONTRACT)", () => {
       const env = {
-        CHAIN_42_FEE_COLLECTOR: "0x1111111111111111111111111111111111111111",
-        CHAIN_42_AZT_TOKEN: "0x2222222222222222222222222222222222222222",
+        CHAIN_42_RPC_URL: "https://eth.rpc",
       };
 
       const chains = parseChainsFromEnv(env);

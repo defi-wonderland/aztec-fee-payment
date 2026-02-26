@@ -1,6 +1,6 @@
 import type { Address, Hex } from "viem";
 import type { EVMClient } from "./client.js";
-import { parseTransferEvents, findFeeCollectorTransfers } from "./parser.js";
+import { parseTopUpEvents, findMatchingTopUpEvents } from "./parser.js";
 import { notFound, invalidInput } from "../../errors.js";
 import type { Logger } from "../../middleware/logger.js";
 
@@ -8,8 +8,7 @@ export interface ValidateTransactionOptions {
   client: EVMClient;
   txHash: Hex;
   from: Address;
-  feeCollectorAddress: Address;
-  aztTokenAddress: Address;
+  topUpContractAddress: Address;
   requiredConfirmations: number;
   minAmount: bigint;
   logger: Logger;
@@ -21,7 +20,7 @@ export interface ValidateTransactionOptions {
  * Throws an AppError on validation failure:
  * 1. Fetch receipt (TX_NOT_FOUND if missing or failed)
  * 2. Check confirmations (TX_NOT_FINALIZED)
- * 3. Parse Transfer events, filter by AZT token AND fee collector (WRONG_RECIPIENT)
+ * 3. Parse TopUp events, filter by TopUp contract AND sender (WRONG_RECIPIENT)
  * 4. Sum matching amounts, reject if below minAmount (INVALID_AMOUNT)
  */
 export async function validateTransaction(
@@ -31,8 +30,7 @@ export async function validateTransaction(
     client,
     txHash,
     from,
-    feeCollectorAddress,
-    aztTokenAddress,
+    topUpContractAddress,
     requiredConfirmations,
     minAmount,
     logger,
@@ -60,28 +58,27 @@ export async function validateTransaction(
     );
   }
 
-  // 4. Parse transfers and filter
-  const allTransfers = parseTransferEvents(receipt);
-  const matchingTransfers = findFeeCollectorTransfers(
-    allTransfers,
-    feeCollectorAddress,
-    aztTokenAddress,
+  // 4. Parse TopUp events and filter
+  const allEvents = parseTopUpEvents(receipt);
+  const matchingEvents = findMatchingTopUpEvents(
+    allEvents,
+    topUpContractAddress,
     from,
   );
 
-  if (matchingTransfers.length === 0) {
+  if (matchingEvents.length === 0) {
     throw invalidInput(
       "WRONG_RECIPIENT",
-      "No AZT transfer to fee collector address found",
+      "No TopUp event from sender found in transaction",
     );
   }
 
   // 5. Sum amounts and check minimum
-  const totalAmount = matchingTransfers.reduce((sum, t) => sum + t.amount, 0n);
+  const totalAmount = matchingEvents.reduce((sum, e) => sum + e.amount, 0n);
   if (totalAmount < minAmount) {
     throw invalidInput(
       "INVALID_AMOUNT",
-      `Transfer amount ${totalAmount} is below minimum ${minAmount}`,
+      `TopUp amount ${totalAmount} is below minimum ${minAmount}`,
       {
         amount: totalAmount.toString(),
         minAmount: minAmount.toString(),

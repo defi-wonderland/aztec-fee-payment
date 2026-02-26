@@ -8,8 +8,7 @@ import {
   createTestConfig,
   TEST_KEY,
   OTHER_KEY,
-  FEE_COLLECTOR,
-  AZT_TOKEN,
+  TOPUP_CONTRACT,
   TX_HASH,
   CHAIN_ID,
 } from "./helpers.js";
@@ -68,8 +67,7 @@ describe("Integration: Authwit Request Flow", () => {
         [CHAIN_ID]: {
           name: "base-sepolia",
           rpcUrl: "https://sepolia.base.org",
-          feeCollectorAddress: FEE_COLLECTOR,
-          aztTokenAddress: AZT_TOKEN,
+          topUpContractAddress: TOPUP_CONTRACT,
           requiredConfirmations: 6,
         },
       },

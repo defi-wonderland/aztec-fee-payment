@@ -1,8 +1,8 @@
 export { MultiChainEVMClient, type EVMClient } from "./client.js";
 export {
-  parseTransferEvents,
-  findFeeCollectorTransfers,
-  type ParsedTransfer,
+  parseTopUpEvents,
+  findMatchingTopUpEvents,
+  type ParsedTopUp,
 } from "./parser.js";
 export {
   validateTransaction,
