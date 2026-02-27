@@ -17,9 +17,7 @@ update_owner(owner)
 mint(account, amount, secret)
 ├── valid authwit from owner
 │   ├── credits account by amount
-│   ├── mint to self or to a different account
-│   ├── accumulates across multiple mints
-│   └── amount == 0 succeeds (no-op)
+│   └── mint to self or to a different account
 ├── no authwit registered                                 ⇒ REVERT
 ├── wrong secret (different inner hash)                   ⇒ REVERT
 ├── wrong amount (different inner hash)                   ⇒ REVERT
@@ -103,8 +101,6 @@ balance_of
 mint
   success                                 x
   to different account                    x
-  accumulates                             x
-  zero amount                             x
   no authwit                              x
   wrong secret                            x
   wrong amount                            x

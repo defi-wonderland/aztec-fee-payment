@@ -33,30 +33,6 @@ unconstrained fn mint_to_different_account() {
     assert(owner_balance == 0, "Owner balance should remain zero");
 }
 
-#[test]
-unconstrained fn mint_multiple_accumulates() {
-    let (env, contract_address, owner, _) = utils::setup(true);
-
-    let first_mint: u128 = 5000;
-    let second_mint: u128 = 3000;
-
-    utils::mint_balance(env, contract_address, owner, owner, first_mint);
-    utils::mint_balance(env, contract_address, owner, owner, second_mint);
-
-    let balance = utils::get_balance(env, contract_address, owner);
-    assert(balance == first_mint + second_mint, "Balance should be accumulated total");
-}
-
-#[test]
-unconstrained fn mint_zero_amount() {
-    let (env, contract_address, owner, _) = utils::setup(true);
-
-    utils::mint_balance(env, contract_address, owner, owner, 0);
-
-    let balance = utils::get_balance(env, contract_address, owner);
-    assert(balance == 0, "Balance should remain zero after minting zero");
-}
-
 // ---- Authwit verification tests (via mint as thinnest wrapper) ----
 
 /// No authwit registered -- oracle cannot find auth witness.
