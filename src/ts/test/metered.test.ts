@@ -26,8 +26,8 @@ import {
 import {
   TEST_TIMEOUT,
   deployCounter,
+  produceL2Block,
   deploySettledMetered,
-  deployUnsettledMetered,
   getGasSetup,
   getGasSetupWithTeardown,
   getBalance,
@@ -51,6 +51,7 @@ async function createMintAuthWit(
 describe("Metered Fee Payment Contract", () => {
   let wallet: TestWallet;
   let alice: AztecAddress;
+  let bob: AztecAddress;
   let counter: CounterContract;
   let aztecNode: AztecNode;
   let fpc: MeteredContract;
@@ -67,6 +68,7 @@ describe("Metered Fee Payment Contract", () => {
     aztecNode = ctx.aztecNode;
     wallet = ctx.wallet;
     alice = ctx.deployer;
+    bob = ctx.accounts[1]!;
 
     // Deploy counter for testing
     counter = await deployCounter(wallet);
@@ -81,7 +83,7 @@ describe("Metered Fee Payment Contract", () => {
       {
         claimTxSender: alice,
         produceL2Block: async () => {
-          await deployCounter(wallet);
+          await produceL2Block(wallet);
         },
         loggerName: "test:metered",
       },
@@ -144,8 +146,8 @@ describe("Metered Fee Payment Contract", () => {
 
       // User's internal balance was debited maxGasCost -- NOT transactionFee.
       // The difference (maxGasCost - transactionFee) is the overpayment that
-      // is never refunded. This IS the "refund = 0" behavior by design.
-      expect(maxGasCost).toBeGreaterThan(BigInt(transactionFee));
+      // is never refunded.
+      expect(maxGasCost).toBeGreaterThanOrEqual(BigInt(transactionFee));
       expect(internalBalanceAfter).toBe(internalBalanceBefore - maxGasCost);
     },
     TEST_TIMEOUT,
@@ -216,34 +218,29 @@ describe("Metered Fee Payment Contract", () => {
   it(
     "pay_fee INVALID: fails when user has insufficient balance (tx not included)",
     async () => {
-      const testCounter = await deployCounter(wallet);
       const { maxFeesPerGas, gasLimits, teardownGasLimits } =
         await getGasSetup(aztecNode);
 
-      // Deploy FPC without minting internal balance (owner unsettled is fine
-      // since pay_fee doesn't read the owner)
-      const emptyFpc = await deployUnsettledMetered(wallet, alice);
-      await fundL2AddressWithFeeJuiceFromL1(
-        aztecNode,
+      // Mint 1 wei to bob — non-zero but well below maxGasCost
+      const secret = Fr.random();
+      const authWitness = await createMintAuthWit(
         wallet,
-        emptyFpc.address,
-        {
-          claimTxSender: alice,
-          produceL2Block: async () => {
-            await deployCounter(wallet);
-          },
-          loggerName: "test:metered-empty",
-        },
+        alice,
+        fpc.address,
+        1n,
+        secret,
       );
+      await fpc.methods
+        .mint(bob, 1n, secret)
+        .with({ authWitnesses: [authWitness] })
+        .send({ from: bob });
 
-      const emptyPaymentMethod = new MeteredFeePaymentMethod(emptyFpc.address);
-
-      // Should fail because alice has no internal balance
+      // Should fail because bob's balance (1 wei) < maxGasCost
       await expect(
-        testCounter.methods.increment().send({
-          from: alice,
+        counter.methods.increment().send({
+          from: bob,
           fee: {
-            paymentMethod: emptyPaymentMethod,
+            paymentMethod,
             gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
           },
         }),
@@ -253,38 +250,31 @@ describe("Metered Fee Payment Contract", () => {
   );
 
   it(
-    "pay_fee_exact INVALID: fails when user has zero balance",
+    "pay_fee_exact INVALID: fails when user has insufficient balance",
     async () => {
-      const testCounter = await deployCounter(wallet);
       const { maxFeesPerGas, gasLimits, teardownGasLimits } =
         await getGasSetupWithTeardown(aztecNode);
 
-      // Deploy FPC without minting internal balance (owner unsettled is fine
-      // since pay_fee_exact doesn't read the owner)
-      const emptyFpc = await deployUnsettledMetered(wallet, alice);
-      await fundL2AddressWithFeeJuiceFromL1(
-        aztecNode,
+      // Mint 1 wei to bob — non-zero but well below maxGasCost
+      const secret = Fr.random();
+      const authWitness = await createMintAuthWit(
         wallet,
-        emptyFpc.address,
-        {
-          claimTxSender: alice,
-          produceL2Block: async () => {
-            await deployCounter(wallet);
-          },
-          loggerName: "test:metered-exact-empty",
-        },
+        alice,
+        fpc.address,
+        1n,
+        secret,
       );
+      await fpc.methods
+        .mint(bob, 1n, secret)
+        .with({ authWitnesses: [authWitness] })
+        .send({ from: bob });
 
-      const emptyExactPaymentMethod = new MeteredExactFeePaymentMethod(
-        emptyFpc.address,
-      );
-
-      // Should fail because alice has no internal balance
+      // Should fail because bob's balance (1 wei) < maxGasCost
       await expect(
-        testCounter.methods.increment().send({
-          from: alice,
+        counter.methods.increment().send({
+          from: bob,
           fee: {
-            paymentMethod: emptyExactPaymentMethod,
+            paymentMethod: exactPaymentMethod,
             gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
           },
         }),

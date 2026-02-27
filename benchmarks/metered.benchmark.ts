@@ -39,7 +39,7 @@ import {
   fundL2AddressWithFeeJuiceFromL1,
   warpL1Time,
 } from "../src/ts/test/harness.js";
-import { deployCounter } from "../src/ts/test/utils.js";
+import { produceL2Block } from "../src/ts/test/utils.js";
 import {
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
@@ -220,7 +220,7 @@ export default class CounterContractBenchmark extends Benchmark {
     await fundL2AddressWithFeeJuiceFromL1(node, wallet, meteredFpc.address, {
       claimTxSender: deployer,
       produceL2Block: async () => {
-        await deployCounter(wallet);
+        await produceL2Block(wallet);
       },
       loggerName: "benchmark:metered",
     });

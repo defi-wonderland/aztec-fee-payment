@@ -47,6 +47,15 @@ export async function deployCounter(
   return CounterContract.deploy(deployer).send({ from: deployerAddress });
 }
 
+/**
+ * Forces an L2 block to be produced by submitting a transaction.
+ * Use after L1 time warps to ensure the new timestamp is reflected
+ * in the L2 historical state (e.g. for DelayedPublicMutable settlement).
+ */
+export async function produceL2Block(wallet: Wallet): Promise<void> {
+  await deployCounter(wallet);
+}
+
 /** Get common gas setup for fee payment tests (no teardown). */
 export async function getGasSetup(aztecNode: AztecNode): Promise<GasSetup> {
   const baseFees = (await aztecNode.getCurrentMinFees()) as BaseFees;
@@ -106,6 +115,7 @@ export async function deploySettledMetered(
 ): Promise<MeteredContract> {
   const fpc = await deployMeteredContract(wallet, owner);
   await warpL1Time(aztecNode, CONFIG_DELAY);
+  await produceL2Block(wallet);
   return fpc;
 }
 
