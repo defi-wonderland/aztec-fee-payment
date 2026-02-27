@@ -1,19 +1,37 @@
 {
   "name": "aztec-fee-payment-monorepo",
-  "version": "4.0.0-devnet.1-patch.0",
+  "version": "4.0.0-devnet.2-patch.1",
   "private": true,
   "repository": "https://github.com/defi-wonderland/aztec-fee-payment.git",
   "author": "Wonderland",
   "license": "MIT",
   "type": "module",
-  "workspaces": [
-    "src/ts"
-  ],
+  "exports": {
+    ".": {
+      "import": "./dist/src/ts/index.js",
+      "types": "./dist/src/ts/index.d.ts"
+    },
+    "./artifacts": {
+      "import": "./dist/src/artifacts/Metered.js",
+      "types": "./dist/src/artifacts/Metered.d.ts"
+    },
+    "./fee-payment-methods": {
+      "import": "./dist/src/ts/fee-payment-methods/index.js",
+      "types": "./dist/src/ts/fee-payment-methods/index.d.ts"
+    },
+    "./utils": {
+      "import": "./dist/src/ts/utils/index.js",
+      "types": "./dist/src/ts/utils/index.d.ts"
+    }
+  },
+  "main": "./dist/src/ts/index.js",
+  "types": "./dist/src/ts/index.d.ts",
+  "files": ["dist", "target"],
   "scripts": {
     "clean": "rm -rf ./src/artifacts/* ./target codegenCache.json",
     "codegen": "aztec codegen target --outdir src/artifacts -f",
     "compile": "aztec compile",
-    "build": "yarn compile && yarn codegen && yarn workspace @defi-wonderland/aztec-fee-payment build",
+    "build": "yarn compile && yarn codegen && bash scripts/build-package.sh",
     "test": "yarn test:nr && yarn test:js",
     "test:js": "rm -rf pxe-test-metered && vitest run && yarn test:agent",
     "test:nr": "aztec test",
@@ -44,20 +62,20 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
-    "@aztec/accounts": "4.0.0-devnet.1-patch.0",
-    "@aztec/aztec.js": "4.0.0-devnet.1-patch.0",
-    "@aztec/constants": "4.0.0-devnet.1-patch.0",
-    "@aztec/entrypoints": "4.0.0-devnet.1-patch.0",
-    "@aztec/ethereum": "4.0.0-devnet.1-patch.0",
-    "@aztec/foundation": "4.0.0-devnet.1-patch.0",
-    "@aztec/noir-contracts.js": "4.0.0-devnet.1-patch.0",
-    "@aztec/protocol-contracts": "4.0.0-devnet.1-patch.0",
-    "@aztec/pxe": "4.0.0-devnet.1-patch.0",
-    "@aztec/stdlib": "4.0.0-devnet.1-patch.0",
-    "@aztec/test-wallet": "4.0.0-devnet.1-patch.0",
+    "@aztec/accounts": "4.0.0-devnet.2-patch.1",
+    "@aztec/aztec.js": "4.0.0-devnet.2-patch.1",
+    "@aztec/constants": "4.0.0-devnet.2-patch.1",
+    "@aztec/entrypoints": "4.0.0-devnet.2-patch.1",
+    "@aztec/ethereum": "4.0.0-devnet.2-patch.1",
+    "@aztec/foundation": "4.0.0-devnet.2-patch.1",
+    "@aztec/noir-contracts.js": "4.0.0-devnet.2-patch.1",
+    "@aztec/protocol-contracts": "4.0.0-devnet.2-patch.1",
+    "@aztec/pxe": "4.0.0-devnet.2-patch.1",
+    "@aztec/stdlib": "4.0.0-devnet.2-patch.1",
+    "@aztec/wallets": "4.0.0-devnet.2-patch.1",
     "@commitlint/cli": "20.4.1",
     "@commitlint/config-conventional": "20.4.1",
-    "@defi-wonderland/aztec-benchmark": "4.0.0-devnet.1-patch.0",
+    "@defi-wonderland/aztec-benchmark": "4.0.0-devnet.2-patch.1",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
     "@types/node": "25.2.3",
@@ -73,7 +91,7 @@
     "vitest": "4.0.18"
   },
   "config": {
-    "aztecVersion": "4.0.0-devnet.1-patch.0"
+    "aztecVersion": "4.0.0-devnet.2-patch.1"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
   "engines": {
@@ -82,6 +100,6 @@
   },
   "resolutions": {
     "@noble/hashes": "1.8.0",
-    "@aztec/foundation": "4.0.0-devnet.1-patch.0"
+    "@aztec/foundation": "4.0.0-devnet.2-patch.1"
   }
 }

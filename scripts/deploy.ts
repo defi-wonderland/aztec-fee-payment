@@ -21,10 +21,8 @@ import {
 } from "@aztec/aztec.js/node";
 import { createLogger } from "@aztec/foundation/log";
 import { sleep } from "@aztec/foundation/sleep";
-import {
-  TestWallet,
-  registerInitialLocalNetworkAccountsInWallet,
-} from "@aztec/test-wallet/server";
+import { EmbeddedWallet } from "@aztec/wallets/embedded";
+import { registerInitialLocalNetworkAccountsInWallet } from "@aztec/wallets/testing";
 
 import { SingleKeyAccountContract } from "@aztec/accounts/single_key";
 import { deriveSigningKey } from "@aztec/stdlib/keys";
@@ -205,16 +203,14 @@ export async function createAccount(
 ): Promise<{ wallet: Wallet; account: AccountWithSecretKey }> {
   logger.info("Creating account...");
 
-  // For local-network, use TestWallet with pre-deployed accounts
+  // For local-network, use EmbeddedWallet with pre-deployed accounts
   if (networkName === "local-network") {
-    const wallet = await TestWallet.create(
-      node,
-      {
+    const wallet = await EmbeddedWallet.create(node, {
+      pxeConfig: {
         dataDirectory: "deployer-wallet-local/",
         proverEnabled: false,
       },
-      {},
-    );
+    });
     const accounts = await registerInitialLocalNetworkAccountsInWallet(wallet);
     if (accounts.length === 0) {
       throw new Error("No local network accounts available");

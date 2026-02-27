@@ -13,6 +13,21 @@ unconstrained fn update_owner_reverts_non_owner() {
     env.call_public(user, Metered::at(contract_address).update_owner(user));
 }
 
+/// Calling update_owner a second time before the delay overrides the first.
+#[test]
+unconstrained fn update_owner_second_call_overrides_first() {
+    let (mut env, contract_address, owner, first_candidate) = utils::setup(false);
+    let second_candidate = env.create_light_account();
+
+    env.call_public(owner, Metered::at(contract_address).update_owner(first_candidate));
+    env.call_public(owner, Metered::at(contract_address).update_owner(second_candidate));
+
+    utils::settle_owner(env);
+
+    // second_candidate is now the owner and can call update_owner
+    env.call_public(second_candidate, Metered::at(contract_address).update_owner(second_candidate));
+}
+
 /// After update_owner + settling, the new owner can call update_owner
 #[test]
 unconstrained fn update_owner_new_owner_effective_after_delay() {

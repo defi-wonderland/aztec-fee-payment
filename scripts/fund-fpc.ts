@@ -351,11 +351,8 @@ async function fundFpc(options: Options): Promise<void> {
       fee: { paymentMethod },
     });
 
-  const txHash = await tx.getTxHash();
-  logger.info(`Claim tx: ${txHash}`);
-
-  const receipt = await tx.wait({ timeout: 120 });
-  logger.info(`Claim confirmed in block ${receipt.blockNumber}`);
+  logger.info(`Claim tx: ${tx.txHash}`);
+  logger.info(`Claim confirmed in block ${tx.blockNumber}`);
 
   logger.info("\n=== Success! ===");
   logger.info(`FPC ${fpcAddress} now has ${Number(amount) / 1e18} FJ`);
