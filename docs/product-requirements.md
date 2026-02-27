@@ -306,7 +306,7 @@ const balance = await fpc.methods.balance_of(userAddress).simulate({ from: userA
 
 The off-chain agent serves a stateless API that verifies TopUp events on EVM chains and returns authwits for users to mint wFJ on Aztec. Key characteristics:
 
-- **TopUp contract**: A custom EVM contract replaces raw ERC20 transfers; users call `topUp(from, amount)` which transfers AZT and emits a `TopUp` event
+- **TopUp contract**: Users call `topUp(from, amount)` on a custom EVM contract, which transfers AZT to the fee recipient and emits a `TopUp` event
 - **EIP-712 sender verification**: User signs txHash to prove they control the `from` address in the TopUp event
 - **Stateless & deterministic**: Same `txHash` + same `sender` always returns the same `{ amount, secret, authwit }` — no database required
 - **Privacy-preserving**: Agent never learns the user's Aztec address; user calls a minting function (`mint` or `mint_and_pay_fee`) themselves
@@ -577,7 +577,7 @@ sequenceDiagram
 
 ## EVM TopUp Contract Specification
 
-The TopUp contract is a custom EVM contract that replaces raw ERC20 transfers for the fee payment flow. It handles AZT token transfers and emits structured events for the off-chain agent to process.
+The TopUp contract is a custom EVM contract that handles AZT token transfers and emits structured events for the off-chain agent to process.
 
 ### Interface
 
