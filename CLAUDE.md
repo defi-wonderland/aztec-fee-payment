@@ -38,6 +38,7 @@ After any code change that affects contract logic, SDK public API, agent behavio
 - Node.js >= 22, Yarn 1.22.22 (corepack)
 - Aztec CLI v3.0.0-devnet.6-patch.1: `curl -s install.aztec.network | NON_INTERACTIVE=1 BIN_PATH=$HOME/.aztec/bin bash -s`
 - Docker (for Aztec sandbox)
+- Foundry (forge, cast, anvil) for Solidity development
 
 ## Commands
 
@@ -77,11 +78,23 @@ yarn deploy:devnet    # Deploy to devnet
 yarn deploy:testnet   # Deploy to testnet
 yarn deploy:dry-run   # Dry run
 
+# Solidity (Foundry)
+yarn compile:sol     # forge build
+yarn test:sol        # forge test -vvv
+
 # Formatting
 yarn lint:prettier
 ```
 
 ## Architecture
+
+### Solidity Contracts (`src/sol/`)
+
+EVM-side TopUp contract built with Foundry (config in `foundry.toml`, dependencies in `lib/`):
+
+- **`TopUp.sol`** — Handles AZT token top-ups for Aztec FPC sponsorship. Users call `topUp(from, amount)` which transfers AZT to the fee recipient and emits a `TopUp(from, amount)` event. Two-step fee recipient transfer (`setPendingFeeRecipient` + `acceptFeeRecipient`).
+- **`interfaces/ITopUp.sol`** — Interface with events, errors, and function signatures.
+- **`test/TopUp.t.sol`** — Foundry unit tests.
 
 ### Noir Contracts (`src/nr/`)
 
