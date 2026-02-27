@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
-import { TestWallet } from "@aztec/test-wallet/server";
+import { EmbeddedWallet } from "@aztec/wallets/embedded";
 import type { AztecNode } from "@aztec/aztec.js/node";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
-import { TxStatus } from "@aztec/aztec.js/tx";
 import { Fr } from "@aztec/aztec.js/fields";
 import { computeInnerAuthWitHash } from "@aztec/stdlib/auth-witness";
 
@@ -30,7 +29,7 @@ import {
 } from "./utils.js";
 
 describe("Metered Fee Payment Contract", () => {
-  let wallet: TestWallet;
+  let wallet: EmbeddedWallet;
   let alice: AztecAddress;
   let counter: CounterContract;
   let aztecNode: AztecNode;
@@ -116,7 +115,8 @@ describe("Metered Fee Payment Contract", () => {
         },
       });
 
-      expect(receipt.status).toBe(TxStatus.CHECKPOINTED);
+      expect(receipt.isMined()).toBe(true);
+      expect(receipt.hasExecutionSucceeded()).toBe(true);
 
       const fpcBalanceAfter = await getBalance(fpc.address, aztecNode);
       const internalBalanceAfter = await fpc.methods
@@ -152,7 +152,8 @@ describe("Metered Fee Payment Contract", () => {
         },
       });
 
-      expect(receipt.status).toBe(TxStatus.CHECKPOINTED);
+      expect(receipt.isMined()).toBe(true);
+      expect(receipt.hasExecutionSucceeded()).toBe(true);
 
       const fpcBalanceAfter = await getBalance(fpc.address, aztecNode);
       const internalBalanceAfter = await fpc.methods
