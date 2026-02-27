@@ -11,6 +11,7 @@ constructor(owner)
 update_owner(owner)
 ├── current owner can schedule a new owner
 ├── non-owner caller                                      ⇒ REVERT
+├── second call before delay overrides first scheduled owner
 ├── after delay, new owner can authorize mints
 └── after delay, old owner is rejected                    ⇒ REVERT
 
@@ -90,6 +91,7 @@ constructor
 
 update_owner
   non-owner reverts                       x
+  second call overrides first             x
   new owner effective after delay         x
   old owner rejected after transfer       x
 
