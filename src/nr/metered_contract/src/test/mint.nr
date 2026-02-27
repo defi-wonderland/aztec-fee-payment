@@ -78,11 +78,9 @@ unconstrained fn mint_reverts_wrong_amount() {
 }
 
 /// Authwit registered on a non-owner account -- should revert.
-/// _verify_authwit reads the owner and makes a static call to the owner's
-/// SchnorrAccount. In TXE, the SchnorrAccount's signing key note is
-/// unreadable when the outer caller (user) differs from the note owner,
-/// so the error comes from the nested static call rather than the authwit check.
-#[test(should_fail_with = "Failed to get a note 'self.is_some()'")]
+/// _verify_authwit delegates signature verification to the owner's account
+/// contract, which rejects the message when the signer doesn't match.
+#[test(should_fail_with = "Message not authorized by account 'valid_fn(self.context, message_hash)'")]
 unconstrained fn mint_reverts_authwit_on_non_owner() {
     let (env, contract_address, _, user) = utils::setup(true);
 
