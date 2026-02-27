@@ -139,7 +139,7 @@ struct Storage<Context> {
 1. SP deploys FPC contract via `deployMeteredContract(wallet, owner)` — the `owner` is the account contract that will authorize mints
 2. After `CONFIG_DELAY` (600s) elapses, the owner becomes effective and `mint()` / `mint_and_pay_fee()` can be called
 3. SP funds FPC with Fee Juice by bridging from L1 via `fundL2AddressWithFeeJuiceFromL1()`
-4. Users call `topUp(from, amount)` on the EVM TopUp contract, obtain authwits from SP's off-chain agent (via EIP-712 signed request), and call a minting function (`mint` or `mint_and_pay_fee`) to credit their balance
+4. Users approve the TopUp contract to spend AZT, call `topUp(from, amount)`, obtain authwits from SP's off-chain agent (via EIP-712 signed request), and call a minting function (`mint` or `mint_and_pay_fee`) to credit their balance
 
 ### Fee Payment Flow: `pay_fee()` (No Refund)
 
@@ -306,7 +306,7 @@ const balance = await fpc.methods.balance_of(userAddress).simulate({ from: userA
 
 The off-chain agent serves a stateless API that verifies TopUp events on EVM chains and returns authwits for users to mint wFJ on Aztec. Key characteristics:
 
-- **TopUp contract**: Users call `topUp(from, amount)` on a custom EVM contract, which transfers AZT to the fee recipient and emits a `TopUp` event
+- **TopUp contract**: Users approve the TopUp contract to spend AZT, then call `topUp(from, amount)`, which transfers AZT to the fee recipient and emits a `TopUp` event
 - **EIP-712 sender verification**: User signs txHash to prove they control the `from` address in the TopUp event
 - **Stateless & deterministic**: Same `txHash` + same `sender` always returns the same `{ amount, secret, authwit }` — no database required
 - **Privacy-preserving**: Agent never learns the user's Aztec address; user calls a minting function (`mint` or `mint_and_pay_fee`) themselves
@@ -315,15 +315,16 @@ The off-chain agent serves a stateless API that verifies TopUp events on EVM cha
 EVM-Side Payment Flow:
 
 1. User swaps tokens -> AZT on DEX (e.g., Uniswap on Base)
-2. User calls topUp(from, amount) on the TopUp contract
-3. TopUp contract transfers AZT to fee recipient, emits TopUp(from, amount)
-4. User signs EIP-712 message (txHash) to prove TopUp ownership
-5. User calls POST /api/v1/authwit/request with { evmTxHash, evmChainId, signature }
-6. Agent recovers sender from EIP-712 signature, validates tx finality, filters TopUp events by recovered sender
-7. Agent sums amounts from all matching TopUp events
-8. Agent derives secret = sign(sha256(txHash || from), spKey).r % Fr.MODULUS (from = TopUp event's `from` field)
-9. Agent generates authwit and returns { amount, secret, authwit }
-10. User stores authwit in PXE and calls a minting function (mint or mint_and_pay_fee) on Aztec
+2. User approves the TopUp contract to spend AZT
+3. User calls topUp(from, amount) on the TopUp contract
+4. TopUp contract transfers AZT from caller to fee recipient, emits TopUp(from, amount)
+5. User signs EIP-712 message (txHash) to prove TopUp ownership
+6. User calls POST /api/v1/authwit/request with { evmTxHash, evmChainId, signature }
+7. Agent recovers sender from EIP-712 signature, validates tx finality, filters TopUp events by recovered sender
+8. Agent sums amounts from all matching TopUp events
+9. Agent derives secret = sign(sha256(txHash || from), spKey).r % Fr.MODULUS (from = TopUp event's `from` field)
+10. Agent generates authwit and returns { amount, secret, authwit }
+11. User stores authwit in PXE and calls a minting function (mint or mint_and_pay_fee) on Aztec
 ```
 
 > For the detailed off-chain agent specification, see the separate **Off-Chain Agent Specification** document (`docs/Off-Chain Agent — Project Specification.md`).
@@ -397,14 +398,15 @@ This specifies how users obtain authwits from the Service Provider (SP) after pa
 
 ```
 1. SWAP: User swaps tokens -> AZT on DEX
-2. TOPUP: User calls topUp(from, amount) on TopUp contract
-3. SIGN: User signs EIP-712 message (txHash) to prove TopUp ownership
-4. REQUEST: User sends { evmTxHash, evmChainId, signature } to SP agent
-5. VALIDATE: Agent recovers sender from EIP-712, fetches TopUp events, matches sender to `from`
-6. AGGREGATE: Agent sums amounts from all matching TopUp events for the recovered sender
-7. DERIVE: Agent derives secret = sign(sha256(txHash || from), spKey).r % Fr.MODULUS
-8. RESPONSE: SP returns { amount, secret, authwit } deterministically
-9. MINT: User calls a minting function (mint or mint_and_pay_fee) on Aztec with stored authwit
+2. APPROVE: User approves TopUp contract to spend AZT
+3. TOPUP: User calls topUp(from, amount) on TopUp contract
+4. SIGN: User signs EIP-712 message (txHash) to prove TopUp ownership
+5. REQUEST: User sends { evmTxHash, evmChainId, signature } to SP agent
+6. VALIDATE: Agent recovers sender from EIP-712, fetches TopUp events, matches sender to `from`
+7. AGGREGATE: Agent sums amounts from all matching TopUp events for the recovered sender
+8. DERIVE: Agent derives secret = sign(sha256(txHash || from), spKey).r % Fr.MODULUS
+9. RESPONSE: SP returns { amount, secret, authwit } deterministically
+10. MINT: User calls a minting function (mint or mint_and_pay_fee) on Aztec with stored authwit
 ```
 
 #### EIP-712 Typed Data Specification
@@ -543,8 +545,9 @@ sequenceDiagram
     participant OAC as Owner Account Contract
 
     User->>EVM: Swap tokens -> AZT on DEX
+    User->>EVM: Approve TopUp contract to spend AZT
     User->>TopUp: topUp(from, amount)
-    TopUp->>TopUp: Transfer AZT to fee recipient
+    TopUp->>TopUp: Transfer AZT from caller to fee recipient
     TopUp->>TopUp: Emit TopUp(from, amount)
     User->>User: Sign EIP-712 message (txHash)
     User->>API: POST /api/v1/authwit/request { evmTxHash, evmChainId, signature }
@@ -595,7 +598,7 @@ event TopUp(address indexed from, uint256 amount);
 
 ### Behavior
 
-- **`topUp(from, amount)`**: Permissionless. Transfers `amount` AZT from caller to the current `feeRecipient`, emits `TopUp(from, amount)`. The `from` parameter identifies the logical payer (used in secret derivation and matched against EIP-712 signer for authorization).
+- **`topUp(from, amount)`**: Permissionless. Requires the caller to have approved the TopUp contract to spend at least `amount` AZT. Transfers `amount` AZT from caller to the current `feeRecipient`, emits `TopUp(from, amount)`. The `from` parameter identifies the logical payer (used in secret derivation and matched against EIP-712 signer for authorization).
 - **`feeRecipient()`**: Returns the current fee recipient address (where AZT tokens are forwarded).
 - **`pendingFeeRecipient()`**: Returns the address nominated to become the next fee recipient (zero address if no transfer is pending).
 - **`setPendingFeeRecipient(newFeeRecipient)`**: Nominates a new fee recipient. Only callable by the current fee recipient. Does NOT transfer the role — the nominee must accept.
