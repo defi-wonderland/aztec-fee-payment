@@ -106,7 +106,7 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 
 | Requirement | Acceptance Criteria | Status |
 | --- | --- | --- |
-| **Payment verification** | Off-chain agent validates `TopUp(from, amount)` events from the configured TopUp contract; recovers sender from EIP-712 signature and matches against TopUp event's `from` field for authorization; checks transaction finality | Planned |
+| **Payment verification** | Off-chain agent validates `TopUp(from, amount)` events from the configured TopUp contract; recovers sender from EIP-712 signature and matches against TopUp event's `from` field for authorization; sums amounts across all matching events in the transaction; checks transaction finality | Planned |
 | **Authwit generation** | User signs EIP-712 message (txHash) to prove TopUp ownership; agent recovers sender, derives mint secret deterministically via ECDSA, returns `{ amount, secret, authwit }` to user; user calls any minting function (`mint` or `mint_and_pay_fee`) on Aztec themselves | Planned |
 | **AZT-only acceptance** | Agent only processes `TopUp` events from the designated TopUp contract (which handles AZT transfers internally) | Planned |
 | **Stateless API** | `POST /api/v1/authwit/request` endpoint; same txHash always returns same `{ amount, secret, authwit }`; no database required | Planned |
@@ -320,9 +320,10 @@ EVM-Side Payment Flow:
 4. User signs EIP-712 message (txHash) to prove TopUp ownership
 5. User calls POST /api/v1/authwit/request with { evmTxHash, evmChainId, signature }
 6. Agent recovers sender from EIP-712 signature, validates tx finality, filters TopUp events by recovered sender
-7. Agent derives secret = sign(sha256(txHash || from), spKey).r % Fr.MODULUS (from = TopUp event's `from` field)
-8. Agent generates authwit and returns { amount, secret, authwit }
-9. User stores authwit in PXE and calls a minting function (mint or mint_and_pay_fee) on Aztec
+7. Agent sums amounts from all matching TopUp events
+8. Agent derives secret = sign(sha256(txHash || from), spKey).r % Fr.MODULUS (from = TopUp event's `from` field)
+9. Agent generates authwit and returns { amount, secret, authwit }
+10. User stores authwit in PXE and calls a minting function (mint or mint_and_pay_fee) on Aztec
 ```
 
 > For the detailed off-chain agent specification, see the separate **Off-Chain Agent Specification** document (`docs/Off-Chain Agent — Project Specification.md`).
@@ -399,10 +400,11 @@ This specifies how users obtain authwits from the Service Provider (SP) after pa
 2. TOPUP: User calls topUp(from, amount) on TopUp contract
 3. SIGN: User signs EIP-712 message (txHash) to prove TopUp ownership
 4. REQUEST: User sends { evmTxHash, evmChainId, signature } to SP agent
-5. VALIDATE: Agent recovers sender from EIP-712, fetches TopUp event, matches sender to `from`
-6. DERIVE: Agent derives secret = sign(sha256(txHash || from), spKey).r % Fr.MODULUS
-7. RESPONSE: SP returns { amount, secret, authwit } deterministically
-8. MINT: User calls a minting function (mint or mint_and_pay_fee) on Aztec with stored authwit
+5. VALIDATE: Agent recovers sender from EIP-712, fetches TopUp events, matches sender to `from`
+6. AGGREGATE: Agent sums amounts from all matching TopUp events for the recovered sender
+7. DERIVE: Agent derives secret = sign(sha256(txHash || from), spKey).r % Fr.MODULUS
+8. RESPONSE: SP returns { amount, secret, authwit } deterministically
+9. MINT: User calls a minting function (mint or mint_and_pay_fee) on Aztec with stored authwit
 ```
 
 #### EIP-712 Typed Data Specification
@@ -445,7 +447,7 @@ Request:
 
 Response (Success - 200):
 {
-  "amount": "1000000000000000000",    # Total AZT amount (from TopUp event)
+  "amount": "1000000000000000000",    # Total AZT amount (sum of matching TopUp events)
   "secret": "0x789abc...",            # sign(sha256(txHash || from), spKey).r % Fr.MODULUS (deterministic ECDSA)
   "authwit": {                        # Owner's authwit (usable with mint or mint_and_pay_fee)
     "innerHash": "0x...",             # H(amount, secret)
@@ -476,13 +478,13 @@ HANDLE_AUTHWIT_REQUEST(evmTxHash, evmChainId, signature):
        - Transaction succeeded
        - Transaction is finalized (enough confirmations)
 
-    3. PARSE & VALIDATE TOPUP EVENT
+    3. PARSE & VALIDATE TOPUP EVENTS
        - Parse TopUp(from, amount) events from receipt
        - Filter by: contract address (configured TopUp contract)
        - Filter by: `from` field matches recovered EIP-712 signer
-       - If no matching event, WRONG_RECIPIENT (signer has no TopUp events)
-       - Extract `amount` from matching event
-       - Reject if amount below minimum (INVALID_AMOUNT)
+       - If no matching events, WRONG_RECIPIENT (signer has no TopUp events)
+       - Sum `amount` across all matching events (a single tx may contain multiple TopUp calls for the same `from`)
+       - Reject if total amount below minimum (INVALID_AMOUNT)
 
     4. DERIVE SECRET (DETERMINISTIC)
        - secret = sign(sha256(txHash || from), spKey).r % Fr.MODULUS (deterministic ECDSA via RFC 6979)
@@ -527,7 +529,7 @@ HANDLE_AUTHWIT_REQUEST(evmTxHash, evmChainId, signature):
 7. **EIP-712 verification**: SP recovers the signer address from the EIP-712 signature and uses it as the `from` filter when querying TopUp events. Only TopUp events where the `from` field matches the recovered signer are counted, implicitly proving TopUp ownership.
 8. **Stateless availability**: SP has no database. User can retry infinitely—deterministic response.
 9. **Cross-chain replay prevention**: Different EVM chains produce different txHashes, so the derived secret is naturally unique per chain. EIP-712 domain also includes EVM `chainId` to bind signatures to a specific chain. Different chains have different TopUp contracts configured via `CHAIN_<id>_TOPUP_CONTRACT`. Additionally, the `from` address is included in the secret derivation input (`sha256(txHash || from)`), providing per-sender secret isolation.
-10. **Cross-sender aggregation prevention**: The sender address is recovered from the EIP-712 signature and used as a filter parameter — only TopUp events where the `from` field matches the recovered signer are counted. Prevents a multi-TopUp transaction from crediting all amounts to a single signer.
+10. **Multi-event aggregation & cross-sender isolation**: If a transaction contains multiple `TopUp` events, the agent sums amounts only from events whose `from` matches the recovered EIP-712 signer. Events with a different `from` are excluded, preventing a multi-sender transaction from crediting all amounts to a single signer.
 
 ### Complete End-to-End Flow (Phase 2)
 
@@ -606,6 +608,7 @@ event TopUp(address indexed from, uint256 amount);
 - Configured via `CHAIN_<id>_TOPUP_CONTRACT` environment variable (one TopUp contract per EVM chain)
 - Agent parses `TopUp` events from transaction receipts, filtering by the configured contract address
 - Authorization: agent recovers sender from EIP-712 signature and matches against TopUp event's `from` field
+- If multiple `TopUp` events match the same `from` in a single transaction, their amounts are summed into a single total
 - Secret derivation uses `from` from the TopUp event: `sign(sha256(txHash || from), spKey).r % Fr.MODULUS`
 
 ---
