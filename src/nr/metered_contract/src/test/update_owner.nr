@@ -25,10 +25,7 @@ unconstrained fn update_owner_second_call_overrides_first() {
     utils::settle_owner(env);
 
     // second_candidate is now the owner and can call update_owner
-    env.call_public(
-        second_candidate,
-        Metered::at(contract_address).update_owner(second_candidate),
-    );
+    env.call_public(second_candidate, Metered::at(contract_address).update_owner(second_candidate));
 }
 
 /// After update_owner + settling, the new owner can call update_owner
