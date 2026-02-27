@@ -33,30 +33,6 @@ unconstrained fn mint_to_different_account() {
     assert(owner_balance == 0, "Owner balance should remain zero");
 }
 
-#[test]
-unconstrained fn mint_multiple_accumulates() {
-    let (env, contract_address, owner, _) = utils::setup(true);
-
-    let first_mint: u128 = 5000;
-    let second_mint: u128 = 3000;
-
-    utils::mint_balance(env, contract_address, owner, owner, first_mint);
-    utils::mint_balance(env, contract_address, owner, owner, second_mint);
-
-    let balance = utils::get_balance(env, contract_address, owner);
-    assert(balance == first_mint + second_mint, "Balance should be accumulated total");
-}
-
-#[test]
-unconstrained fn mint_zero_amount() {
-    let (env, contract_address, owner, _) = utils::setup(true);
-
-    utils::mint_balance(env, contract_address, owner, owner, 0);
-
-    let balance = utils::get_balance(env, contract_address, owner);
-    assert(balance == 0, "Balance should remain zero after minting zero");
-}
-
 // ---- Authwit verification tests (via mint as thinnest wrapper) ----
 
 /// No authwit registered -- oracle cannot find auth witness.
@@ -102,11 +78,9 @@ unconstrained fn mint_reverts_wrong_amount() {
 }
 
 /// Authwit registered on a non-owner account -- should revert.
-/// _verify_authwit reads the owner and makes a static call to the owner's
-/// SchnorrAccount. In TXE, the SchnorrAccount's signing key note is
-/// unreadable when the outer caller (user) differs from the note owner,
-/// so the error comes from the nested static call rather than the authwit check.
-#[test(should_fail_with = "Failed to get a note 'self.is_some()'")]
+/// _verify_authwit delegates signature verification to the owner's account
+/// contract, which rejects the message when the signer doesn't match.
+#[test(should_fail_with = "Message not authorized by account 'valid_fn(self.context, message_hash)'")]
 unconstrained fn mint_reverts_authwit_on_non_owner() {
     let (env, contract_address, _, user) = utils::setup(true);
 

@@ -16,10 +16,8 @@ import {
   waitForNode,
   type AztecNode,
 } from "@aztec/aztec.js/node";
-import {
-  registerInitialLocalNetworkAccountsInWallet,
-  TestWallet,
-} from "@aztec/test-wallet/server";
+import { EmbeddedWallet } from "@aztec/wallets/embedded";
+import { registerInitialLocalNetworkAccountsInWallet } from "@aztec/wallets/testing";
 import { getPXEConfig } from "@aztec/pxe/config";
 import { Barretenberg } from "@aztec/bb.js";
 import { randomBytes } from "node:crypto";
@@ -155,7 +153,7 @@ class FeeWrappedInteraction {
 // Extend the BenchmarkContext from the new package
 interface MeteredBenchmarkContext extends BenchmarkContext {
   cleanup: () => Promise<void>;
-  wallet: TestWallet;
+  wallet: EmbeddedWallet;
   deployer: AztecAddress;
   accounts: AztecAddress[];
   counterContract: CounterContract;
@@ -187,10 +185,12 @@ export default class CounterContractBenchmark extends Benchmark {
       tmpdir(),
       `aztec-metered-${randomBytes(8).toString("hex")}`,
     );
-    const wallet = await TestWallet.create(node, {
-      ...pxeConfig,
-      dataDirectory,
-      proverEnabled: false,
+    const wallet = await EmbeddedWallet.create(node, {
+      pxeConfig: {
+        ...pxeConfig,
+        dataDirectory,
+        proverEnabled: false,
+      },
     });
     const accounts = await registerInitialLocalNetworkAccountsInWallet(wallet);
     const [deployer] = accounts;

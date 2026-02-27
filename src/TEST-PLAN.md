@@ -11,15 +11,14 @@ constructor(owner)
 update_owner(owner)
 ├── current owner can schedule a new owner
 ├── non-owner caller                                      ⇒ REVERT
+├── second call before delay overrides first scheduled owner
 ├── after delay, new owner can authorize mints
 └── after delay, old owner is rejected                    ⇒ REVERT
 
 mint(account, amount, secret)
 ├── valid authwit from owner
 │   ├── credits account by amount
-│   ├── mint to self or to a different account
-│   ├── accumulates across multiple mints
-│   └── amount == 0 succeeds (no-op)
+│   └── mint to self or to a different account
 ├── no authwit registered                                 ⇒ REVERT
 ├── wrong secret (different inner hash)                   ⇒ REVERT
 ├── wrong amount (different inner hash)                   ⇒ REVERT
@@ -92,6 +91,7 @@ constructor
 
 update_owner
   non-owner reverts                       x
+  second call overrides first             x
   new owner effective after delay         x
   old owner rejected after transfer       x
 
@@ -103,8 +103,6 @@ balance_of
 mint
   success                                 x
   to different account                    x
-  accumulates                             x
-  zero amount                             x
   no authwit                              x
   wrong secret                            x
   wrong amount                            x

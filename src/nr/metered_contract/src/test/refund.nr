@@ -7,7 +7,7 @@ use uint_note::PartialUintNote;
 
 /// External caller (not the contract itself) tries to call _refund -- should
 /// revert because of the #[only_self] restriction.
-#[test(should_fail)]
+#[test(should_fail_with = "Function _refund can only be called by the same contract 'self.msg_sender() == self.address'")]
 unconstrained fn refund_reverts_external_caller() {
     let (env, contract_address, owner, _) = utils::setup(true);
 

@@ -21,7 +21,7 @@ unconstrained fn constructor_sets_owner() {
 }
 
 /// Verifies that calling the constructor a second time reverts.
-#[test(should_fail)]
+#[test(should_fail_with = "EMITNULLIFIER: Attempted to emit duplicate nullifier")]
 unconstrained fn constructor_reverts_on_reinit() {
     let (env, contract_address, owner, _) = utils::setup(false);
 
@@ -30,7 +30,7 @@ unconstrained fn constructor_reverts_on_reinit() {
 
 /// Before CONFIG_DELAY elapses the owner reads as zero, so authwit
 /// verification should fail when attempting to mint.
-#[test(should_fail)]
+#[test(should_fail_with = "Unknown contract 0x0000000000000000000000000000000000000000000000000000000000000000")]
 unconstrained fn constructor_owner_not_effective_before_delay() {
     let mut env = TestEnvironment::new();
     let owner = env.create_contract_account();
