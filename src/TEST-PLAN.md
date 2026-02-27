@@ -114,13 +114,13 @@ mint
 pay_fee
   success (deducts maxGasCost)            BLOCKED₁           WIP
   no refund (overpays vs tx fee)          BLOCKED₁₂          WIP
-  insufficient user balance               BLOCKED₁₂          WIP
+  insufficient balance (0 < bal < cost)   BLOCKED₁₂          WIP
   FPC has no FeeJuice                     BLOCKED₁₂          WIP
 
 pay_fee_exact
   success + refund > 0                    BLOCKED₁           WIP
   success + refund == 0                   BLOCKED₁           WIP
-  zero user balance                       x                  WIP
+  insufficient balance (0 < bal < cost)   BLOCKED₁₂          WIP
   FPC has no FeeJuice                     BLOCKED₁₂          WIP
 
 mint_and_pay_fee
