@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
-import { EmbeddedWallet } from "@aztec/wallets/embedded";
+import { type EmbeddedWallet } from "@aztec/wallets/embedded";
 import type { AztecNode } from "@aztec/aztec.js/node";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { Fr } from "@aztec/aztec.js/fields";
@@ -34,7 +34,7 @@ import {
 
 /** Creates an authwit for the Metered contract's mint/mint_and_pay_fee functions. */
 async function createMintAuthWit(
-  wallet: TestWallet,
+  wallet: EmbeddedWallet,
   signer: AztecAddress,
   fpcAddress: AztecAddress,
   amount: bigint,
@@ -323,7 +323,8 @@ describe("Metered Fee Payment Contract", () => {
         },
       });
 
-      expect(receipt.status).toBe(TxStatus.CHECKPOINTED);
+      expect(receipt.isMined()).toBe(true);
+      expect(receipt.hasExecutionSucceeded()).toBe(true);
 
       const internalBalanceAfter = await fpc.methods
         .balance_of(alice)
@@ -420,7 +421,8 @@ describe("Metered Fee Payment Contract", () => {
         },
       });
 
-      expect(receipt.status).toBe(TxStatus.CHECKPOINTED);
+      expect(receipt.isMined()).toBe(true);
+      expect(receipt.hasExecutionSucceeded()).toBe(true);
 
       const internalBalanceAfter = await fpc.methods
         .balance_of(alice)
@@ -564,7 +566,8 @@ describe("Metered Fee Payment Contract", () => {
         },
       });
 
-      expect(receipt.status).toBe(TxStatus.CHECKPOINTED);
+      expect(receipt.isMined()).toBe(true);
+      expect(receipt.hasExecutionSucceeded()).toBe(true);
 
       const internalBalanceAfter = await fpc.methods
         .balance_of(alice)
