@@ -121,7 +121,7 @@ export async function deploySettledMetered(
 
 /**
  * Deploys the Metered FPC without warping time. The owner is scheduled
- * but not yet effective — useful for testing incomplete initialization.
+ * but not yet effective -- useful for testing incomplete initialization.
  */
 export async function deployUnsettledMetered(
   wallet: Wallet,

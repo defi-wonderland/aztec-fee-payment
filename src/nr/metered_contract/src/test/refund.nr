@@ -3,7 +3,7 @@
 // See src/ts/test/README.md for the full test tree and coverage matrix.
 
 use crate::{Metered, test::utils};
-use dep::uint_note::PartialUintNote;
+use uint_note::PartialUintNote;
 
 /// External caller (not the contract itself) tries to call _refund -- should
 /// revert because of the #[only_self] restriction.

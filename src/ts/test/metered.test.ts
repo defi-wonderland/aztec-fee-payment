@@ -196,8 +196,8 @@ describe("Metered Fee Payment Contract", () => {
   //
   // To trigger refund = 0 we need maxGasCost == transactionFee exactly.
   // This requires per-dimension gasLimits == gasUsed (DA and L2), but:
-  //   1. The receipt only exposes a scalar transactionFee — no per-dimension
-  //      gas breakdown — so we cannot solve for exact per-dimension limits.
+  //   1. The receipt only exposes a scalar transactionFee -- no per-dimension
+  //      gas breakdown -- so we cannot solve for exact per-dimension limits.
   //   2. Gas estimation (simulate + estimateGas) under-counts setup-phase
   //      and phase-transition overhead, causing OOG when limits are tight.
   //   3. Any limit above actual usage produces refund > 0; any limit at or
@@ -208,7 +208,7 @@ describe("Metered Fee Payment Contract", () => {
   it.skip(
     "pay_fee_exact SUCCESS: zero refund (refund_amount == 0)",
     async () => {
-      /* intentionally empty — see comment above */
+      /* intentionally empty -- see comment above */
     },
     TEST_TIMEOUT,
   );
@@ -221,7 +221,7 @@ describe("Metered Fee Payment Contract", () => {
       const { maxFeesPerGas, gasLimits, teardownGasLimits } =
         await getGasSetup(aztecNode);
 
-      // Mint 1 wei to bob — non-zero but well below maxGasCost
+      // Mint 1 wei to bob -- non-zero but well below maxGasCost
       const secret = Fr.random();
       const authWitness = await createMintAuthWit(
         wallet,
@@ -255,7 +255,7 @@ describe("Metered Fee Payment Contract", () => {
       const { maxFeesPerGas, gasLimits, teardownGasLimits } =
         await getGasSetupWithTeardown(aztecNode);
 
-      // Mint 1 wei to bob — non-zero but well below maxGasCost
+      // Mint 1 wei to bob -- non-zero but well below maxGasCost
       const secret = Fr.random();
       const authWitness = await createMintAuthWit(
         wallet,
