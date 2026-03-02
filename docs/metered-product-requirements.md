@@ -97,7 +97,7 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 | **`MeteredExactFeePaymentMethod`** | Implements `FeePaymentMethod` interface. Calls `pay_fee_exact()` on the FPC in setup phase. Refunds unused gas via teardown. | Implemented |
 | **`MeteredMintAndPayFeePaymentMethod`** | Implements `FeePaymentMethod`. Calls `mint_and_pay_fee(account, amount, secret)` with authwit witness. Self-sponsors the transaction. Solves cold-start. | Implemented |
 | **`MeteredMintThenPayFeePaymentMethod`** | Implements `FeePaymentMethod`. Two-step flow: calls `mint(account, amount, secret)` then `pay_fee()` in the same transaction. Requires existing FJ to pay for the tx. | Implemented |
-| **`deployMeteredContract(wallet, owner)`** | Utility to deploy a Metered FPC contract with the given owner. Returns `MeteredContract` instance. | Implemented |
+| **`deployMeteredFPCContract(wallet, owner)`** | Utility to deploy a Metered FPC contract with the given owner. Returns `MeteredContract` instance. | Implemented |
 | **`maxFeesPerGasFromBaseFees(baseFees, multiplier)`** | Calculates max fees per gas from current base fees with a safety multiplier (default 3x). Returns `GasFees`. | Implemented |
 | **`maxGasCostFor(maxFeesPerGas, gasLimits, teardownGasLimits)`** | Calculates maximum possible gas cost in wei. Formula matches the Noir `get_max_gas_cost()` implementation. | Implemented |
 | **`REASONABLE_GAS_LIMITS` / `REASONABLE_TEARDOWN_GAS_LIMITS`** | Default gas limit constants sourced from `@aztec/constants`. | Implemented |
@@ -137,7 +137,7 @@ struct Storage<Context> {
 
 ### Deployment Flow
 
-1. SP deploys FPC contract via `deployMeteredContract(wallet, owner)` — the `owner` is the account contract that will authorize mints
+1. SP deploys FPC contract via `deployMeteredFPCContract(wallet, owner)` — the `owner` is the account contract that will authorize mints
 2. After `CONFIG_DELAY` (600s) elapses, the owner becomes effective and `mint()` / `mint_and_pay_fee()` can be called
 3. SP funds FPC with Fee Juice by bridging from L1 via `fundL2AddressWithFeeJuiceFromL1()`
 4. Users obtain authwits from SP's off-chain agent and call a minting function (`mint` or `mint_and_pay_fee`) to credit their balance
@@ -227,14 +227,14 @@ import {
   MeteredExactFeePaymentMethod,
   MeteredMintAndPayFeePaymentMethod,
   MeteredMintThenPayFeePaymentMethod,
-  deployMeteredContract,
+  deployMeteredFPCContract,
   maxFeesPerGasFromBaseFees,
   REASONABLE_GAS_LIMITS,
   REASONABLE_TEARDOWN_GAS_LIMITS,
 } from '@defi-wonderland/aztec-fee-payment';
 
 // Deploy FPC with owner address
-const fpc = await deployMeteredContract(wallet, ownerAddress);
+const fpc = await deployMeteredFPCContract(wallet, ownerAddress);
 
 // Mint balance for user (requires authwit from the owner's account contract)
 await fpc.methods.mint(userAddress, amount, secret)
@@ -593,4 +593,4 @@ To avoid changing the FPC contract, Phase 1 can assume all ERC20 transfers come 
 | 3.4 | 2026-02-11 | Security hardening: validator now pins sender to first matching AZT transfer and sums only same-sender transfers, preventing cross-sender amount aggregation in multi-sender transactions. Updated payment verification acceptance criteria, Backend Verification Logic, EVM payment flow, sequence diagram, and security considerations. |
 | 3.5 | 2026-02-11 | Corrected sender filtering description: sender is recovered from EIP-712 signature (via `recoverClaimRequestSigner`) and passed as `from` filter to the validator — not "pinned to first matching transfer". Removed references to `verifyClaimRequestSignature` (only `recoverClaimRequestSigner` exists). Updated Backend Verification Logic, EVM payment flow, sequence diagram, security considerations #7 and #10, and payment verification acceptance criteria. |
 | 3.6 | 2026-02-12 | Secret derivation now includes sender address: `secret = sign(sha256(txHash \|\| sender), spKey).r % Fr.MODULUS`. The 32-byte txHash is concatenated with the 20-byte sender address (recovered from EIP-712 signature) and SHA-256'd to produce the ECDSA signing input. Provides per-sender secret isolation. Updated EVM payment flow, Backend Verification Logic, Phase 2 table, stateless design properties, security considerations #3 and #9, sequence diagram, API response comments, mint() requirement and transition note. |
-| 4.0 | 2026-02-25 | Key changes: (1) `owner` is now `DelayedPublicMutable<AztecAddress, CONFIG_DELAY>` with `CONFIG_DELAY = 600`; constructor schedules owner, effective after delay. (2) Added `update_owner(owner)` for transferable ownership. (3) `mint(account, amount, secret)` takes explicit `account` parameter (not `msg_sender`); authwit verified via owner's account contract; nullifier pushed for replay prevention. (4) Added `mint_and_pay_fee(account, amount, secret)` for cold-start self-sponsoring (credits `amount - max_gas_cost`). (5) Removed legacy permissionless `mint(account, amount)`. (6) `pay_fee`/`pay_fee_exact` use `#[allow_phase_change]` (replaces `#[nophasecheck]`) and recursive `try_sub` with `INITIAL_TRANSFER_CALL_MAX_NOTES = 2`. (7) SDK adds `MeteredMintAndPayFeePaymentMethod` and `MeteredMintThenPayFeePaymentMethod`; `deployMeteredContract` now takes `owner` parameter. (8) Target Aztec version bumped to `4.0.0-devnet.1-patch.0`. |
+| 4.0 | 2026-02-25 | Key changes: (1) `owner` is now `DelayedPublicMutable<AztecAddress, CONFIG_DELAY>` with `CONFIG_DELAY = 600`; constructor schedules owner, effective after delay. (2) Added `update_owner(owner)` for transferable ownership. (3) `mint(account, amount, secret)` takes explicit `account` parameter (not `msg_sender`); authwit verified via owner's account contract; nullifier pushed for replay prevention. (4) Added `mint_and_pay_fee(account, amount, secret)` for cold-start self-sponsoring (credits `amount - max_gas_cost`). (5) Removed legacy permissionless `mint(account, amount)`. (6) `pay_fee`/`pay_fee_exact` use `#[allow_phase_change]` (replaces `#[nophasecheck]`) and recursive `try_sub` with `INITIAL_TRANSFER_CALL_MAX_NOTES = 2`. (7) SDK adds `MeteredMintAndPayFeePaymentMethod` and `MeteredMintThenPayFeePaymentMethod`; `deployMeteredFPCContract` now takes `owner` parameter. (8) Target Aztec version bumped to `4.0.0-devnet.1-patch.0`. |

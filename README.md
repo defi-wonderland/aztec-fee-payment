@@ -4,11 +4,12 @@ A collection of Fee Payment Contracts (FPCs) for Aztec that enable transaction f
 
 ## Overview
 
-This repository provides a production-ready Metered FPC implementation:
+This repository provides two production-ready FPC implementations:
 
-| Contract | Description |
-|----------|-------------|
-| **Metered** | Tracks internal balances and deducts max gas cost |
+| Contract | Description | Auth model |
+|----------|-------------|-----------|
+| **MeteredFPC** | Tracks internal balances, deducts max gas cost. Optional exact refund via teardown. | Off-chain agent issues authwits for mints |
+| **BridgedFPC** | Fully private. Users bridge FeeJuice from L1; the bridge claim converts to internal wFJ balance for fee sponsorship. | Cryptographic bridge proof (no owner, no agent) |
 
 ## Project Structure
 
@@ -16,14 +17,16 @@ This repository provides a production-ready Metered FPC implementation:
 ├── src/
 │   ├── nr/                          # Noir smart contracts
 │   │   ├── counter_contract/        # Test utility contract
-│   │   └── metered_contract/        # Metered FPC
+│   │   ├── metered_contract/        # MeteredFPC
+│   │   └── bridged_contract/        # BridgedFPC
 │   └── ts/                          # TypeScript package
 │       ├── artifacts/               # Generated contract bindings
 │       ├── fee-payment-methods/     # Fee payment method classes
 │       ├── utils/                   # Utilities (gas, deploy)
 │       └── test/                    # Integration tests
 ├── target/                          # Compiled contract artifacts
-└── benchmarks/                      # Performance benchmarks
+├── benchmarks/                      # Performance benchmarks
+└── docs/                            # Product requirements
 ```
 
 ## Setup
@@ -43,13 +46,11 @@ yarn install
 ### Compile Contracts
 
 ```bash
-# Compile Noir contracts
-nargo compile --silence-warnings
+# Full rebuild: compile Noir + generate TS bindings
+yarn ccc
 
-# Post-process with Aztec tooling
+# Or step by step
 aztec compile
-
-# Generate TypeScript bindings
 aztec codegen target --outdir src/artifacts
 ```
 
@@ -61,16 +62,13 @@ Start the Aztec sandbox:
 yarn start:sandbox
 ```
 
-Run tests:
+Run all tests:
 
 ```bash
-yarn test
+yarn test        # Noir unit tests + JS integration tests
+yarn test:nr     # Noir unit tests only
+yarn test:js     # JS integration tests only
 ```
-
-The Metered FPC test file validates:
-- ✅ **SUCCESS**: Transaction succeeds, FPC pays fees
-- ❌ **Private revert**: Transaction is invalid (not included)
-- ⚠️ **Public revert**: FPC still pays fees (APP_LOGIC_REVERTED)
 
 ## External Usage
 
@@ -80,24 +78,67 @@ See [src/ts/README.md](src/ts/README.md) for detailed documentation on using the
 yarn add @defi-wonderland/aztec-fee-payment
 ```
 
-Quick example:
+### MeteredFPC
+
+Tracks internal balances per account. An off-chain agent authorizes mints via authwits. Supports an optional exact-refund teardown flow.
 
 ```typescript
 import {
-  MeteredContract,
+  MeteredFPCContract,
   MeteredFeePaymentMethod,
-  deployMeteredContract,
+  deployMeteredFPCContract,
 } from '@defi-wonderland/aztec-fee-payment';
 
-// Deploy and fund the FPC
-const fpc = await deployMeteredContract(wallet);
+// Deploy the FPC (owner is the account that authorizes mints)
+const fpc = await deployMeteredFPCContract(wallet, ownerAddress);
 
-// Mint balance for user
-await fpc.methods.mint(userAddress, 1_000_000_000_000n).send();
+// Owner mints internal balance for a user (requires off-chain authwit)
+await fpc.methods.mint(userAddress, amount, secret).send();
 
-// Use it for transactions
+// User sponsors a transaction from their internal balance
 await myContract.methods.doSomething()
   .send({ fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) } });
+```
+
+### BridgedFPC
+
+Fully private; no owner and no off-chain agent. Users bridge FeeJuice from L1 to the FPC address, then call `mint_bridged` to convert the bridge claim into private wFJ balance.
+
+```typescript
+import {
+  BridgedFPCContract,
+  MeteredFeePaymentMethod,
+  BridgedMintAndPayFeePaymentMethod,
+  registerBridgedContract,
+} from '@defi-wonderland/aztec-fee-payment';
+
+// Register the BridgedFPC — no deployment transaction needed (fully private contract)
+const fpc = await registerBridgedContract(wallet);
+
+// --- L1: deposit to FeeJuicePortal with a claimer-bound secretHash ---
+// secretHash = computeSecretHash(poseidon2([salt, claimerAddress], DOM_SEP))
+// FeeJuicePortal.depositToAztecPublic(_to=fpc.address, _amount, secretHash)
+
+// --- L2: two-step flow ---
+// Step 1: claim FeeJuice on L2 (emits FeeJuice nullifier)
+await feeJuice.methods.claim(fpc.address, amount, secret, leafIndex).send();
+
+// Step 2: mint internal wFJ balance by proving the bridge claim
+await fpc.methods.mint_bridged(amount, salt, leafIndex).send();
+
+// User sponsors a transaction from their internal balance
+await myContract.methods.doSomething()
+  .send({ fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) } });
+
+// --- Cold-start: claim + mint + pay fee in one transaction ---
+await myContract.methods.doSomething()
+  .send({
+    fee: {
+      paymentMethod: new BridgedMintAndPayFeePaymentMethod(
+        fpc.address, amount, secret, salt, leafIndex,
+      ),
+    },
+  });
 ```
 
 ## Benchmarks
@@ -105,6 +146,8 @@ await myContract.methods.doSomething()
 ```bash
 yarn benchmark
 ```
+
+Benchmarks are defined in `Nargo.toml` under `[benchmark]` and run against a live local network. Each contract has its own benchmark file in `benchmarks/`.
 
 ## License
 

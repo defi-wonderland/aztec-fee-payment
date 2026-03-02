@@ -57,6 +57,55 @@ pub contract BridgedFPC {
         self.context.end_setup();
     }
 
+    /// @notice Mints internal wFJ balance and pays fee in one transaction (cold-start flow).
+    ///
+    /// Combines the bridge claim proof with fee payment: proves the L1->L2 bridge claim,
+    /// credits (amount - max_gas_cost) to the claimer, and sets the FPC as fee payer.
+    ///
+    /// Prerequisites (must execute in the same tx, before this call):
+    ///   - FeeJuice.claim(this_fpc_address, amount, secret, leaf_index) emits the FeeJuice
+    ///     nullifier that this function asserts via assert_nullifier_exists.
+    ///
+    /// Security: same as mint_bridged -- only the claimer can reconstruct the correct FeeJuice
+    /// nullifier; FPC-scoped nullifier prevents double-spending.
+    ///
+    /// @param amount     The exact amount bridged (must match the L1 deposit exactly).
+    /// @param salt       The random value chosen by the claimer at deposit time.
+    /// @param leaf_index The L1 message leaf index from the deposit transaction.
+    #[external("private")]
+    #[allow_phase_change]
+    fn mint_bridged_and_pay_fee(amount: u128, salt: Field, leaf_index: Field) {
+        let claimer = self.msg_sender();
+
+        let feejuice_nullifier = compute_feejuice_claim_nullifier(
+            self.address,
+            amount,
+            salt,
+            claimer,
+            leaf_index,
+            self.context.chain_id(),
+            self.context.version(),
+        );
+
+        self.context.assert_nullifier_exists(compute_nullifier_existence_request(
+            feejuice_nullifier,
+            FEE_JUICE_ADDRESS,
+        ));
+
+        // FPC-scoped nullifier prevents double-spending this bridge credit.
+        self.context.push_nullifier(feejuice_nullifier);
+
+        // Credit (amount - max_gas_cost) to claimer. The fee is implicitly deducted
+        // since the full amount was bridged but only the remainder is credited.
+        let max_gas_cost = get_max_gas_cost(self.context);
+        self.storage.balances.at(claimer).add(amount - max_gas_cost).deliver(
+            MessageDelivery.ONCHAIN_UNCONSTRAINED,
+        );
+
+        self.context.set_as_fee_payer();
+        self.context.end_setup();
+    }
+
     /// @notice Mints internal wFJ balance by proving a prior L1->L2 FeeJuice bridge claim.
     ///
     /// Prerequisites (must happen before or in the same tx as this call):

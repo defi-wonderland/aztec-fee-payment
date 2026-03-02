@@ -1,6 +1,6 @@
 # @defi-wonderland/aztec-fee-payment
 
-Fee Payment Contracts (FPCs) for Aztec. This package provides a Metered fee payment strategy that can be used to sponsor transaction fees on behalf of users.
+Fee Payment Contracts (FPCs) for Aztec. This package provides two fee payment strategies for sponsoring transaction fees on behalf of users.
 
 ## Installation
 
@@ -10,41 +10,88 @@ yarn add @defi-wonderland/aztec-fee-payment
 
 ## Available Contracts
 
-| Contract | Description | Use Case |
-|----------|-------------|----------|
-| **Metered** | Tracks internal balances, deducts max gas cost | Pre-paid credits system |
+| Contract | Description | Auth model |
+|----------|-------------|-----------|
+| **MeteredFPC** | Tracks internal balances, deducts max gas cost. Optional exact refund via teardown. | Off-chain agent issues authwits for mints |
+| **BridgedFPC** | Fully private. Bridge FeeJuice from L1; the claim converts to internal wFJ for fee sponsorship. | Cryptographic bridge proof (no owner, no agent) |
 
 ## Quick Start
 
-### Metered Fee Payment
+### MeteredFPC
 
-Tracks internal balances per account. Users must have sufficient balance (via `mint()`) before using.
+Tracks internal balances per account. An off-chain agent authorizes mints via authwits. Supports an exact-refund teardown variant (`pay_fee_exact`).
 
 ```typescript
 import {
   MeteredFPCContract,
   MeteredFeePaymentMethod,
+  MeteredExactFeePaymentMethod,
   deployMeteredFPCContract,
   maxGasCostFor,
   REASONABLE_GAS_LIMITS,
 } from '@defi-wonderland/aztec-fee-payment';
 
-// Deploy the FPC
-const fpc = await deployMeteredFPCContract(wallet);
+// Deploy the FPC (owner is the account contract that authorizes mints)
+const fpc = await deployMeteredFPCContract(wallet, ownerAddress);
 
-// Mint internal balance for user
-await fpc.methods.mint(userAddress, 1_000_000_000_000n).send();
+// Owner mints internal balance for a user (requires authwit from owner)
+await fpc.methods.mint(userAddress, amount, secret).send();
 
-// User can now use the FPC
+// User sponsors a transaction — max gas cost is deducted, no refund
+await someContract.methods.doSomething()
+  .send({
+    from: userAddress,
+    fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) },
+  });
+
+// Or with exact refund (teardown credits back unused gas)
+await someContract.methods.doSomething()
+  .send({
+    from: userAddress,
+    fee: { paymentMethod: new MeteredExactFeePaymentMethod(fpc.address) },
+  });
+```
+
+### BridgedFPC
+
+Fully private; no owner and no off-chain agent. Users bridge FeeJuice from L1 to the FPC address, then prove the bridge claim on L2 to credit private wFJ balance.
+
+```typescript
+import {
+  BridgedFPCContract,
+  MeteredFeePaymentMethod,
+  BridgedMintAndPayFeePaymentMethod,
+  registerBridgedContract,
+} from '@defi-wonderland/aztec-fee-payment';
+
+// Register the BridgedFPC with the PXE — no deployment transaction needed
+const fpc = await registerBridgedContract(wallet);
+
+// L1: deposit FeeJuice to the portal with a claimer-bound secretHash
+// secretHash = computeSecretHash(poseidon2([salt, claimerAddress], DOM_SEP))
+// FeeJuicePortal.depositToAztecPublic(_to=fpc.address, _amount, secretHash)
+
+// L2 two-step flow: claim then mint
+await feeJuice.methods.claim(fpc.address, amount, secret, leafIndex).send();
+await fpc.methods.mint_bridged(amount, salt, leafIndex).send();
+
+// Use internal wFJ balance to sponsor transactions
+await someContract.methods.doSomething()
+  .send({
+    from: userAddress,
+    fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) },
+  });
+
+// Or cold-start: FeeJuice.claim + mint_bridged_and_pay_fee in one transaction
 await someContract.methods.doSomething()
   .send({
     from: userAddress,
     fee: {
-      paymentMethod: new MeteredFeePaymentMethod(fpc.address),
-      gasSettings: { gasLimits: REASONABLE_GAS_LIMITS, ... }
-    }
-  })
-  ;
+      paymentMethod: new BridgedMintAndPayFeePaymentMethod(
+        fpc.address, amount, secret, salt, leafIndex,
+      ),
+    },
+  });
 ```
 
 ## Transaction Behavior
@@ -57,7 +104,7 @@ All FPCs handle transaction failures consistently:
 | **Public revert** | `APP_LOGIC_REVERTED` | Yes (FPC pays) |
 | **Success** | `SUCCESS` | Yes (FPC pays) |
 
-Key insight: If private logic fails, the transaction is never included - no fees are charged. But if the transaction is included and public logic reverts, the fee payer still pays the fees.
+If private logic fails, the transaction is never included — no fees are charged. If the transaction is included and public logic reverts, the fee payer still pays.
 
 ## Exports
 
@@ -66,15 +113,20 @@ Key insight: If private logic fails, the transaction is never included - no fees
 ```typescript
 // Contracts
 MeteredFPCContract, MeteredFPCContractArtifact
+BridgedFPCContract, BridgedFPCContractArtifact
 
 // Fee Payment Methods
-MeteredFeePaymentMethod
-MeteredExactFeePaymentMethod
+MeteredFeePaymentMethod          // pay_fee (no refund)
+MeteredExactFeePaymentMethod     // pay_fee_exact (teardown refund)
+MeteredMintAndPayFeePaymentMethod  // mint + pay_fee in one tx (MeteredFPC)
+MeteredMintThenPayFeePaymentMethod // mint then pay_fee in one tx (MeteredFPC)
+BridgedMintAndPayFeePaymentMethod  // FeeJuice.claim + mint_bridged_and_pay_fee (BridgedFPC)
 
 // Utilities
 REASONABLE_GAS_LIMITS, REASONABLE_TEARDOWN_GAS_LIMITS
 maxFeesPerGasFromBaseFees, maxGasCostFor
 deployMeteredFPCContract
+registerBridgedContract
 ```
 
 ### Sub-path Exports

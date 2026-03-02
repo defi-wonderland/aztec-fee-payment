@@ -7,3 +7,4 @@ members = [
 
 [benchmark]
 metered = "benchmarks/metered.benchmark.ts"
+bridged = "benchmarks/bridged.benchmark.ts"

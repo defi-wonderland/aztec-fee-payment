@@ -26,7 +26,7 @@ import { join } from "node:path";
 import { rmSync } from "node:fs";
 
 import { CounterContract } from "../src/artifacts/Counter.js";
-import { MeteredContract } from "../src/artifacts/Metered.js";
+import { MeteredFPCContract } from "../src/artifacts/MeteredFPC.js";
 import {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
@@ -44,7 +44,7 @@ import {
   REASONABLE_GAS_LIMITS,
   REASONABLE_TEARDOWN_GAS_LIMITS,
 } from "../src/ts/utils/gas.js";
-import { deployMeteredContract } from "../src/ts/utils/deploy.js";
+import { deployMeteredFPCContract } from "../src/ts/utils/deploy.js";
 
 const { NODE_URL = "http://localhost:8080" } = process.env;
 const node: AztecNode = createAztecNodeClient(NODE_URL);
@@ -157,7 +157,7 @@ interface MeteredBenchmarkContext extends BenchmarkContext {
   deployer: AztecAddress;
   accounts: AztecAddress[];
   counterContract: CounterContract;
-  meteredFpc: MeteredContract;
+  meteredFpc: MeteredFPCContract;
   // Existing payment methods (require pre-minted balance)
   meteredPaymentMethod: MeteredFeePaymentMethod;
   meteredExactPaymentMethod: MeteredExactFeePaymentMethod;
@@ -209,7 +209,7 @@ export default class CounterContractBenchmark extends Benchmark {
     });
 
     // Deploy and fund Metered FPC (deployer is the owner who authorizes mints)
-    const meteredFpc = await deployMeteredContract(wallet, deployer);
+    const meteredFpc = await deployMeteredFPCContract(wallet, deployer);
 
     // The contract stores owner as DelayedPublicMutable (CONFIG_DELAY = 600s).
     // Private reads return zero until the delay elapses and add an
