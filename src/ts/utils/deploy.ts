@@ -28,8 +28,10 @@ export async function deployMeteredFPCContract(
  * no on-chain deployment transaction is required.
  *
  * The contract address is computed deterministically from its class hash and the provided salt,
- * with `universalDeploy: true` so the deployer address is NOT mixed in. This means the same
+ * with `deployer: AztecAddress.ZERO` so the deployer address is NOT mixed in. This means the same
  * salt always produces the same address regardless of who calls this function.
+ * (`universalDeploy` is only available on `.send()` options; for `.register()` the equivalent
+ * is setting `deployer` to `AztecAddress.ZERO`.)
  *
  * @param wallet The wallet used to register the contract with the PXE
  * @param salt   Optional address salt (defaults to Fr.ZERO for a canonical address)
