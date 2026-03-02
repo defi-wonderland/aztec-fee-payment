@@ -42,6 +42,6 @@ export async function registerBridgedContract(
   return BridgedFPCContract.deploy(wallet).register({
     contractAddressSalt: salt,
     skipInitialization: true,
-    universalDeploy: true,
+    deployer: AztecAddress.ZERO,
   });
 }
