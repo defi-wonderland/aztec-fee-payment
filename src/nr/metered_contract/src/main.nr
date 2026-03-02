@@ -210,8 +210,11 @@ pub contract Metered {
     }
 
     /// @notice Calculates the worst-case gas cost from transaction gas settings.
-    /// @dev max_fee_per_da_gas * (da_gas_limit + da_teardown_gas_limit)
-    ///    + max_fee_per_l2_gas * (l2_gas_limit + l2_teardown_gas_limit)
+    /// @dev max_fee_per_da_gas * da_gas_limit + max_fee_per_l2_gas * l2_gas_limit
+    ///
+    /// `teardown_gas_limits` is intentionally excluded: it is a sub-budget drawn
+    /// from within `gas_limits`, not an additional budget on top. The protocol
+    /// fee cap (GasSettings::getFeeLimit) is `max_fees_per_gas * gas_limits` only.
     ///
     /// `max_priority_fees_per_gas` is intentionally excluded: following EIP-1559
     /// semantics, `max_fees_per_gas` already bounds the per-gas cost.
@@ -223,13 +226,10 @@ pub contract Metered {
 
         let l2_gas_limit = gas_settings.gas_limits.l2_gas;
         let da_gas_limit = gas_settings.gas_limits.da_gas;
-        let l2_teardown_gas_limit = gas_settings.teardown_gas_limits.l2_gas;
-        let da_teardown_gas_limit = gas_settings.teardown_gas_limits.da_gas;
 
         let max_fee_per_da_gas = gas_settings.max_fees_per_gas.fee_per_da_gas;
         let max_fee_per_l2_gas = gas_settings.max_fees_per_gas.fee_per_l2_gas;
 
-        max_fee_per_da_gas * (da_gas_limit as u128 + da_teardown_gas_limit as u128)
-            + max_fee_per_l2_gas * (l2_gas_limit as u128 + l2_teardown_gas_limit as u128)
+        max_fee_per_da_gas * da_gas_limit as u128 + max_fee_per_l2_gas * l2_gas_limit as u128
     }
 }

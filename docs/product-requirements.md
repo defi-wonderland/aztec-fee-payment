@@ -87,7 +87,7 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 | **Method: `_verify_authwit(amount, secret)`** | Internal private. Computes `inner_hash = H(amount, secret)`, reads `owner` from `DelayedPublicMutable`, delegates signature verification to the owner's account contract via `assert_inner_hash_valid_authwit()`. | Implemented |
 | **Method: `_refund(max_gas_cost, partial_note)`** | Public, `#[only_self]`. Teardown function called by `pay_fee_exact()`. Calculates `refund_amount = max_gas_cost - transaction_fee` and completes the partial note if refund > 0. | Implemented |
 | **Method: `balance_of(account)`** | Unconstrained utility view. Returns the wFJ balance of an account. | Implemented |
-| **Library: `get_max_gas_cost(context)`** | `#[contract_library_method]`. Calculates max gas cost from transaction gas settings: `(DA limit + DA teardown) * max_fee_per_da_gas + (L2 limit + L2 teardown) * max_fee_per_l2_gas`. | Implemented |
+| **Library: `get_max_gas_cost(context)`** | `#[contract_library_method]`. Calculates max gas cost from transaction gas settings: `DA limit * max_fee_per_da_gas + L2 limit * max_fee_per_l2_gas`. `gas_limits` is the total budget that already covers both main execution and teardown; `teardown_gas_limits` is a sub-limit controlling how much of that total the teardown phase may use, not an additional budget on top. | Implemented |
 
 ### TypeScript SDK
 
@@ -211,7 +211,9 @@ sequenceDiagram
 
 ### Gas Cost Calculation
 
-Max gas cost = `(DA gas limit + DA teardown limit) * max_fee_per_da_gas + (L2 gas limit + L2 teardown limit) * max_fee_per_l2_gas`
+Max gas cost = `DA gas limit * max_fee_per_da_gas + L2 gas limit * max_fee_per_l2_gas`
+
+`gas_limits` is the **total** budget covering both the main execution phase and the teardown phase. `teardown_gas_limits` is a sub-limit drawn from within `gas_limits` that controls the maximum gas the teardown phase may consume — it is NOT an additional budget added on top. The protocol fee cap (`GasSettings.getFeeLimit()`) is `max_fees_per_gas * gas_limits` only.
 
 This formula is implemented identically in both:
 - **Noir**: `get_max_gas_cost()` contract library method
@@ -593,4 +595,5 @@ To avoid changing the FPC contract, Phase 1 can assume all ERC20 transfers come 
 | 3.4 | 2026-02-11 | Security hardening: validator now pins sender to first matching AZT transfer and sums only same-sender transfers, preventing cross-sender amount aggregation in multi-sender transactions. Updated payment verification acceptance criteria, Backend Verification Logic, EVM payment flow, sequence diagram, and security considerations. |
 | 3.5 | 2026-02-11 | Corrected sender filtering description: sender is recovered from EIP-712 signature (via `recoverClaimRequestSigner`) and passed as `from` filter to the validator — not "pinned to first matching transfer". Removed references to `verifyClaimRequestSignature` (only `recoverClaimRequestSigner` exists). Updated Backend Verification Logic, EVM payment flow, sequence diagram, security considerations #7 and #10, and payment verification acceptance criteria. |
 | 3.6 | 2026-02-12 | Secret derivation now includes sender address: `secret = sign(sha256(txHash \|\| sender), spKey).r % Fr.MODULUS`. The 32-byte txHash is concatenated with the 20-byte sender address (recovered from EIP-712 signature) and SHA-256'd to produce the ECDSA signing input. Provides per-sender secret isolation. Updated EVM payment flow, Backend Verification Logic, Phase 2 table, stateless design properties, security considerations #3 and #9, sequence diagram, API response comments, mint() requirement and transition note. |
+| 4.0.1 | 2026-03-02 | Fix: remove teardown double-count from `get_max_gas_cost` formula. `gas_limits` already covers the teardown sub-budget; `teardown_gas_limits` is not added separately. Updated requirements table and Gas Cost Calculation section. |
 | 4.0 | 2026-02-25 | Key changes: (1) `owner` is now `DelayedPublicMutable<AztecAddress, CONFIG_DELAY>` with `CONFIG_DELAY = 600`; constructor schedules owner, effective after delay. (2) Added `update_owner(owner)` for transferable ownership. (3) `mint(account, amount, secret)` takes explicit `account` parameter (not `msg_sender`); authwit verified via owner's account contract; nullifier pushed for replay prevention. (4) Added `mint_and_pay_fee(account, amount, secret)` for cold-start self-sponsoring (credits `amount - max_gas_cost`). (5) Removed legacy permissionless `mint(account, amount)`. (6) `pay_fee`/`pay_fee_exact` use `#[allow_phase_change]` (replaces `#[nophasecheck]`) and recursive `try_sub` with `INITIAL_TRANSFER_CALL_MAX_NOTES = 2`. (7) SDK adds `MeteredMintAndPayFeePaymentMethod` and `MeteredMintThenPayFeePaymentMethod`; `deployMeteredContract` now takes `owner` parameter. (8) Target Aztec version bumped to `4.0.0-devnet.1-patch.0`. |

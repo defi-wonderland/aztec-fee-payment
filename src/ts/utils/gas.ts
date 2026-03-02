@@ -23,9 +23,15 @@ export const REASONABLE_TEARDOWN_GAS_LIMITS = Gas.from({
 });
 
 /**
+ * Default safety multiplier applied to base fees when estimating max fees per gas.
+ * A 3× buffer guards against fee spikes between simulation and inclusion.
+ */
+export const DEFAULT_FEE_MULTIPLIER = 3n;
+
+/**
  * Calculate max fees per gas from base fees with a multiplier.
  * @param baseFees - The current base fees from the node
- * @param multiplier - Multiplier to apply (default: 3n for safety margin)
+ * @param multiplier - Multiplier to apply (default: DEFAULT_FEE_MULTIPLIER)
  * @returns GasFees object with calculated max fees
  */
 export function maxFeesPerGasFromBaseFees(
@@ -33,7 +39,7 @@ export function maxFeesPerGasFromBaseFees(
     feePerDaGas: string | number | bigint;
     feePerL2Gas: string | number | bigint;
   },
-  multiplier: bigint = 3n,
+  multiplier: bigint = DEFAULT_FEE_MULTIPLIER,
 ): GasFees {
   return new GasFees(
     BigInt(baseFees.feePerDaGas) * multiplier,
@@ -43,20 +49,18 @@ export function maxFeesPerGasFromBaseFees(
 
 /**
  * Calculate the maximum gas cost for a transaction.
+ *
+ * Matches the protocol's GasSettings.getFeeLimit(): `maxFeesPerGas * gasLimits`.
+ * teardownGasLimits is intentionally excluded — it is a sub-budget drawn from
+ * within gasLimits, not an additional budget on top.
+ *
  * @param maxFeesPerGas - Maximum fees per gas unit
- * @param gasLimits - Gas limits for the main execution
- * @param teardownGasLimits - Gas limits for the teardown phase
+ * @param gasLimits - Total gas limits (covers both main execution and teardown sub-budget)
  * @returns Maximum possible gas cost in wei
  */
-export function maxGasCostFor(
-  maxFeesPerGas: GasFees,
-  gasLimits: Gas,
-  teardownGasLimits: Gas,
-): bigint {
+export function maxGasCostFor(maxFeesPerGas: GasFees, gasLimits: Gas): bigint {
   return (
-    BigInt(maxFeesPerGas.feePerDaGas) *
-      (BigInt(gasLimits.daGas) + BigInt(teardownGasLimits.daGas)) +
-    BigInt(maxFeesPerGas.feePerL2Gas) *
-      (BigInt(gasLimits.l2Gas) + BigInt(teardownGasLimits.l2Gas))
+    BigInt(maxFeesPerGas.feePerDaGas) * BigInt(gasLimits.daGas) +
+    BigInt(maxFeesPerGas.feePerL2Gas) * BigInt(gasLimits.l2Gas)
   );
 }

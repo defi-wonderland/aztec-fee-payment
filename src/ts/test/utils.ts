@@ -51,7 +51,7 @@ export async function getGasSetup(aztecNode: AztecNode): Promise<GasSetup> {
   const gasLimits: Gas = REASONABLE_GAS_LIMITS;
   const teardownGasLimits: Gas = Gas.from({ l2Gas: 0, daGas: 0 });
   const maxPriorityFeesPerGas: GasFees = MAX_PRIORITY_FEE_PER_GAS;
-  const maxGasCost = maxGasCostFor(maxFeesPerGas, gasLimits, teardownGasLimits);
+  const maxGasCost = maxGasCostFor(maxFeesPerGas, gasLimits);
 
   return {
     maxFeesPerGas,
@@ -71,7 +71,7 @@ export async function getGasSetupWithTeardown(
   const gasLimits: Gas = REASONABLE_GAS_LIMITS;
   const teardownGasLimits: Gas = REASONABLE_TEARDOWN_GAS_LIMITS;
   const maxPriorityFeesPerGas: GasFees = MAX_PRIORITY_FEE_PER_GAS;
-  const maxGasCost = maxGasCostFor(maxFeesPerGas, gasLimits, teardownGasLimits);
+  const maxGasCost = maxGasCostFor(maxFeesPerGas, gasLimits);
 
   return {
     maxFeesPerGas,
