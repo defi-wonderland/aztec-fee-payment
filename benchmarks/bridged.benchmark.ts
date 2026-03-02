@@ -16,10 +16,6 @@ import { Barretenberg } from "@aztec/bb.js";
 import { FeeJuiceContract } from "@aztec/noir-contracts.js/FeeJuice";
 import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 import { AztecAddress } from "@aztec/aztec.js/addresses";
-import { randomBytes } from "node:crypto";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { rmSync } from "node:fs";
 import type { FeePaymentMethod } from "@aztec/aztec.js/fee";
 
 import { CounterContract } from "../src/artifacts/Counter.js";
@@ -32,7 +28,6 @@ import {
   fundL2AddressWithFeeJuiceFromL1,
   bridgeForMintBridged,
 } from "../src/ts/test/harness.js";
-import { deployCounter } from "../src/ts/test/utils.js";
 import { registerBridgedContract } from "../src/ts/utils/deploy.js";
 import {
   maxFeesPerGasFromBaseFees,
@@ -126,6 +121,14 @@ interface BridgedBenchmarkContext extends BenchmarkContext {
     leafIndex: Fr;
     amount: bigint;
   };
+  // Pre-bridged deposit for the standalone mint_bridged benchmark.
+  // FeeJuice.claim is settled in setup; only mint_bridged runs in the benchmark.
+  mintBridgedDeposit: {
+    secret: Fr;
+    salt: Fr;
+    leafIndex: Fr;
+    amount: bigint;
+  };
   gasSettings: {
     gasLimits: Gas;
     teardownGasLimits: Gas;
@@ -145,14 +148,10 @@ export default class BridgedFPCBenchmark extends Benchmark {
   async setup(): Promise<BridgedBenchmarkContext> {
     await Barretenberg.destroySingleton();
 
-    const dataDirectory = join(
-      tmpdir(),
-      `aztec-bridged-${randomBytes(8).toString("hex")}`,
-    );
     const wallet = await EmbeddedWallet.create(node, {
+      ephemeral: true,
       pxeConfig: {
         ...pxeConfig,
-        dataDirectory,
         proverEnabled: false,
       },
     });
@@ -161,11 +160,6 @@ export default class BridgedFPCBenchmark extends Benchmark {
 
     const cleanup = async () => {
       await wallet.stop();
-      try {
-        rmSync(dataDirectory, { recursive: true, force: true });
-      } catch {
-        // ignore cleanup errors
-      }
     };
 
     const counterContract = await CounterContract.deploy(wallet).send({
@@ -179,7 +173,7 @@ export default class BridgedFPCBenchmark extends Benchmark {
     await fundL2AddressWithFeeJuiceFromL1(node, wallet, bridgedFpc.address, {
       claimTxSender: deployer,
       produceL2Block: async () => {
-        await deployCounter(wallet);
+        await counterContract.methods.increment().send({ from: deployer });
       },
       loggerName: "benchmark:bridged-fund",
     });
@@ -212,7 +206,7 @@ export default class BridgedFPCBenchmark extends Benchmark {
       AztecAddress.fromString(deployer.toString()),
       saltForBalance,
       async () => {
-        await deployCounter(wallet);
+        await counterContract.methods.increment().send({ from: deployer });
       },
       { loggerName: "benchmark:bridged-bridge-balance" },
     );
@@ -248,7 +242,7 @@ export default class BridgedFPCBenchmark extends Benchmark {
       AztecAddress.fromString(deployer.toString()),
       saltForMintAndPay,
       async () => {
-        await deployCounter(wallet);
+        await counterContract.methods.increment().send({ from: deployer });
       },
       { loggerName: "benchmark:bridged-bridge-mint-and-pay" },
     );
@@ -265,6 +259,34 @@ export default class BridgedFPCBenchmark extends Benchmark {
       leafIndexForMintAndPay,
     );
 
+    // Bridge 3: for the standalone mint_bridged benchmark.
+    // FeeJuice.claim is settled here so the nullifier exists on-chain before
+    // the benchmark runs. Only mint_bridged itself is exercised in the benchmark.
+    const saltForMintBridged = Fr.random();
+    const {
+      secret: secretForMintBridged,
+      claimAmount: claimAmountForMintBridged,
+      leafIndex: leafIndexForMintBridged,
+    } = await bridgeForMintBridged(
+      node,
+      bridgedFpc.address,
+      AztecAddress.fromString(deployer.toString()),
+      saltForMintBridged,
+      async () => {
+        await counterContract.methods.increment().send({ from: deployer });
+      },
+      { loggerName: "benchmark:bridged-bridge-mint-bridged" },
+    );
+
+    await feeJuice.methods
+      .claim(
+        bridgedFpc.address,
+        claimAmountForMintBridged,
+        secretForMintBridged,
+        leafIndexForMintBridged,
+      )
+      .send({ from: deployer });
+
     return {
       cleanup,
       wallet,
@@ -279,6 +301,12 @@ export default class BridgedFPCBenchmark extends Benchmark {
         leafIndex: leafIndexForMintAndPay,
         amount: claimAmountForMintAndPay,
       },
+      mintBridgedDeposit: {
+        secret: secretForMintBridged,
+        salt: saltForMintBridged,
+        leafIndex: leafIndexForMintBridged,
+        amount: claimAmountForMintBridged,
+      },
       gasSettings,
     };
   }
@@ -288,17 +316,21 @@ export default class BridgedFPCBenchmark extends Benchmark {
       counterContract,
       wallet,
       deployer,
+      bridgedFpc,
       bridgedPaymentMethod,
       mintAndPayFeeMethod,
+      mintBridgedDeposit,
       gasSettings,
     } = context;
 
     // Methods ordered so note state flows correctly:
     //   1. increment                          -- baseline, no FPC
-    //   2. increment_bridged_mint_and_pay_fee -- FeeJuice.claim + mint_bridged_and_pay_fee
-    //                                           in one tx (cold-start, no prior balance)
+    //   2. mint_bridged                       -- standalone mint_bridged (nullifier pre-settled
+    //                                           in setup, no fee sponsorship)
     //   3. increment_bridged                  -- pay_fee from existing wFJ balance
     //                                           (funded by mint_bridged in setup)
+    //   4. increment_bridged_mint_and_pay_fee -- FeeJuice.claim + mint_bridged_and_pay_fee
+    //                                           in one tx (cold-start, no prior balance)
     return [
       {
         name: "increment",
@@ -309,14 +341,21 @@ export default class BridgedFPCBenchmark extends Benchmark {
           ),
         },
       },
+      // Standalone mint_bridged: benchmarks the bridge-claim proof in isolation.
+      // FeeJuice.claim was settled in setup, so assert_nullifier_exists sees a
+      // settled nullifier. No FPC fee sponsorship — deployer pays native FeeJuice.
       {
-        name: "increment_bridged_mint_and_pay_fee",
+        name: "mint_bridged",
         interaction: {
           caller: deployer,
           action: new FeeWrappedInteraction(
-            counterContract.withWallet(wallet).methods.increment(),
-            mintAndPayFeeMethod,
-            gasSettings,
+            bridgedFpc
+              .withWallet(wallet)
+              .methods.mint_bridged(
+                mintBridgedDeposit.amount,
+                mintBridgedDeposit.salt,
+                mintBridgedDeposit.leafIndex,
+              ),
           ),
         },
       },
@@ -327,6 +366,17 @@ export default class BridgedFPCBenchmark extends Benchmark {
           action: new FeeWrappedInteraction(
             counterContract.withWallet(wallet).methods.increment(),
             bridgedPaymentMethod,
+            gasSettings,
+          ),
+        },
+      },
+      {
+        name: "increment_bridged_mint_and_pay_fee",
+        interaction: {
+          caller: deployer,
+          action: new FeeWrappedInteraction(
+            counterContract.withWallet(wallet).methods.increment(),
+            mintAndPayFeeMethod,
             gasSettings,
           ),
         },
