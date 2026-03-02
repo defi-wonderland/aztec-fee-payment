@@ -99,7 +99,7 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 | **`MeteredMintThenPayFeePaymentMethod`** | Implements `FeePaymentMethod`. Two-step flow: calls `mint(account, amount, secret)` then `pay_fee()` in the same transaction. Requires existing FJ to pay for the tx. | Implemented |
 | **`deployMeteredContract(wallet, owner)`** | Utility to deploy a Metered FPC contract with the given owner. Returns `MeteredContract` instance. | Implemented |
 | **`maxFeesPerGasFromBaseFees(baseFees, multiplier)`** | Calculates max fees per gas from current base fees with a safety multiplier (default 3x). Returns `GasFees`. | Implemented |
-| **`maxGasCostFor(maxFeesPerGas, gasLimits, teardownGasLimits)`** | Calculates maximum possible gas cost in wei. Formula matches the Noir `get_max_gas_cost()` implementation. | Implemented |
+| **`maxGasCostFor(maxFeesPerGas, gasLimits)`** | Calculates the maximum gas cost in wei following the Noir `get_max_gas_cost` logic. Formula: `max_fee_per_da_gas * da_gas_limit + max_fee_per_l2_gas * l2_gas_limit`. `gasLimits` is the total budget covering both main execution and teardown; `teardownGasLimits` is a sub-limit within that total (not an additional parameter). | Implemented |
 | **`REASONABLE_GAS_LIMITS` / `REASONABLE_TEARDOWN_GAS_LIMITS`** | Default gas limit constants sourced from `@aztec/constants`. | Implemented |
 | **Contract artifacts** | Generated `MeteredContract`, `MeteredContractArtifact`, and `CounterContract` TypeScript bindings from compiled Noir. Public API exports: `MeteredContract` and `MeteredContractArtifact`. `CounterContract`/`CounterContractArtifact` are test-only (not re-exported from main index). | Implemented |
 
