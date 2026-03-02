@@ -5,7 +5,7 @@ pub mod test;
 ///
 /// Fully private FPC (no public functions, no owner, no off-chain agent).
 /// Users bridge FeeJuice from L1 via FeeJuicePortal to this contract address,
-/// then call `mint_bridged` to convert the bridge claim into private wFJ balance.
+/// then call `mint` to convert the bridge claim into private wFJ balance.
 /// The wFJ balance can then be used to sponsor transactions via `pay_fee`.
 #[aztec]
 pub contract BridgedFPC {
@@ -66,7 +66,7 @@ pub contract BridgedFPC {
     ///   - FeeJuice.claim(this_fpc_address, amount, secret, leaf_index) emits the FeeJuice
     ///     nullifier that this function asserts via assert_nullifier_exists.
     ///
-    /// Security: same as mint_bridged -- only the claimer can reconstruct the correct FeeJuice
+    /// Security: same as mint -- only the claimer can reconstruct the correct FeeJuice
     /// nullifier; FPC-scoped nullifier prevents double-spending.
     ///
     /// @param amount     The exact amount bridged (must match the L1 deposit exactly).
@@ -132,7 +132,7 @@ pub contract BridgedFPC {
     /// @param salt       A random value chosen by the claimer at deposit time.
     /// @param leaf_index The L1 message leaf index from the deposit transaction.
     #[external("private")]
-    fn mint_bridged(amount: u128, salt: Field, leaf_index: Field) {
+    fn mint(amount: u128, salt: Field, leaf_index: Field) {
         let claimer = self.msg_sender();
 
         // Reconstruct the nullifier FeeJuice.claim emitted when consuming the bridge message.

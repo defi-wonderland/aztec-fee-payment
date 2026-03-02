@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Aztec Fee Payment — two Fee Payment Contracts (FPCs) for Aztec that sponsor transaction fees using internal balances. Includes Noir smart contracts, a TypeScript SDK (published as `@defi-wonderland/aztec-fee-payment`), and an off-chain agent (Express server) that validates EVM transactions and generates authwits for cross-chain fee sponsorship.
 
 - **Metered FPC** (`src/nr/metered_contract/`) — Agent-based flow: users pay AZT on L1, off-chain agent validates and issues authwits, users mint internal wFJ on Aztec.
-- **Bridged FPC** (`src/nr/bridged_contract/`) — Bridge-based flow: users bridge FJ directly via `FeeJuicePortal` to the FPC address, then call `mint_bridged` to convert the bridge claim into private wFJ. Fully private, no owner, no off-chain agent.
+- **Bridged FPC** (`src/nr/bridged_contract/`) — Bridge-based flow: users bridge FJ directly via `FeeJuicePortal` to the FPC address, then call `mint` to convert the bridge claim into private wFJ. Fully private, no owner, no off-chain agent.
 
 ## Spec Guardian
 
@@ -100,7 +100,7 @@ Three Noir packages (workspace defined in root `Nargo.toml`):
   - `balance_of(account)` — Unconstrained view
 - **`bridged_contract`** — Bridge-based FPC. Fully private (no public functions). Storage: `balances: Owned<BalanceSet>` only. Key functions:
   - `pay_fee()` — Deducts max gas cost, no refund
-  - `mint_bridged(amount, salt, leaf_index)` — Proves prior `FeeJuice.claim` via nullifier existence, credits wFJ to claimer
+  - `mint(amount, salt, leaf_index)` — Proves prior `FeeJuice.claim` via nullifier existence, credits wFJ to claimer
   - `balance_of(account)` — Unconstrained view
   - Library methods: `derive_bridge_secret`, `get_bridge_gas_msg_hash`, `compute_feejuice_claim_nullifier`
 - **`counter_contract`** — Test utility contract for benchmarks
@@ -141,7 +141,7 @@ Express server that validates EVM token transfers and returns Aztec authwits for
 - Contract uses `try_sub` with `max_notes = 1` for single-note optimization (faster proofs)
 - Partial notes (`UintNote::partial`) enable private teardown refunds in `pay_fee_exact` (Metered FPC only)
 - `set_as_fee_payer()` + `end_setup()` is the required FPC pattern for Aztec fee sponsorship
-- `mint_bridged` uses `assert_nullifier_exists` + `compute_nullifier_existence_request` to prove a prior `FeeJuice.claim` in private (Bridged FPC only)
+- `mint` uses `assert_nullifier_exists` + `compute_nullifier_existence_request` to prove a prior `FeeJuice.claim` in private (Bridged FPC only)
 - Commits use conventional commits (`@commitlint/config-conventional`)
 
 ## Vitest Gotchas

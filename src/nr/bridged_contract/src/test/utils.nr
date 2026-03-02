@@ -9,9 +9,9 @@
 //     contract that does not need a public initializer. TXE deploys it
 //     without any public call.
 //
-//   - mint_bridged() requires a FeeJuice nullifier to exist in the nullifier
+//   - mint() requires a FeeJuice nullifier to exist in the nullifier
 //     tree, which cannot be injected via TXE oracles. Tests that exercise
-//     the full mint_bridged flow are integration-only (TypeScript + sandbox).
+//     the full mint flow are integration-only (TypeScript + sandbox).
 //
 //   - Protocol-level concerns (set_as_fee_payer, end_setup, nullifier tree
 //     reads) are out of scope for unit tests. Verify only pure logic.

@@ -141,19 +141,19 @@ export async function fundL2AddressWithFeeJuiceFromL1(
  */
 const DOM_SEP__FPC_BRIDGE_SECRET = 0xfeedf00d;
 
-/** Result returned by bridgeForMintBridged. */
-export type BridgeForMintBridgedResult = {
+/** Result returned by bridgeForMint. */
+export type BridgeForMintResult = {
   /** The bridge secret (poseidon2([salt, claimer], DOM_SEP)). Pass to FeeJuice.claim. */
   secret: Fr;
   /** Amount of FeeJuice bridged. */
   claimAmount: bigint;
-  /** Leaf index of the L1→L2 message. Pass to FeeJuice.claim and mint_bridged. */
+  /** Leaf index of the L1→L2 message. Pass to FeeJuice.claim and mint. */
   leafIndex: Fr;
 };
 
 /**
  * Bridges FeeJuice from L1 to the BridgedFPC with a claimer-bound secret,
- * enabling the claimer to later call `mint_bridged` on L2.
+ * enabling the claimer to later call `mint` on L2.
  *
  * Flow:
  *   1. Derives `secret = poseidon2([salt, claimer], DOM_SEP__FPC_BRIDGE_SECRET)`
@@ -161,7 +161,7 @@ export type BridgeForMintBridgedResult = {
  *   3. Mints + approves tokens on L1 (test-only)
  *   4. Calls `FeeJuicePortal.depositToAztecPublic(_to=fpcAddress, _amount, secretHash)`
  *   5. Polls until the L1→L2 message is ingested by the Aztec node
- *   6. Returns `{ secret, claimAmount, leafIndex }` for use in `FeeJuice.claim` + `mint_bridged`
+ *   6. Returns `{ secret, claimAmount, leafIndex }` for use in `FeeJuice.claim` + `mint`
  *
  * @param aztecNode     Aztec node client (for L1 contract addresses and message polling)
  * @param fpcAddress    The BridgedFPC contract address (the L1 deposit recipient)
@@ -170,7 +170,7 @@ export type BridgeForMintBridgedResult = {
  * @param produceL2Block Callback to mine an L2 block (needed to advance past the message block)
  * @param opts          Optional L1 RPC URL, mnemonic, poll settings, logger name
  */
-export async function bridgeForMintBridged(
+export async function bridgeForMint(
   aztecNode: Pick<
     AztecNode,
     "getL1ToL2MessageBlock" | "getBlockNumber" | "getNodeInfo"
@@ -186,8 +186,8 @@ export async function bridgeForMintBridged(
     messagePollTries?: number;
     messagePollIntervalMs?: number;
   },
-): Promise<BridgeForMintBridgedResult> {
-  const logger = createLogger(opts?.loggerName ?? "bridge-for-mint-bridged");
+): Promise<BridgeForMintResult> {
+  const logger = createLogger(opts?.loggerName ?? "bridge-for-mint");
 
   // Derive the bridge secret (mirrors `derive_bridge_secret` in Noir).
   const secret = poseidon2HashWithSeparator(

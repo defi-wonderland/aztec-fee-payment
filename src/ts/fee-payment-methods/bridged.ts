@@ -15,7 +15,7 @@ import { ProtocolContractAddress } from "@aztec/protocol-contracts";
  * mint_and_pay_fee in a single transaction setup phase.
  *
  * Enables cold-start fee sponsorship directly from a L1 bridge deposit,
- * with no prior `mint_bridged` call needed. The caller's wallet only needs to
+ * with no prior `mint` call needed. The caller's wallet only needs to
  * have done the L1 deposit; the L2 claim and wFJ credit happen atomically here.
  *
  * The payment calls (in order):

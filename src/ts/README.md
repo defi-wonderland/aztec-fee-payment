@@ -72,7 +72,7 @@ const fpc = await registerBridgedContract(wallet);
 
 // L2 two-step flow: claim then mint
 await feeJuice.methods.claim(fpc.address, amount, secret, leafIndex).send();
-await fpc.methods.mint_bridged(amount, salt, leafIndex).send();
+await fpc.methods.mint(amount, salt, leafIndex).send();
 
 // Use internal wFJ balance to sponsor transactions
 await someContract.methods.doSomething()
@@ -81,7 +81,7 @@ await someContract.methods.doSomething()
     fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) },
   });
 
-// Or cold-start: FeeJuice.claim + mint_and_pay_fee in one transaction
+// Or cold-start: FeeJuice.claim + mint_and_pay_fee in one transaction (no prior mint needed)
 await someContract.methods.doSomething()
   .send({
     from: userAddress,

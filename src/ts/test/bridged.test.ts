@@ -14,7 +14,7 @@ import {
   LOCAL_AZTEC_NODE_URL,
   createLocalNetworkContext,
   fundL2AddressWithFeeJuiceFromL1,
-  bridgeForMintBridged,
+  bridgeForMint,
 } from "./harness.js";
 
 import {
@@ -64,20 +64,20 @@ describe("Bridged FPC", () => {
     paymentMethod = new MeteredFeePaymentMethod(fpc.address);
   });
 
-  // --- mint_bridged success → pay_fee ---
-  // Both behaviors are tested in sequence within a single test: mint_bridged credits
+  // --- mint success → pay_fee ---
+  // Both behaviors are tested in sequence within a single test: mint credits
   // a wFJ balance that pay_fee immediately consumes. Splitting would require a second
   // L1→L2 bridge round-trip purely for setup, making the suite significantly slower
   // without adding meaningful isolation.
 
   it(
-    "mint_bridged SUCCESS → pay_fee: bridge claim credited as wFJ, sponsors tx",
+    "mint SUCCESS → pay_fee: bridge claim credited as wFJ, sponsors tx",
     async () => {
       const counter = await deployCounter(wallet);
       const salt = Fr.random();
 
       // Step 1: Bridge from L1 with alice's claimer-bound secret.
-      const { secret, claimAmount, leafIndex } = await bridgeForMintBridged(
+      const { secret, claimAmount, leafIndex } = await bridgeForMint(
         aztecNode,
         fpc.address,
         alice,
@@ -104,7 +104,7 @@ describe("Bridged FPC", () => {
         .simulate({ from: alice });
 
       await fpc.methods
-        .mint_bridged(claimAmount, salt, leafIndex)
+        .mint(claimAmount, salt, leafIndex)
         .send({ from: alice });
 
       const balanceAfter = await fpc.methods
@@ -146,15 +146,15 @@ describe("Bridged FPC", () => {
     TEST_TIMEOUT,
   );
 
-  // --- mint_bridged double-spend ---
+  // --- mint double-spend ---
 
   it(
-    "mint_bridged double-spend REVERT: second call with same leaf_index fails",
+    "mint double-spend REVERT: second call with same leaf_index fails",
     async () => {
       const salt = Fr.random();
 
       // Bridge from L1.
-      const { secret, claimAmount, leafIndex } = await bridgeForMintBridged(
+      const { secret, claimAmount, leafIndex } = await bridgeForMint(
         aztecNode,
         fpc.address,
         alice,
@@ -174,15 +174,15 @@ describe("Bridged FPC", () => {
         .claim(fpc.address, claimAmount, secret, leafIndex)
         .send({ from: alice });
 
-      // First mint_bridged succeeds.
+      // First mint succeeds.
       await fpc.methods
-        .mint_bridged(claimAmount, salt, leafIndex)
+        .mint(claimAmount, salt, leafIndex)
         .send({ from: alice });
 
-      // Second mint_bridged with the same parameters must fail —
+      // Second mint with the same parameters must fail —
       // the FPC-scoped nullifier is already emitted.
       await expect(
-        fpc.methods.mint_bridged(claimAmount, salt, leafIndex).send({
+        fpc.methods.mint(claimAmount, salt, leafIndex).send({
           from: alice,
         }),
       ).rejects.toThrow();
@@ -190,15 +190,15 @@ describe("Bridged FPC", () => {
     TEST_TIMEOUT,
   );
 
-  // --- mint_bridged wrong claimer ---
+  // --- mint wrong claimer ---
 
   it(
-    "mint_bridged wrong claimer REVERT: bob cannot claim alice's bridge deposit",
+    "mint wrong claimer REVERT: bob cannot claim alice's bridge deposit",
     async () => {
       const salt = Fr.random();
 
       // Alice bridges from L1 with her claimer-bound secret.
-      const { secret, claimAmount, leafIndex } = await bridgeForMintBridged(
+      const { secret, claimAmount, leafIndex } = await bridgeForMint(
         aztecNode,
         fpc.address,
         alice,
@@ -218,11 +218,11 @@ describe("Bridged FPC", () => {
         .claim(fpc.address, claimAmount, secret, leafIndex)
         .send({ from: alice });
 
-      // Bob tries to call mint_bridged with the same (salt, leafIndex) but as msg_sender=bob.
+      // Bob tries to call mint with the same (salt, leafIndex) but as msg_sender=bob.
       // Bob's reconstructed FeeJuice nullifier (using bob's address) doesn't match the one
       // that FeeJuice.claim emitted (which used alice's address), so the existence check fails.
       await expect(
-        fpc.methods.mint_bridged(claimAmount, salt, leafIndex).send({
+        fpc.methods.mint(claimAmount, salt, leafIndex).send({
           from: bob,
         }),
       ).rejects.toThrow();

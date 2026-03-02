@@ -102,7 +102,7 @@ await myContract.methods.doSomething()
 
 ### BridgedFPC
 
-Fully private; no owner and no off-chain agent. Users bridge FeeJuice from L1 to the FPC address, then call `mint_bridged` to convert the bridge claim into private wFJ balance.
+Fully private; no owner and no off-chain agent. Users bridge FeeJuice from L1 to the FPC address, then call `mint` to convert the bridge claim into private wFJ balance.
 
 ```typescript
 import {
@@ -124,7 +124,7 @@ const fpc = await registerBridgedContract(wallet);
 await feeJuice.methods.claim(fpc.address, amount, secret, leafIndex).send();
 
 // Step 2: mint internal wFJ balance by proving the bridge claim
-await fpc.methods.mint_bridged(amount, salt, leafIndex).send();
+await fpc.methods.mint(amount, salt, leafIndex).send();
 
 // User sponsors a transaction from their internal balance
 await myContract.methods.doSomething()
