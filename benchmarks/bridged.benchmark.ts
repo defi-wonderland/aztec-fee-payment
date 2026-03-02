@@ -353,6 +353,7 @@ export default class BridgedFPCBenchmark extends Benchmark {
       paymentMethod?: FeePaymentMethod,
       gasSettings?: BridgedBenchmarkContext["gasSettings"],
     ) =>
+      // Safe: the framework only calls request/simulate/profile/send, all implemented above.
       new FeeWrappedInteraction(
         inner,
         paymentMethod,

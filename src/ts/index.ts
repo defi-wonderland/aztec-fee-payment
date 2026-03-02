@@ -57,4 +57,5 @@ export {
   maxGasCostFor,
   // Deployment
   deployMeteredFPCContract,
+  registerBridgedContract,
 } from "./utils/index.js";

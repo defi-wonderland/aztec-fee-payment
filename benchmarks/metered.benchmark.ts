@@ -28,6 +28,7 @@ import { EmbeddedWallet } from "@aztec/wallets/embedded";
 import { registerInitialLocalNetworkAccountsInWallet } from "@aztec/wallets/testing";
 import { getPXEConfig } from "@aztec/pxe/config";
 import { Barretenberg } from "@aztec/bb.js";
+import { z } from "zod";
 
 import { CounterContract } from "../src/artifacts/Counter.js";
 import { MeteredFPCContract } from "../src/artifacts/MeteredFPC.js";
@@ -48,7 +49,6 @@ import {
   REASONABLE_TEARDOWN_GAS_LIMITS,
 } from "../src/ts/utils/gas.js";
 import { deployMeteredFPCContract } from "../src/ts/utils/deploy.js";
-import { z } from "zod";
 
 const { NODE_URL } = z
   .object({ NODE_URL: z.string().url().default("http://localhost:8080") })
@@ -386,6 +386,7 @@ export default class CounterContractBenchmark extends Benchmark {
       paymentMethod?: FeePaymentMethod,
       gasSettings?: MeteredBenchmarkContext["gasSettings"],
     ) =>
+      // Safe: the framework only calls request/simulate/profile/send, all implemented above.
       new FeeWrappedInteraction(
         inner,
         paymentMethod,

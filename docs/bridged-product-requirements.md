@@ -1,6 +1,6 @@
 # Bridged FPC — Product Requirements Document
 
-**Version**: 1.0
+**Version**: 1.0.1
 **Status**: Active
 **Target Aztec Version**: 4.0.0-devnet.2-patch.1
 **Audience**: Implementation Engineers
@@ -67,7 +67,7 @@ Users bridging FeeJuice (FJ) from L1 into Aztec must deposit via `FeeJuicePortal
 | --- | --- | --- |
 | **Storage** | `balances: Owned<BalanceSet<Context>>` only. No owner field, no `DelayedPublicMutable`. | Planned |
 | **Method: `pay_fee()`** | Private, `#[allow_phase_change]`. Deducts max gas cost from `msg_sender`'s wFJ balance via recursive `try_sub`; calls `set_as_fee_payer()` then `end_setup()`. No refund. | Planned |
-| **Method: `mint_bridged(amount, salt, leaf_index)`** | Private. Derives `secret = poseidon2([salt, claimer], DOM_SEP)`; reconstructs FeeJuice claim nullifier; asserts existence; pushes FPC-scoped nullifier; mints `amount` to claimer with `ONCHAIN_CONSTRAINED` delivery. | Planned |
+| **Method: `mint_bridged(amount, salt, leaf_index)`** | Private. Derives `secret = poseidon2([salt, claimer], DOM_SEP)`; reconstructs FeeJuice claim nullifier; asserts existence; pushes FPC-scoped nullifier; mints `amount` to claimer with `ONCHAIN_UNCONSTRAINED` delivery. | Planned |
 | **Method: `balance_of(account)`** | Unconstrained utility view. Returns the wFJ balance of an account. | Planned |
 | **Library: `derive_bridge_secret(salt, claimer)`** | `#[contract_library_method]`. Returns `poseidon2_hash_with_separator([salt, claimer.to_field()], DOM_SEP__FPC_BRIDGE_SECRET)`. | Planned |
 | **Library: `get_bridge_gas_msg_hash(fpc_address, amount)`** | `#[contract_library_method]`. Computes `sha256(selector[0:4] \|\| fpc \|\| amount)` where selector is `keccak256("claim(bytes32,uint256)")[0:4]` evaluated at comptime. Mirrors `FeeJuicePortal.depositToAztecPublic`. | Planned |
@@ -250,3 +250,4 @@ The FPC's public FeeJuice balance (used to pay sequencers) is funded separately 
 | Version | Date | Changes |
 | --- | --- | --- |
 | 1.0 | March 2026 | Initial document — Bridged FPC with `mint_bridged`, no owner, no refund flow, fully private contract |
+| 1.0.1 | March 2026 | Changed `mint_bridged` note delivery from `ONCHAIN_CONSTRAINED` to `ONCHAIN_UNCONSTRAINED` for consistency with all other mint paths |

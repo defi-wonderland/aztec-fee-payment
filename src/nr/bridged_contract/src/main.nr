@@ -160,7 +160,7 @@ pub contract BridgedFPC {
         self.context.push_nullifier(feejuice_nullifier);
 
         // Mint private internal balance to claimer.
-        self.storage.balances.at(claimer).add(amount).deliver(MessageDelivery.ONCHAIN_CONSTRAINED);
+        self.storage.balances.at(claimer).add(amount).deliver(MessageDelivery.ONCHAIN_UNCONSTRAINED);
     }
 
     /// @notice Computes the max gas cost and deducts it from the account's balance.

@@ -65,6 +65,10 @@ describe("Bridged FPC", () => {
   });
 
   // --- mint_bridged success → pay_fee ---
+  // Both behaviors are tested in sequence within a single test: mint_bridged credits
+  // a wFJ balance that pay_fee immediately consumes. Splitting would require a second
+  // L1→L2 bridge round-trip purely for setup, making the suite significantly slower
+  // without adding meaningful isolation.
 
   it(
     "mint_bridged SUCCESS → pay_fee: bridge claim credited as wFJ, sponsors tx",
