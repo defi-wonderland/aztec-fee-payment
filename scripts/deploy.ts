@@ -404,26 +404,30 @@ interface ComputedAddresses {
   bridged: AztecAddress;
 }
 
-async function computeContractAddresses(
+async function computeMeteredAddress(
   config: DeploymentConfig,
-): Promise<ComputedAddresses> {
-  let metered: AztecAddress;
+  owner: AztecAddress,
+): Promise<AztecAddress> {
   if (config.contracts.metered.existingAddress) {
-    metered = AztecAddress.fromString(config.contracts.metered.existingAddress);
-  } else {
-    const meteredSalt = Fr.fromString(config.contracts.metered.salt);
-    const meteredInstance = await getContractInstanceFromInstantiationParams(
-      MeteredFPCContractArtifact,
-      {
-        constructorArgs: [],
-        salt: meteredSalt,
-        publicKeys: PublicKeys.default(),
-        deployer: AztecAddress.ZERO,
-      },
-    );
-    metered = meteredInstance.address;
+    return AztecAddress.fromString(config.contracts.metered.existingAddress);
   }
+  // MeteredFPC constructor takes the owner (= deployer); address depends on it.
+  const meteredSalt = Fr.fromString(config.contracts.metered.salt);
+  const meteredInstance = await getContractInstanceFromInstantiationParams(
+    MeteredFPCContractArtifact,
+    {
+      constructorArgs: [owner],
+      salt: meteredSalt,
+      publicKeys: PublicKeys.default(),
+      deployer: AztecAddress.ZERO,
+    },
+  );
+  return meteredInstance.address;
+}
 
+async function computeBridgedAddress(
+  config: DeploymentConfig,
+): Promise<AztecAddress> {
   // BridgedFPC is fully private: no constructor, no public initializer.
   // Its address is derived deterministically from the class hash + salt.
   const bridgedSalt = Fr.fromString(config.contracts.bridged.salt);
@@ -436,10 +440,16 @@ async function computeContractAddresses(
       deployer: AztecAddress.ZERO,
     },
   );
+  return bridgedInstance.address;
+}
 
+async function computeContractAddresses(
+  config: DeploymentConfig,
+  owner: AztecAddress,
+): Promise<ComputedAddresses> {
   return {
-    metered,
-    bridged: bridgedInstance.address,
+    metered: await computeMeteredAddress(config, owner),
+    bridged: await computeBridgedAddress(config),
   };
 }
 
@@ -452,17 +462,23 @@ export async function deployToNetwork(
 
   if (options.dryRun) {
     logger.info("[DRY RUN] Computing contract addresses...");
-    const addresses = await computeContractAddresses(config);
+    const bridgedAddress = await computeBridgedAddress(config);
+    const meteredAddress = config.contracts.metered.existingAddress
+      ? AztecAddress.fromString(config.contracts.metered.existingAddress)
+      : null;
+
     const universalDeployer = AztecAddress.ZERO.toString();
 
     const deploymentData: DeploymentData = {
       metered: {
-        address: addresses.metered.toString(),
+        address:
+          meteredAddress?.toString() ??
+          "(requires deployer secret — run without --dry-run)",
         salt: config.contracts.metered.salt,
         deployer: universalDeployer,
       },
       bridged: {
-        address: addresses.bridged.toString(),
+        address: bridgedAddress.toString(),
         salt: config.contracts.bridged.salt,
       },
     };
@@ -527,7 +543,10 @@ export async function deployToNetwork(
     );
 
     // Compute and display addresses before deployment
-    const computedAddresses = await computeContractAddresses(config);
+    const computedAddresses = await computeContractAddresses(
+      config,
+      deployer.account.getAddress(),
+    );
     logger.info("\n=== Computed Contract Addresses ===");
     logger.info(`MeteredFPC: ${computedAddresses.metered.toString()}`);
     logger.info(`BridgedFPC: ${computedAddresses.bridged.toString()}`);
@@ -687,13 +706,13 @@ program
       const hasNewDeployments = contracts.metered?.status === "deployed";
 
       if (hasNewDeployments || contracts.metered) {
-        const computedAddresses = await computeContractAddresses(activeConfig);
+        const bridgedAddress = await computeBridgedAddress(activeConfig);
         const deploymentData = getDeploymentData(
           {
             metered: contracts.metered || undefined,
           },
           activeConfig,
-          computedAddresses.bridged,
+          bridgedAddress,
         );
 
         if (options.output) {

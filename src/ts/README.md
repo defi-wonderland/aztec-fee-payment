@@ -58,7 +58,6 @@ Fully private; no owner and no off-chain agent. Users bridge FeeJuice from L1 to
 
 ```typescript
 import {
-  BridgedFPCContract,
   MeteredFeePaymentMethod,
   BridgedMintAndPayFeePaymentMethod,
   registerBridgedContract,

@@ -46,6 +46,7 @@ export {
   MeteredExactFeePaymentMethod,
   MeteredMintAndPayFeePaymentMethod,
   MeteredMintThenPayFeePaymentMethod,
+  BridgedMintAndPayFeePaymentMethod,
 } from "./fee-payment-methods/index.js";
 
 // Utilities for integrators
