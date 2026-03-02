@@ -17,6 +17,15 @@ import { FeeJuiceContract } from "@aztec/noir-contracts.js/FeeJuice";
 import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 import { AztecAddress } from "@aztec/aztec.js/addresses";
 import type { FeePaymentMethod } from "@aztec/aztec.js/fee";
+import {
+  ContractFunctionInteraction,
+  type RequestInteractionOptions,
+  type SimulateInteractionOptions,
+  type ProfileInteractionOptions,
+  type SendInteractionOptions,
+} from "@aztec/aztec.js/contracts";
+import type { ContractFunctionInteractionCallIntent } from "@aztec/aztec.js/authorization";
+import { z } from "zod";
 
 import { CounterContract } from "../src/artifacts/Counter.js";
 import { BridgedFPCContract } from "../src/artifacts/BridgedFPC.js";
@@ -36,10 +45,17 @@ import {
   REASONABLE_TEARDOWN_GAS_LIMITS,
 } from "../src/ts/utils/gas.js";
 
-const { NODE_URL = "http://localhost:8080" } = process.env;
+const { NODE_URL } = z
+  .object({ NODE_URL: z.string().url().default("http://localhost:8080") })
+  .parse(process.env);
 const node: AztecNode = createAztecNodeClient(NODE_URL);
 await waitForNode(node);
 const pxeConfig = getPXEConfig();
+
+type NamedBenchmarkedInteraction = {
+  name: string;
+  interaction: ContractFunctionInteractionCallIntent;
+};
 
 /**
  * Wraps a ContractFunctionInteraction so the benchmark profiler always uses
@@ -48,7 +64,7 @@ const pxeConfig = getPXEConfig();
  */
 class FeeWrappedInteraction {
   constructor(
-    private readonly inner: any,
+    private readonly inner: ContractFunctionInteraction,
     private readonly paymentMethod?: FeePaymentMethod,
     private readonly gasSettings?: {
       gasLimits: Gas;
@@ -57,7 +73,7 @@ class FeeWrappedInteraction {
     },
   ) {}
 
-  async request(options: any = {}) {
+  async request(options: RequestInteractionOptions = {}) {
     const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
     return paymentMethod
       ? this.inner.request({
@@ -67,7 +83,7 @@ class FeeWrappedInteraction {
       : this.inner.request(options);
   }
 
-  async simulate(options: any = {}) {
+  async simulate(options: SimulateInteractionOptions) {
     // Strip estimateGas to avoid wallet inflating gas limits — same reasoning
     // as in metered.benchmark.ts (see UPGRADE CHECK comment there).
     const { estimateGas, estimatedGasPadding, ...restFee } = options.fee ?? {};
@@ -78,19 +94,24 @@ class FeeWrappedInteraction {
         ...restFee,
         ...(estimatedGasPadding !== undefined && { estimatedGasPadding }),
       },
-    };
+    } as SimulateInteractionOptions;
     return this.inner.simulate(this.withFee(adjusted));
   }
 
-  async profile(options: any = {}) {
+  async profile(options: ProfileInteractionOptions) {
     return this.inner.profile(this.withFee(options));
   }
 
-  async send(options: any = {}) {
+  async send(options: SendInteractionOptions) {
     return this.inner.send(this.withFee(options));
   }
 
-  private withFee(options: any): any {
+  private withFee<
+    T extends
+      | SimulateInteractionOptions
+      | ProfileInteractionOptions
+      | SendInteractionOptions,
+  >(options: T): T {
     const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
     if (!paymentMethod) return options;
     return {
@@ -100,7 +121,7 @@ class FeeWrappedInteraction {
         paymentMethod,
         ...(this.gasSettings && { gasSettings: this.gasSettings }),
       },
-    };
+    } as T;
   }
 }
 
@@ -311,7 +332,11 @@ export default class BridgedFPCBenchmark extends Benchmark {
     };
   }
 
-  getMethods(context: BridgedBenchmarkContext): any[] {
+  getMethods(
+    context: BridgedBenchmarkContext,
+  ): Array<
+    ContractFunctionInteractionCallIntent | NamedBenchmarkedInteraction
+  > {
     const {
       counterContract,
       wallet,
@@ -322,6 +347,17 @@ export default class BridgedFPCBenchmark extends Benchmark {
       mintBridgedDeposit,
       gasSettings,
     } = context;
+
+    const wrap = (
+      inner: ContractFunctionInteraction,
+      paymentMethod?: FeePaymentMethod,
+      gasSettings?: BridgedBenchmarkContext["gasSettings"],
+    ) =>
+      new FeeWrappedInteraction(
+        inner,
+        paymentMethod,
+        gasSettings,
+      ) as unknown as ContractFunctionInteraction;
 
     // Methods ordered so note state flows correctly:
     //   1. increment                          -- baseline, no FPC
@@ -336,9 +372,7 @@ export default class BridgedFPCBenchmark extends Benchmark {
         name: "increment",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
-            counterContract.withWallet(wallet).methods.increment(),
-          ),
+          action: wrap(counterContract.withWallet(wallet).methods.increment()),
         },
       },
       // Standalone mint_bridged: benchmarks the bridge-claim proof in isolation.
@@ -348,7 +382,7 @@ export default class BridgedFPCBenchmark extends Benchmark {
         name: "mint_bridged",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
+          action: wrap(
             bridgedFpc
               .withWallet(wallet)
               .methods.mint_bridged(
@@ -363,7 +397,7 @@ export default class BridgedFPCBenchmark extends Benchmark {
         name: "increment_bridged",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
+          action: wrap(
             counterContract.withWallet(wallet).methods.increment(),
             bridgedPaymentMethod,
             gasSettings,
@@ -374,7 +408,7 @@ export default class BridgedFPCBenchmark extends Benchmark {
         name: "increment_bridged_mint_and_pay_fee",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
+          action: wrap(
             counterContract.withWallet(wallet).methods.increment(),
             mintAndPayFeeMethod,
             gasSettings,

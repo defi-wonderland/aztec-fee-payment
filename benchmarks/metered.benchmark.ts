@@ -5,6 +5,14 @@ import {
   Benchmark,
   type BenchmarkContext,
 } from "@defi-wonderland/aztec-benchmark";
+import {
+  ContractFunctionInteraction,
+  type RequestInteractionOptions,
+  type SimulateInteractionOptions,
+  type ProfileInteractionOptions,
+  type SendInteractionOptions,
+} from "@aztec/aztec.js/contracts";
+import type { ContractFunctionInteractionCallIntent } from "@aztec/aztec.js/authorization";
 import { Gas, GasFees } from "@aztec/stdlib/gas";
 import { Fr } from "@aztec/aztec.js/fields";
 import {
@@ -40,8 +48,11 @@ import {
   REASONABLE_TEARDOWN_GAS_LIMITS,
 } from "../src/ts/utils/gas.js";
 import { deployMeteredFPCContract } from "../src/ts/utils/deploy.js";
+import { z } from "zod";
 
-const { NODE_URL = "http://localhost:8080" } = process.env;
+const { NODE_URL } = z
+  .object({ NODE_URL: z.string().url().default("http://localhost:8080") })
+  .parse(process.env);
 const node: AztecNode = createAztecNodeClient(NODE_URL);
 await waitForNode(node);
 const pxeConfig = getPXEConfig();
@@ -63,6 +74,11 @@ async function createAuthWitness(
   return wallet.createAuthWit(ownerAddress, intent);
 }
 
+type NamedBenchmarkedInteraction = {
+  name: string;
+  interaction: ContractFunctionInteractionCallIntent;
+};
+
 /**
  * Wraps a ContractFunctionInteraction so the benchmark profiler (which calls
  * request/simulate/profile/send) always uses a per-interaction FeePaymentMethod
@@ -74,7 +90,7 @@ async function createAuthWitness(
  */
 class FeeWrappedInteraction {
   constructor(
-    private readonly inner: any,
+    private readonly inner: ContractFunctionInteraction,
     private readonly paymentMethod?: FeePaymentMethod,
     private readonly gasSettings?: {
       gasLimits: Gas;
@@ -84,7 +100,7 @@ class FeeWrappedInteraction {
     },
   ) {}
 
-  async request(options: any = {}) {
+  async request(options: RequestInteractionOptions = {}) {
     const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
     return paymentMethod
       ? this.inner.request({
@@ -94,7 +110,7 @@ class FeeWrappedInteraction {
       : this.inner.request(options);
   }
 
-  async simulate(options: any = {}) {
+  async simulate(options: SimulateInteractionOptions) {
     // Why: the profiler passes { estimateGas: true } which makes the wallet
     // call completeFeeOptionsForEstimation, inflating gas limits to 2× block
     // capacity. The Metered contract derives max_gas_cost from gas settings,
@@ -119,19 +135,24 @@ class FeeWrappedInteraction {
         ...restFee,
         ...(estimatedGasPadding !== undefined && { estimatedGasPadding }),
       },
-    };
+    } as SimulateInteractionOptions;
     return this.inner.simulate(this.withFee(adjusted));
   }
 
-  async profile(options: any = {}) {
+  async profile(options: ProfileInteractionOptions) {
     return this.inner.profile(this.withFee(options));
   }
 
-  async send(options: any = {}) {
+  async send(options: SendInteractionOptions) {
     return this.inner.send(this.withFee(options));
   }
 
-  private withFee(options: any): any {
+  private withFee<
+    T extends
+      | SimulateInteractionOptions
+      | ProfileInteractionOptions
+      | SendInteractionOptions,
+  >(options: T): T {
     const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
     if (!paymentMethod) return options;
     return {
@@ -141,7 +162,7 @@ class FeeWrappedInteraction {
         paymentMethod,
         ...(this.gasSettings && { gasSettings: this.gasSettings }),
       },
-    };
+    } as T;
   }
 }
 
@@ -340,7 +361,11 @@ export default class CounterContractBenchmark extends Benchmark {
   /**
    * Returns the list of CounterContract methods to be benchmarked.
    */
-  getMethods(context: MeteredBenchmarkContext): any[] {
+  getMethods(
+    context: MeteredBenchmarkContext,
+  ): Array<
+    ContractFunctionInteractionCallIntent | NamedBenchmarkedInteraction
+  > {
     const {
       counterContract,
       wallet,
@@ -356,6 +381,17 @@ export default class CounterContractBenchmark extends Benchmark {
       gasSettings,
     } = context;
 
+    const wrap = (
+      inner: ContractFunctionInteraction,
+      paymentMethod?: FeePaymentMethod,
+      gasSettings?: MeteredBenchmarkContext["gasSettings"],
+    ) =>
+      new FeeWrappedInteraction(
+        inner,
+        paymentMethod,
+        gasSettings,
+      ) as unknown as ContractFunctionInteraction;
+
     // Methods are ordered so that note state flows correctly:
     //   1. increment                            – baseline, no notes consumed
     //   2. increment_metered_ten_notes          – runs when ONLY small notes exist → recursion
@@ -364,15 +400,13 @@ export default class CounterContractBenchmark extends Benchmark {
     //   5. increment_metered_mint_then_pay_fee  – mints + pay_fee from balance
     //   6. increment_metered                    – pay_fee from balance (big change note)
     //   7. increment_metered_exact              – pay_fee_exact with teardown refund (last)
-    const methods = [
+    return [
       // Baseline: no custom fee payment
       {
         name: "increment",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
-            counterContract.withWallet(wallet).methods.increment(),
-          ),
+          action: wrap(counterContract.withWallet(wallet).methods.increment()),
         },
       },
       // Many small notes: forces recursion in _subtract_balance because
@@ -382,7 +416,7 @@ export default class CounterContractBenchmark extends Benchmark {
         name: "increment_metered_ten_notes",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
+          action: wrap(
             counterContract.withWallet(wallet).methods.increment(),
             meteredPaymentMethod,
             gasSettings,
@@ -397,7 +431,7 @@ export default class CounterContractBenchmark extends Benchmark {
         name: "mint_metered",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
+          action: wrap(
             meteredFpc
               .withWallet(wallet)
               .methods.mint(deployer, mintBenchmarkAmount, mintBenchmarkSecret)
@@ -411,7 +445,7 @@ export default class CounterContractBenchmark extends Benchmark {
         name: "increment_metered_mint_and_pay_fee",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
+          action: wrap(
             counterContract.withWallet(wallet).methods.increment(),
             mintAndPayFeeMethod,
             gasSettings,
@@ -423,7 +457,7 @@ export default class CounterContractBenchmark extends Benchmark {
         name: "increment_metered_mint_then_pay_fee",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
+          action: wrap(
             counterContract.withWallet(wallet).methods.increment(),
             mintThenPayFeeMethod,
             gasSettings,
@@ -435,7 +469,7 @@ export default class CounterContractBenchmark extends Benchmark {
         name: "increment_metered",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
+          action: wrap(
             counterContract.withWallet(wallet).methods.increment(),
             meteredPaymentMethod,
             gasSettings,
@@ -448,7 +482,7 @@ export default class CounterContractBenchmark extends Benchmark {
         name: "increment_metered_exact",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
+          action: wrap(
             counterContract.withWallet(wallet).methods.increment(),
             meteredExactPaymentMethod,
             gasSettings,
@@ -456,8 +490,6 @@ export default class CounterContractBenchmark extends Benchmark {
         },
       },
     ];
-
-    return methods;
   }
 
   async teardown(context: BenchmarkContext): Promise<void> {
