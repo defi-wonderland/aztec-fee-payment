@@ -81,7 +81,7 @@ await someContract.methods.doSomething()
     fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) },
   });
 
-// Or cold-start: FeeJuice.claim + mint_bridged_and_pay_fee in one transaction
+// Or cold-start: FeeJuice.claim + mint_and_pay_fee in one transaction
 await someContract.methods.doSomething()
   .send({
     from: userAddress,
@@ -119,7 +119,7 @@ MeteredFeePaymentMethod          // pay_fee (no refund)
 MeteredExactFeePaymentMethod     // pay_fee_exact (teardown refund)
 MeteredMintAndPayFeePaymentMethod  // mint + pay_fee in one tx (MeteredFPC)
 MeteredMintThenPayFeePaymentMethod // mint then pay_fee in one tx (MeteredFPC)
-BridgedMintAndPayFeePaymentMethod  // FeeJuice.claim + mint_bridged_and_pay_fee (BridgedFPC)
+BridgedMintAndPayFeePaymentMethod  // FeeJuice.claim + mint_and_pay_fee (BridgedFPC)
 
 // Utilities
 REASONABLE_GAS_LIMITS, REASONABLE_TEARDOWN_GAS_LIMITS

@@ -134,7 +134,7 @@ interface BridgedBenchmarkContext extends BenchmarkContext {
   bridgedPaymentMethod: MeteredFeePaymentMethod;
   mintAndPayFeeMethod: BridgedMintAndPayFeePaymentMethod;
   // Pre-bridged deposit kept for the mint_and_pay_fee benchmark method.
-  // The L1 deposit is done in setup; FeeJuice.claim + mint_bridged_and_pay_fee
+  // The L1 deposit is done in setup; FeeJuice.claim + mint_and_pay_fee
   // happen atomically inside the benchmark interaction itself.
   mintAndPayFeeDeposit: {
     secret: Fr;
@@ -250,7 +250,7 @@ export default class BridgedFPCBenchmark extends Benchmark {
       .send({ from: deployer });
 
     // Bridge 2: reserved for the mint_and_pay_fee benchmark method.
-    // Only the L1 deposit is done here; FeeJuice.claim + mint_bridged_and_pay_fee
+    // Only the L1 deposit is done here; FeeJuice.claim + mint_and_pay_fee
     // execute atomically inside the benchmark interaction itself.
     const saltForMintAndPay = Fr.random();
     const {
@@ -366,7 +366,7 @@ export default class BridgedFPCBenchmark extends Benchmark {
     //                                           in setup, no fee sponsorship)
     //   3. increment_bridged                  -- pay_fee from existing wFJ balance
     //                                           (funded by mint_bridged in setup)
-    //   4. increment_bridged_mint_and_pay_fee -- FeeJuice.claim + mint_bridged_and_pay_fee
+    //   4. increment_bridged_mint_and_pay_fee -- FeeJuice.claim + mint_and_pay_fee
     //                                           in one tx (cold-start, no prior balance)
     return [
       {

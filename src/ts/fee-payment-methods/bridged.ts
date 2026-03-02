@@ -12,7 +12,7 @@ import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 
 /**
  * Fee payment method for BridgedFPC that bundles FeeJuice.claim +
- * mint_bridged_and_pay_fee in a single transaction setup phase.
+ * mint_and_pay_fee in a single transaction setup phase.
  *
  * Enables cold-start fee sponsorship directly from a L1 bridge deposit,
  * with no prior `mint_bridged` call needed. The caller's wallet only needs to
@@ -21,7 +21,7 @@ import { ProtocolContractAddress } from "@aztec/protocol-contracts";
  * The payment calls (in order):
  *   1. FeeJuice.claim(fpcAddress, amount, secret, leafIndex)
  *      - Consumes the L1→L2 message; emits the FeeJuice nullifier.
- *   2. BridgedFPC.mint_bridged_and_pay_fee(amount, salt, leafIndex)
+ *   2. BridgedFPC.mint_and_pay_fee(amount, salt, leafIndex)
  *      - Asserts the FeeJuice nullifier exists (pending from step 1).
  *      - Credits (amount - max_gas_cost) to msg_sender.
  *      - Sets BridgedFPC as fee payer and ends setup.
@@ -66,10 +66,10 @@ export class BridgedMintAndPayFeePaymentMethod implements FeePaymentMethod {
           returnTypes: [],
         }),
         FunctionCall.from({
-          name: "mint_bridged_and_pay_fee",
+          name: "mint_and_pay_fee",
           to: this.fpcAddress,
           selector: await FunctionSelector.fromSignature(
-            "mint_bridged_and_pay_fee(u128,Field,Field)",
+            "mint_and_pay_fee(u128,Field,Field)",
           ),
           type: FunctionType.PRIVATE,
           hideMsgSender: false,

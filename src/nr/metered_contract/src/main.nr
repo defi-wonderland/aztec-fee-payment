@@ -104,6 +104,7 @@ pub contract MeteredFPC {
 
         // Calculate the max gas cost from transaction settings.
         let max_gas_cost = get_max_gas_cost(self.context);
+        assert(amount >= max_gas_cost, "Amount too low to cover gas cost");
 
         self.storage.balances.at(account).add(amount - max_gas_cost).deliver(
             MessageDelivery.ONCHAIN_UNCONSTRAINED,

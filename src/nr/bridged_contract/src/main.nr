@@ -74,7 +74,7 @@ pub contract BridgedFPC {
     /// @param leaf_index The L1 message leaf index from the deposit transaction.
     #[external("private")]
     #[allow_phase_change]
-    fn mint_bridged_and_pay_fee(amount: u128, salt: Field, leaf_index: Field) {
+    fn mint_and_pay_fee(amount: u128, salt: Field, leaf_index: Field) {
         let claimer = self.msg_sender();
 
         let feejuice_nullifier = compute_feejuice_claim_nullifier(
@@ -98,6 +98,7 @@ pub contract BridgedFPC {
         // Credit (amount - max_gas_cost) to claimer. The fee is implicitly deducted
         // since the full amount was bridged but only the remainder is credited.
         let max_gas_cost = get_max_gas_cost(self.context);
+        assert(amount >= max_gas_cost, "Amount too low to cover gas cost");
         self.storage.balances.at(claimer).add(amount - max_gas_cost).deliver(
             MessageDelivery.ONCHAIN_UNCONSTRAINED,
         );
