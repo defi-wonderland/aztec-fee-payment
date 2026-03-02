@@ -3,7 +3,7 @@
 // tested exhaustively in mint.nr.
 // See src/TEST-PLAN.md for the full test tree and coverage matrix.
 
-use crate::{Metered, test::utils};
+use crate::{MeteredFPC, test::utils};
 use aztec::oracle::random::random;
 
 /// Smoke test: no authwit registered -> revert.
@@ -15,7 +15,7 @@ unconstrained fn mint_and_pay_fee_reverts_invalid_authwit() {
     let secret = random();
 
     // Don't register authwit
-    env.call_private(owner, Metered::at(contract_address).mint_and_pay_fee(owner, amount, secret));
+    env.call_private(owner, MeteredFPC::at(contract_address).mint_and_pay_fee(owner, amount, secret));
 }
 
 // BLOCKED_1 -- end_setup() breaks TXE kernel simulation
@@ -28,7 +28,7 @@ unconstrained fn mint_and_pay_fee_reverts_invalid_authwit() {
 //     utils::add_metered_authwit(env, contract_address, owner, amount, secret);
 //     env.call_private(
 //         owner,
-//         Metered::at(contract_address).mint_and_pay_fee(owner, amount, secret),
+//         MeteredFPC::at(contract_address).mint_and_pay_fee(owner, amount, secret),
 //     );
 //     let balance = utils::get_balance(env, contract_address, owner);
 //     // balance should be amount - max_gas_cost
@@ -47,7 +47,7 @@ unconstrained fn mint_and_pay_fee_reverts_invalid_authwit() {
 //     utils::add_metered_authwit(env, contract_address, owner, amount, secret);
 //     env.call_private(
 //         owner,
-//         Metered::at(contract_address).mint_and_pay_fee(owner, amount, secret),
+//         MeteredFPC::at(contract_address).mint_and_pay_fee(owner, amount, secret),
 //     );
 //     let balance = utils::get_balance(env, contract_address, owner);
 //     assert(balance == 0, "amount == cost should credit 0");
@@ -65,6 +65,6 @@ unconstrained fn mint_and_pay_fee_reverts_invalid_authwit() {
 //     utils::add_metered_authwit(env, contract_address, owner, amount, secret);
 //     env.call_private(
 //         owner,
-//         Metered::at(contract_address).mint_and_pay_fee(owner, amount, secret),
+//         MeteredFPC::at(contract_address).mint_and_pay_fee(owner, amount, secret),
 //     );
 // }

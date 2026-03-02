@@ -3,6 +3,10 @@ export interface MeteredConfig {
   existingAddress?: string;
 }
 
+export interface BridgedFPCConfig {
+  salt: string;
+}
+
 export interface DeploymentConfig {
   network: {
     nodeUrl: string;
@@ -14,6 +18,7 @@ export interface DeploymentConfig {
   };
   contracts: {
     metered: MeteredConfig;
+    bridged: BridgedFPCConfig;
   };
   deployment: {
     retryOptions: {
@@ -40,6 +45,7 @@ const config: DeploymentConfig = {
   },
   contracts: {
     metered: { salt: "1337" },
+    bridged: { salt: "0" },
   },
   deployment: {
     retryOptions: {

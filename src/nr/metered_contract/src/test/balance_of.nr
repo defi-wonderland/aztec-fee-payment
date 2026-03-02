@@ -2,7 +2,7 @@
 // Returns the internal balance of an account.
 // See src/ts/test/README.md for the full test tree and coverage matrix.
 
-use crate::{Metered, test::utils};
+use crate::test::utils;
 
 #[test]
 unconstrained fn balance_of_minted_account() {

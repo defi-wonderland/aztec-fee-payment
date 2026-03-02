@@ -5,7 +5,7 @@
 // All tests in this file are disabled due to TXE limitations.
 // See TEST-PLAN.md legend for BLOCKED definitions.
 //
-// use crate::{Metered, test::utils};
+// use crate::{MeteredFPC, test::utils};
 
 // BLOCKED_1 -- end_setup() breaks TXE kernel simulation
 //
@@ -14,7 +14,7 @@
 //     let (env, contract_address, owner, _) = utils::setup(true);
 //     utils::mint_balance(env, contract_address, owner, owner, 100_000_000);
 //     let balance_before = utils::get_balance(env, contract_address, owner);
-//     env.call_private(owner, Metered::at(contract_address).pay_fee());
+//     env.call_private(owner, MeteredFPC::at(contract_address).pay_fee());
 //     let balance_after = utils::get_balance(env, contract_address, owner);
 //     assert(balance_after < balance_before, "Balance should decrease after pay_fee");
 // }
@@ -28,7 +28,7 @@
 //     let (env, contract_address, owner, _) = utils::setup(true);
 //     utils::mint_balance(env, contract_address, owner, owner, 100_000_000);
 //     let balance_before = utils::get_balance(env, contract_address, owner);
-//     env.call_private(owner, Metered::at(contract_address).pay_fee());
+//     env.call_private(owner, MeteredFPC::at(contract_address).pay_fee());
 //     let balance_after = utils::get_balance(env, contract_address, owner);
 //     // With non-zero gas, balance_before - balance_after should equal
 //     // max_gas_cost (not the actual tx_fee), proving no refund occurs.
@@ -42,7 +42,7 @@
 //     let (env, contract_address, owner, _) = utils::setup(true);
 //     // Don't mint -- owner has zero balance. With non-zero gas settings
 //     // max_gas_cost > 0 and _deduct_max_gas_cost should revert.
-//     env.call_private(owner, Metered::at(contract_address).pay_fee());
+//     env.call_private(owner, MeteredFPC::at(contract_address).pay_fee());
 // }
 
 // BLOCKED_1_2 -- protocol-level FeeJuice check is not simulated by TXE
@@ -54,5 +54,5 @@
 //     // User has internal balance but the FPC contract itself lacks FeeJuice.
 //     // The sequencer rejects the tx because the fee payer can't cover
 //     // protocol fees. This is a protocol-level check not simulated by TXE.
-//     env.call_private(owner, Metered::at(contract_address).pay_fee());
+//     env.call_private(owner, MeteredFPC::at(contract_address).pay_fee());
 // }

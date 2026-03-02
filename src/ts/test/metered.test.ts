@@ -6,12 +6,12 @@ import { Fr } from "@aztec/aztec.js/fields";
 import { computeInnerAuthWitHash } from "@aztec/stdlib/auth-witness";
 
 import { CounterContract } from "../../artifacts/Counter.js";
-import { MeteredContract } from "../../artifacts/Metered.js";
+import { MeteredFPCContract } from "../../artifacts/MeteredFPC.js";
 import {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
 } from "../fee-payment-methods/index.js";
-import { deployMeteredContract } from "../utils/deploy.js";
+import { deployMeteredFPCContract } from "../utils/deploy.js";
 
 import {
   LOCAL_AZTEC_NODE_URL,
@@ -33,7 +33,7 @@ describe("Metered Fee Payment Contract", () => {
   let alice: AztecAddress;
   let counter: CounterContract;
   let aztecNode: AztecNode;
-  let fpc: MeteredContract;
+  let fpc: MeteredFPCContract;
   let paymentMethod: MeteredFeePaymentMethod;
   let exactPaymentMethod: MeteredExactFeePaymentMethod;
 
@@ -52,7 +52,7 @@ describe("Metered Fee Payment Contract", () => {
     counter = await deployCounter(wallet);
 
     // Deploy and fund the Metered FPC (alice is the owner who authorizes mints)
-    fpc = await deployMeteredContract(wallet, alice);
+    fpc = await deployMeteredFPCContract(wallet, alice);
 
     // Warp L1 time past the DelayedPublicMutable delay so the owner is
     // readable in private (see harness.warpL1Time for details).
@@ -181,7 +181,7 @@ describe("Metered Fee Payment Contract", () => {
         await getGasSetup(aztecNode);
 
       // Create a fresh FPC without minting internal balance
-      const freshFpc = await deployMeteredContract(wallet, alice);
+      const freshFpc = await deployMeteredFPCContract(wallet, alice);
       await fundL2AddressWithFeeJuiceFromL1(
         aztecNode,
         wallet,

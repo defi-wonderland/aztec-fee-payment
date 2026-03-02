@@ -1,19 +1,47 @@
+import { Fr } from "@aztec/foundation/curves/bn254";
 import { Wallet } from "@aztec/aztec.js/wallet";
 import { AztecAddress } from "@aztec/aztec.js/addresses";
 
-import { MeteredContract } from "../../artifacts/Metered.js";
+import { MeteredFPCContract } from "../../artifacts/MeteredFPC.js";
+import { BridgedFPCContract } from "../../artifacts/BridgedFPC.js";
 
 /**
  * Deploys the Metered FPC contract.
  * @param deployer The wallet used to deploy the contract
  * @param owner The address of the account contract that authorizes mints
  */
-export async function deployMeteredContract(
+export async function deployMeteredFPCContract(
   deployer: Wallet,
   owner: AztecAddress,
-): Promise<MeteredContract> {
+): Promise<MeteredFPCContract> {
   const deployerAddress = (await deployer.getAccounts())[0]!.item;
-  return MeteredContract.deploy(deployer, owner).send({
+  return MeteredFPCContract.deploy(deployer, owner).send({
     from: deployerAddress,
+  });
+}
+
+/**
+ * Registers the BridgedFPC contract with the PXE without sending any deployment transaction.
+ *
+ * BridgedFPC is a fully private contract (no public functions, no constructor, no initializer).
+ * The Aztec protocol allows interacting with such contracts immediately once registered —
+ * no on-chain deployment transaction is required.
+ *
+ * The contract address is computed deterministically from its class hash and the provided salt,
+ * with `universalDeploy: true` so the deployer address is NOT mixed in. This means the same
+ * salt always produces the same address regardless of who calls this function.
+ *
+ * @param wallet The wallet used to register the contract with the PXE
+ * @param salt   Optional address salt (defaults to Fr.ZERO for a canonical address)
+ * @returns The registered BridgedFPC contract instance
+ */
+export async function registerBridgedContract(
+  wallet: Wallet,
+  salt: Fr = Fr.ZERO,
+): Promise<BridgedFPCContract> {
+  return BridgedFPCContract.deploy(wallet).register({
+    contractAddressSalt: salt,
+    skipInitialization: true,
+    universalDeploy: true,
   });
 }

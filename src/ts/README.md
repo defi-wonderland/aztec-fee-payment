@@ -22,15 +22,15 @@ Tracks internal balances per account. Users must have sufficient balance (via `m
 
 ```typescript
 import {
-  MeteredContract,
+  MeteredFPCContract,
   MeteredFeePaymentMethod,
-  deployMeteredContract,
+  deployMeteredFPCContract,
   maxGasCostFor,
   REASONABLE_GAS_LIMITS,
 } from '@defi-wonderland/aztec-fee-payment';
 
 // Deploy the FPC
-const fpc = await deployMeteredContract(wallet);
+const fpc = await deployMeteredFPCContract(wallet);
 
 // Mint internal balance for user
 await fpc.methods.mint(userAddress, 1_000_000_000_000n).send();
@@ -65,7 +65,7 @@ Key insight: If private logic fails, the transaction is never included - no fees
 
 ```typescript
 // Contracts
-MeteredContract, MeteredContractArtifact
+MeteredFPCContract, MeteredFPCContractArtifact
 
 // Fee Payment Methods
 MeteredFeePaymentMethod
@@ -74,7 +74,7 @@ MeteredExactFeePaymentMethod
 // Utilities
 REASONABLE_GAS_LIMITS, REASONABLE_TEARDOWN_GAS_LIMITS
 maxFeesPerGasFromBaseFees, maxGasCostFor
-deployMeteredContract
+deployMeteredFPCContract
 ```
 
 ### Sub-path Exports

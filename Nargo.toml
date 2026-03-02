@@ -2,6 +2,7 @@
 members = [
     "src/nr/counter_contract",
     "src/nr/metered_contract",
+    "src/nr/bridged_contract",
 ]
 
 [benchmark]
