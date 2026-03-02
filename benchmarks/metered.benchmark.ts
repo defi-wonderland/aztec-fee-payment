@@ -1,19 +1,12 @@
 import { type Wallet } from "@aztec/aztec.js/wallet";
-import type { FeePaymentMethod } from "@aztec/aztec.js/fee";
 import { AztecAddress } from "@aztec/aztec.js/addresses";
 import {
   Benchmark,
   type BenchmarkContext,
+  type NamedBenchmarkedInteraction,
+  type FeeGasSettings,
+  namedMethod,
 } from "@defi-wonderland/aztec-benchmark";
-import {
-  ContractFunctionInteraction,
-  type RequestInteractionOptions,
-  type SimulateInteractionOptions,
-  type ProfileInteractionOptions,
-  type SendInteractionOptions,
-} from "@aztec/aztec.js/contracts";
-import type { ContractFunctionInteractionCallIntent } from "@aztec/aztec.js/authorization";
-import { Gas, GasFees } from "@aztec/stdlib/gas";
 import { Fr } from "@aztec/aztec.js/fields";
 import {
   computeInnerAuthWitHash,
@@ -74,98 +67,6 @@ async function createAuthWitness(
   return wallet.createAuthWit(ownerAddress, intent);
 }
 
-type NamedBenchmarkedInteraction = {
-  name: string;
-  interaction: ContractFunctionInteractionCallIntent;
-};
-
-/**
- * Wraps a ContractFunctionInteraction so the benchmark profiler (which calls
- * request/simulate/profile/send) always uses a per-interaction FeePaymentMethod
- * and gas settings. Needed because the profiler only supports a single global
- * feePaymentMethod, but benchmarks require different methods per interaction.
- *
- * In v4, request() only accepts paymentMethod in its fee option (gas settings are
- * resolved later by toSendOptions/toSimulateOptions), so we separate the two.
- */
-class FeeWrappedInteraction {
-  constructor(
-    private readonly inner: ContractFunctionInteraction,
-    private readonly paymentMethod?: FeePaymentMethod,
-    private readonly gasSettings?: {
-      gasLimits: Gas;
-      teardownGasLimits: Gas;
-      maxFeesPerGas: GasFees;
-      maxPriorityFeesPerGas?: GasFees;
-    },
-  ) {}
-
-  async request(options: RequestInteractionOptions = {}) {
-    const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
-    return paymentMethod
-      ? this.inner.request({
-          ...options,
-          fee: { ...(options.fee ?? {}), paymentMethod },
-        })
-      : this.inner.request(options);
-  }
-
-  async simulate(options: SimulateInteractionOptions) {
-    // Why: the profiler passes { estimateGas: true } which makes the wallet
-    // call completeFeeOptionsForEstimation, inflating gas limits to 2× block
-    // capacity. The Metered contract derives max_gas_cost from gas settings,
-    // so inflated limits change note values and recursion depth — producing
-    // gate counts and gas estimates that don't match profile()/send().
-    //
-    // How: we strip estimateGas and set includeMetadata instead. In
-    // ContractFunctionInteraction.simulate(), both flags trigger the same
-    // gas-estimation return path (the `if (includeMetadata || estimateGas)`
-    // branch), but only estimateGas triggers the wallet inflation.
-    //
-    // UPGRADE CHECK: on Aztec version bumps, verify that:
-    //   1. ContractFunctionInteraction.simulate() still returns estimatedGas
-    //      when includeMetadata is true (even without estimateGas)
-    //   2. BaseWallet.simulateTx() still only inflates limits when
-    //      opts.fee.estimateGas is truthy
-    const { estimateGas, estimatedGasPadding, ...restFee } = options.fee ?? {};
-    const adjusted = {
-      ...options,
-      includeMetadata: estimateGas || options.includeMetadata,
-      fee: {
-        ...restFee,
-        ...(estimatedGasPadding !== undefined && { estimatedGasPadding }),
-      },
-    } as SimulateInteractionOptions;
-    return this.inner.simulate(this.withFee(adjusted));
-  }
-
-  async profile(options: ProfileInteractionOptions) {
-    return this.inner.profile(this.withFee(options));
-  }
-
-  async send(options: SendInteractionOptions) {
-    return this.inner.send(this.withFee(options));
-  }
-
-  private withFee<
-    T extends
-      | SimulateInteractionOptions
-      | ProfileInteractionOptions
-      | SendInteractionOptions,
-  >(options: T): T {
-    const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
-    if (!paymentMethod) return options;
-    return {
-      ...options,
-      fee: {
-        ...(options.fee ?? {}),
-        paymentMethod,
-        ...(this.gasSettings && { gasSettings: this.gasSettings }),
-      },
-    } as T;
-  }
-}
-
 // Extend the BenchmarkContext from the new package
 interface MeteredBenchmarkContext extends BenchmarkContext {
   cleanup: () => Promise<void>;
@@ -185,11 +86,7 @@ interface MeteredBenchmarkContext extends BenchmarkContext {
   mintBenchmarkAmount: bigint;
   mintBenchmarkAuthWit: AuthWitness;
   // Gas settings (reasonable limits, consistent across all profiler steps)
-  gasSettings: {
-    gasLimits: Gas;
-    teardownGasLimits: Gas;
-    maxFeesPerGas: GasFees;
-  };
+  gasSettings: FeeGasSettings;
 }
 
 // Use export default class extending Benchmark
@@ -361,11 +258,7 @@ export default class CounterContractBenchmark extends Benchmark {
   /**
    * Returns the list of CounterContract methods to be benchmarked.
    */
-  getMethods(
-    context: MeteredBenchmarkContext,
-  ): Array<
-    ContractFunctionInteractionCallIntent | NamedBenchmarkedInteraction
-  > {
+  getMethods(context: MeteredBenchmarkContext): NamedBenchmarkedInteraction[] {
     const {
       counterContract,
       wallet,
@@ -381,17 +274,8 @@ export default class CounterContractBenchmark extends Benchmark {
       gasSettings,
     } = context;
 
-    const wrap = (
-      inner: ContractFunctionInteraction,
-      paymentMethod?: FeePaymentMethod,
-      gasSettings?: MeteredBenchmarkContext["gasSettings"],
-    ) =>
-      // Safe: the framework only calls request/simulate/profile/send, all implemented above.
-      new FeeWrappedInteraction(
-        inner,
-        paymentMethod,
-        gasSettings,
-      ) as unknown as ContractFunctionInteraction;
+    const increment = () =>
+      counterContract.withWallet(wallet).methods.increment();
 
     // Methods are ordered so that note state flows correctly:
     //   1. increment                            – baseline, no notes consumed
@@ -403,93 +287,50 @@ export default class CounterContractBenchmark extends Benchmark {
     //   7. increment_metered_exact              – pay_fee_exact with teardown refund (last)
     return [
       // Baseline: no custom fee payment
-      {
-        name: "increment",
-        interaction: {
-          caller: deployer,
-          action: wrap(counterContract.withWallet(wallet).methods.increment()),
-        },
-      },
+      namedMethod("increment", deployer, increment()),
       // Many small notes: forces recursion in _subtract_balance because
       // only small notes exist at this point and the initial 2-note batch
       // can't cover maxGasCost
-      {
-        name: "increment_metered_ten_notes",
-        interaction: {
-          caller: deployer,
-          action: wrap(
-            counterContract.withWallet(wallet).methods.increment(),
-            meteredPaymentMethod,
-            gasSettings,
-          ),
-        },
-      },
+      namedMethod("increment_metered_ten_notes", deployer, increment(), {
+        paymentMethod: meteredPaymentMethod,
+        gasSettings,
+      }),
       // Standalone mint: benchmarks the authwit-gated mint in isolation.
       // No FPC fee sponsorship — deployer pays with native FeeJuice.
       // Placed after the ten-note test so the newly minted note does not
       // affect that recursion measurement.
-      {
-        name: "mint_metered",
-        interaction: {
-          caller: deployer,
-          action: wrap(
-            meteredFpc
-              .withWallet(wallet)
-              .methods.mint(deployer, mintBenchmarkAmount, mintBenchmarkSecret)
-              .with({ authWitnesses: [mintBenchmarkAuthWit] }),
-          ),
-        },
-      },
+      namedMethod(
+        "mint_metered",
+        deployer,
+        meteredFpc
+          .withWallet(wallet)
+          .methods.mint(deployer, mintBenchmarkAmount, mintBenchmarkSecret)
+          .with({ authWitnesses: [mintBenchmarkAuthWit] }),
+      ),
       // MintAndPayFee: mints a large amount, change note (amount - maxGasCost)
       // provides balance for increment_metered and increment_metered_exact below
-      {
-        name: "increment_metered_mint_and_pay_fee",
-        interaction: {
-          caller: deployer,
-          action: wrap(
-            counterContract.withWallet(wallet).methods.increment(),
-            mintAndPayFeeMethod,
-            gasSettings,
-          ),
-        },
-      },
+      namedMethod("increment_metered_mint_and_pay_fee", deployer, increment(), {
+        paymentMethod: mintAndPayFeeMethod,
+        gasSettings,
+      }),
       // MintThenPayFee: two-step flow - mint creates note, pay_fee consumes it
-      {
-        name: "increment_metered_mint_then_pay_fee",
-        interaction: {
-          caller: deployer,
-          action: wrap(
-            counterContract.withWallet(wallet).methods.increment(),
-            mintThenPayFeeMethod,
-            gasSettings,
-          ),
-        },
-      },
+      namedMethod(
+        "increment_metered_mint_then_pay_fee",
+        deployer,
+        increment(),
+        { paymentMethod: mintThenPayFeeMethod, gasSettings },
+      ),
       // Metered: uses balance from mint_and_pay_fee change note (no teardown)
-      {
-        name: "increment_metered",
-        interaction: {
-          caller: deployer,
-          action: wrap(
-            counterContract.withWallet(wallet).methods.increment(),
-            meteredPaymentMethod,
-            gasSettings,
-          ),
-        },
-      },
+      namedMethod("increment_metered", deployer, increment(), {
+        paymentMethod: meteredPaymentMethod,
+        gasSettings,
+      }),
       // Metered Exact: uses balance with teardown refund (last, since refund
       // creates a partial note that doesn't affect earlier tests)
-      {
-        name: "increment_metered_exact",
-        interaction: {
-          caller: deployer,
-          action: wrap(
-            counterContract.withWallet(wallet).methods.increment(),
-            meteredExactPaymentMethod,
-            gasSettings,
-          ),
-        },
-      },
+      namedMethod("increment_metered_exact", deployer, increment(), {
+        paymentMethod: meteredExactPaymentMethod,
+        gasSettings,
+      }),
     ];
   }
 

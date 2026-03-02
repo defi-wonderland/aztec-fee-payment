@@ -24,6 +24,7 @@
   "include": [
     "src/artifacts/**/*",
     "src/ts/**/*",
+    "config/**/*.ts",
     "scripts/**/*.ts",
     "benchmarks/**/*.ts",
     "vitest.setup.ts",
