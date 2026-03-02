@@ -35,10 +35,14 @@
  */
 
 // Contract artifacts and type-safe wrappers
-// export {
-//   MeteredFPCContract,
-//   MeteredFPCContractArtifact,
-// } from "../artifacts/MeteredFPC.js";
+export {
+  MeteredFPCContract,
+  MeteredFPCContractArtifact,
+} from "../artifacts/MeteredFPC.js";
+export {
+  BridgedFPCContract,
+  BridgedFPCContractArtifact,
+} from "../artifacts/BridgedFPC.js";
 
 // Fee payment method implementations
 export {
