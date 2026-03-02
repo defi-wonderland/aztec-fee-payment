@@ -1,4 +1,5 @@
 use aztec::macros::aztec;
+pub mod test;
 
 /// Metered Fee Payment Contract
 /// Tracks internal balances and deducts max gas cost per transaction.
