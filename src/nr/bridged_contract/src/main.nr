@@ -34,8 +34,8 @@ pub contract BridgedFPC {
 
     /// Domain separator for bridge secret derivation.
     /// Avoids collisions with other poseidon2 usages.
-    // TODO: decide on a better separator
-    global DOM_SEP__FPC_BRIDGE_SECRET: u32 = 0xFEEDF00D;
+    /// Value: poseidon2_hash_bytes("az_dom_sep__fpc_bridge_secret") as u32
+    global DOM_SEP__FPC_BRIDGE_SECRET: u32 = 3952304070;
 
     /// @param balances The private note-based balances mapping accounts to their internal FPC balance
     #[storage]
