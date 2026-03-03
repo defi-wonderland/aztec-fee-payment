@@ -40,8 +40,7 @@ After any code change that affects contract logic, SDK public API, agent behavio
 ## Prerequisites
 
 - Node.js >= 22, Yarn 1.22.22 (corepack)
-- Aztec CLI v3.0.0-devnet.6-patch.1: `curl -s install.aztec.network | NON_INTERACTIVE=1 BIN_PATH=$HOME/.aztec/bin bash -s`
-- Docker (for Aztec sandbox)
+- Aztec CLI v4.0.0-devnet.2-patch.1: `curl -s install.aztec.network | NON_INTERACTIVE=1 BIN_PATH=$HOME/.aztec/bin bash -s`
 
 ## Commands
 
@@ -58,15 +57,15 @@ yarn codegen          # aztec codegen target --outdir src/artifacts
 # Build TS package (compile + codegen + tsc)
 yarn build
 
-# Tests — integration tests auto-start/stop the sandbox via vitest globalSetup
+# Tests — integration tests require a running Aztec local network
 yarn test             # all tests (Noir + JS)
 yarn test:nr          # Noir unit tests only (aztec test)
-yarn test:js          # JS integration tests (vitest, auto-manages sandbox)
+yarn test:js          # JS integration tests
 
 # Run a single Noir test
 aztec test --package metered_contract <test_name>
 
-# Agent tests (separate vitest config, no sandbox needed)
+# Agent tests (separate vitest config, no local network needed)
 yarn test:agent
 
 # Run a single test file
@@ -126,8 +125,8 @@ Express server that validates EVM token transfers and returns Aztec authwits for
 
 ### Test Setup
 
-- **Integration tests** (`vitest.config.ts`) — `globalSetup` in `vitest.setup.ts` auto-starts/stops Aztec sandbox (Docker required). 200s timeouts. Single fork, no parallelism. Must inline `/@aztec/`, `/@noble/`, `/@scure/`, `/viem/` in `server.deps`.
-- **Agent tests** (`vitest.agent.config.ts`) — Separate config, no sandbox, 30s timeout. Also inlines `/zod/`, `/pino/`.
+- **Integration tests** (`vitest.config.ts`) — Requires a running Aztec local network (start manually before running). 200s timeouts. Single fork, no parallelism. Must inline `/@aztec/`, `/@noble/`, `/@scure/`, `/viem/` in `server.deps`.
+- **Agent tests** (`vitest.agent.config.ts`) — Separate config, no local network, 30s timeout. Also inlines `/zod/`, `/pino/`.
 
 ### Deployment (`scripts/`, `config/`)
 

@@ -11,7 +11,10 @@ import { L1FeeJuicePortalManager } from "@aztec/aztec.js/ethereum";
 import { FeeJuiceContract } from "@aztec/noir-contracts.js/FeeJuice";
 import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 import { Fr } from "@aztec/foundation/curves/bn254";
-import { poseidon2HashWithSeparator } from "@aztec/foundation/crypto/sync";
+import {
+  poseidon2HashBytes,
+  poseidon2HashWithSeparator,
+} from "@aztec/foundation/crypto/sync";
 import { createLogger } from "@aztec/foundation/log";
 import { createExtendedL1Client } from "@aztec/ethereum/client";
 import { extractEvent } from "@aztec/ethereum/utils";
@@ -138,8 +141,12 @@ export async function fundL2AddressWithFeeJuiceFromL1(
 /**
  * Domain separator for FPC bridge secret derivation — must match the Noir constant
  * `DOM_SEP__FPC_BRIDGE_SECRET` in bridged_contract/src/main.nr.
+ * Computed as: poseidon2_hash_bytes("az_dom_sep__fpc_bridge_secret") as u32
  */
-const DOM_SEP__FPC_BRIDGE_SECRET = 0xfeedf00d;
+const DOM_SEP__FPC_BRIDGE_SECRET = Number(
+  poseidon2HashBytes(Buffer.from("az_dom_sep__fpc_bridge_secret")).toBigInt() &
+    0xffff_ffffn,
+);
 
 /** Result returned by bridgeForMint. */
 export type BridgeForMintResult = {
