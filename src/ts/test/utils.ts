@@ -5,12 +5,15 @@ import { Gas, GasFees } from "@aztec/stdlib/gas";
 import { getFeeJuiceBalance } from "@aztec/aztec.js/utils";
 
 import { CounterContract } from "../../artifacts/Counter.js";
+import { MeteredContract } from "../../artifacts/Metered.js";
 import {
   REASONABLE_GAS_LIMITS,
   REASONABLE_TEARDOWN_GAS_LIMITS,
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
 } from "../utils/gas.js";
+import { deployMeteredContract } from "../utils/deploy.js";
+import { warpL1Time } from "./harness.js";
 
 /** Global test timeout constant for individual test cases. */
 export const TEST_TIMEOUT = 300_000;
@@ -42,6 +45,15 @@ export async function deployCounter(
 ): Promise<CounterContract> {
   const deployerAddress = (await deployer.getAccounts())[0]!.item;
   return CounterContract.deploy(deployer).send({ from: deployerAddress });
+}
+
+/**
+ * Forces an L2 block to be produced by submitting a transaction.
+ * Use after L1 time warps to ensure the new timestamp is reflected
+ * in the L2 historical state (e.g. for DelayedPublicMutable settlement).
+ */
+export async function produceL2Block(wallet: Wallet): Promise<void> {
+  await deployCounter(wallet);
 }
 
 /** Get common gas setup for fee payment tests (no teardown). */
@@ -88,4 +100,32 @@ export async function getBalance(
   aztecNode: AztecNode,
 ): Promise<bigint> {
   return getFeeJuiceBalance(address, aztecNode);
+}
+
+const CONFIG_DELAY = 600;
+
+/**
+ * Deploys the Metered FPC and warps L1 time so the DelayedPublicMutable
+ * owner is settled and readable in private context.
+ */
+export async function deploySettledMetered(
+  wallet: Wallet,
+  owner: AztecAddress,
+  aztecNode: AztecNode,
+): Promise<MeteredContract> {
+  const fpc = await deployMeteredContract(wallet, owner);
+  await warpL1Time(aztecNode, CONFIG_DELAY);
+  await produceL2Block(wallet);
+  return fpc;
+}
+
+/**
+ * Deploys the Metered FPC without warping time. The owner is scheduled
+ * but not yet effective -- useful for testing incomplete initialization.
+ */
+export async function deployUnsettledMetered(
+  wallet: Wallet,
+  owner: AztecAddress,
+): Promise<MeteredContract> {
+  return deployMeteredContract(wallet, owner);
 }

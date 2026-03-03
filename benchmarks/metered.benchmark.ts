@@ -37,7 +37,7 @@ import {
   fundL2AddressWithFeeJuiceFromL1,
   warpL1Time,
 } from "../src/ts/test/harness.js";
-import { deployCounter } from "../src/ts/test/utils.js";
+import { produceL2Block } from "../src/ts/test/utils.js";
 import {
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
@@ -53,7 +53,7 @@ const pxeConfig = getPXEConfig();
 
 /**
  * Creates an AuthWitness for the owner's account contract via the wallet's
- * authwit mechanism. The inner hash is computed from [secret, amount].
+ * authwit mechanism. The inner hash is computed from [amount, secret].
  * The wallet's account contract handles the actual signature verification.
  */
 async function createAuthWitness(
@@ -220,7 +220,7 @@ export default class CounterContractBenchmark extends Benchmark {
     await fundL2AddressWithFeeJuiceFromL1(node, wallet, meteredFpc.address, {
       claimTxSender: deployer,
       produceL2Block: async () => {
-        await deployCounter(wallet);
+        await produceL2Block(wallet);
       },
       loggerName: "benchmark:metered",
     });
