@@ -107,34 +107,36 @@ mint
   wrong secret                            x
   wrong amount                            x
   non-owner signer                        x
-  replay                                  x                  WIP
+  replay                                  x                  x
 
 pay_fee
-  success (deducts maxGasCost)            BLOCKED₁           WIP
-  no refund (overpays vs tx fee)          BLOCKED₁₂          WIP
-  insufficient user balance               BLOCKED₁₂          WIP
-  FPC has no FeeJuice                     BLOCKED₁₂          WIP
+  success (deducts maxGasCost)            BLOCKED₁           x
+  no refund (overpays vs tx fee)          BLOCKED₁₂          x
+  insufficient balance (0 < bal < cost)   BLOCKED₁₂          x
+  FPC has no FeeJuice                     BLOCKED₁₂          x
 
 pay_fee_exact
-  success + refund > 0                    BLOCKED₁           WIP
-  success + refund == 0                   BLOCKED₁           WIP
-  zero user balance                       x                  WIP
-  FPC has no FeeJuice                     BLOCKED₁₂          WIP
+  success + refund > 0                    BLOCKED₁           x
+  success + refund == 0                   BLOCKED₁           SKIPPED
+  insufficient balance (0 < bal < cost)   BLOCKED₁₂          x
+  FPC has no FeeJuice                     BLOCKED₁₂          x
 
 mint_and_pay_fee
-  success (amount > cost)                 BLOCKED₁           WIP
-  amount == cost (credits 0)              BLOCKED₁₂          WIP
-  amount < cost (underflow)               BLOCKED₁₂          WIP
+  success (amount > cost)                 BLOCKED₁           x
+  amount == cost (credits 0)              BLOCKED₁₂          x
+  amount < cost (underflow)               BLOCKED₁₂          x
   invalid authwit                         x
 
 mint_then_pay_fee
-  success (two-step)                                         WIP
+  success (two-step)                                         x
 
 _refund
   only_self guard                         x
 
 x        = tested
-WIP      = integration test being implemented in a separate branch
+SKIPPED  = requires maxGasCost == transactionFee exactly, but receipts
+           don't expose enough info to reverse-engineer the exact gas
+           limits, and estimation is too imprecise to hit them
 BLOCKED₁ = TXE's `call_private` bypasses the account-contract entrypoint,
            so functions calling `end_setup()` break its simplified kernel
            simulation (phase-counter / nonce-generator assertions)

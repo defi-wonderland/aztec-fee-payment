@@ -13,6 +13,16 @@ unconstrained fn pay_fee_exact_reverts_zero_balance() {
     env.call_private(user, MeteredFPC::at(contract_address).pay_fee_exact());
 }
 
+// BLOCKED_1_2 -- end_setup() breaks TXE + max_gas_cost is always 0
+//
+// #[test(should_fail)]
+// unconstrained fn pay_fee_exact_reverts_insufficient_balance() {
+//     let (env, contract_address, owner, user) = utils::setup(true);
+//     // Give user a tiny balance -- non-zero but insufficient for real gas costs
+//     utils::mint_balance(env, contract_address, owner, user, 1);
+//     env.call_private(user, Metered::at(contract_address).pay_fee_exact());
+// }
+
 // BLOCKED_1 -- end_setup() breaks TXE kernel simulation
 //
 // #[test]
