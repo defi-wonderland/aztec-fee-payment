@@ -1,6 +1,6 @@
 # Bridged FPC — Product Requirements Document
 
-**Version**: 1.0.1
+**Version**: 1.1
 **Status**: Active
 **Target Aztec Version**: 4.0.0-devnet.2-patch.1
 **Audience**: Implementation Engineers
