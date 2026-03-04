@@ -50,9 +50,8 @@ contract TopUp is ITopUp {
     }
 
     /// @inheritdoc ITopUp
-    function setPendingFeeRecipient(address newFeeRecipient) external {
+    function proposeFeeRecipient(address newFeeRecipient) external {
         if (msg.sender != feeRecipient) revert TopUp_OnlyFeeRecipient();
-        if (newFeeRecipient == address(0)) revert TopUp_ZeroAddress();
 
         pendingFeeRecipient = newFeeRecipient;
 

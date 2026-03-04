@@ -27,9 +27,6 @@ interface ITopUp {
                                 ERRORS
     ///////////////////////////////////////////////////////////////*/
 
-    /// @notice Thrown when a zero address is provided where a valid address is required.
-    error TopUp_ZeroAddress();
-
     /// @notice Thrown when the caller is not the current fee recipient.
     error TopUp_OnlyFeeRecipient();
 
@@ -48,10 +45,10 @@ interface ITopUp {
     /// @param amount The amount of AZT tokens to transfer.
     function topUp(address from, uint256 amount) external;
 
-    /// @notice Nominates a new fee recipient. Only callable by the current fee recipient.
-    /// @dev The nominee must call `acceptFeeRecipient()` to complete the transfer.
-    /// @param newFeeRecipient The address nominated to become the new fee recipient.
-    function setPendingFeeRecipient(address newFeeRecipient) external;
+    /// @notice Proposes a new fee recipient. Only callable by the current fee recipient.
+    /// @dev The proposed recipient must call `acceptFeeRecipient()` to complete the transfer.
+    /// @param newFeeRecipient The address proposed to become the new fee recipient.
+    function proposeFeeRecipient(address newFeeRecipient) external;
 
     /// @notice Accepts the fee recipient role. Only callable by the pending fee recipient.
     function acceptFeeRecipient() external;
