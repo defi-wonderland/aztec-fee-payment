@@ -1,6 +1,6 @@
 # Bridged FPC — Product Requirements Document
 
-**Version**: 1.2.1
+**Version**: 1.3
 **Status**: Active
 **Target Aztec Version**: 4.0.0-devnet.2-patch.1
 **Audience**: Implementation Engineers
@@ -74,7 +74,7 @@ Users bridging FeeJuice (FJ) from L1 into Aztec must deposit via `FeeJuicePortal
 | **Library: `derive_bridge_secret(salt, claimer)`** | `#[contract_library_method]`. Returns `poseidon2_hash_with_separator([salt, claimer.to_field()], DOM_SEP__FPC_BRIDGE_SECRET)`. | Planned |
 | **Library: `get_bridge_gas_msg_hash(fpc_address, amount)`** | `#[contract_library_method]`. Computes `sha256(selector[0:4] \|\| fpc \|\| amount)` where selector is `keccak256("claim(bytes32,uint256)")[0:4]` evaluated at comptime. Mirrors `FeeJuicePortal.depositToAztecPublic`. | Planned |
 | **Library: `compute_feejuice_claim_nullifier(...)`** | `#[contract_library_method]`. Reconstructs the nullifier emitted by `FeeJuice.claim` for a given deposit. Uses `compute_l1_to_l2_message_hash` + `compute_l1_to_l2_message_nullifier`. | Planned |
-| **Library: `get_max_gas_cost(context)`** | `#[contract_library_method]`. Same formula as Metered FPC: `(DA limit + DA teardown) * max_fee_per_da_gas + (L2 limit + L2 teardown) * max_fee_per_l2_gas`. | Planned |
+| **Library: `get_max_gas_cost(context)`** | `#[contract_library_method]` imported from shared `fpc_lib` package (same implementation as MeteredFPC). Corrected formula: `da_gas_limit * max_fee_per_da_gas + l2_gas_limit * max_fee_per_l2_gas`. Teardown gas limits are NOT added separately — the kernel's gas_meter already includes teardown within gas_limits. | Planned |
 | **No public functions** | Contract has zero public functions. Class does not need to be published/registered. | Planned |
 
 ### TypeScript / Testing
@@ -267,3 +267,4 @@ The FPC's public FeeJuice balance (used to pay sequencers) is funded separately 
 | 1.1 | March 2026 | Renamed `mint_bridged` → `mint` and `mint_bridged_and_pay_fee` → `mint_and_pay_fee` for consistency with MeteredFPC API; added assertion `amount >= max_gas_cost` in `mint_and_pay_fee` |
 | 1.2 | March 2026 | Documented `mint_and_pay_fee` across all PRD sections: added BR-7 requirement, Noir contract method row, contract interface pseudocode entry, test coverage cases, and `BridgedMintAndPayFeePaymentMethod` TypeScript class |
 | 1.2.1 | March 2026 | Corrected domain separator: `0xFEEDF00D` → `poseidon2_hash_bytes("az_dom_sep__fpc_bridge_secret")` = `3952304070` / `0xEB935FC6` |
+| 1.3 | 2026-03-04 | (1) **Teardown double-counting fix**: `get_max_gas_cost` formula corrected — teardown gas limits removed. New formula: `da_gas_limit * max_fee_per_da_gas + l2_gas_limit * max_fee_per_l2_gas`. (2) **Shared `fpc_lib`**: `get_max_gas_cost` is now imported from the shared `fpc_lib` Nargo library (same package used by MeteredFPC); documented in new "Shared Library" section. (3) **SDK**: `FPCFeePaymentMethod` replaces `MeteredFeePaymentMethod` as the primary FPC-agnostic payment method class (works with BridgedFPC and MeteredFPC). |

@@ -8,7 +8,6 @@ pub mod test;
 pub contract MeteredFPC {
     use aztec::{
         authwit::auth::{assert_inner_hash_valid_authwit, compute_inner_authwit_hash},
-        context::PrivateContext,
         macros::{
             functions::{allow_phase_change, external, initializer, internal, only_self},
             storage::storage,
@@ -18,6 +17,7 @@ pub contract MeteredFPC {
         state_vars::{DelayedPublicMutable, Owned, StateVariable},
     };
     use balance_set::BalanceSet;
+    use fpc_lib::get_max_gas_cost;
     use uint_note::{PartialUintNote, UintNote};
 
     // Delay used for owner changes
@@ -208,29 +208,5 @@ pub contract MeteredFPC {
     #[external("utility")]
     unconstrained fn balance_of(account: AztecAddress) -> u128 {
         self.storage.balances.at(account).balance_of()
-    }
-
-    /// @notice Calculates the worst-case gas cost from transaction gas settings.
-    /// @dev max_fee_per_da_gas * (da_gas_limit + da_teardown_gas_limit)
-    ///    + max_fee_per_l2_gas * (l2_gas_limit + l2_teardown_gas_limit)
-    ///
-    /// `max_priority_fees_per_gas` is intentionally excluded: following EIP-1559
-    /// semantics, `max_fees_per_gas` already bounds the per-gas cost.
-    /// @param context The context of the private call
-    /// @return The maximum gas cost for the transaction
-    #[contract_library_method]
-    pub fn get_max_gas_cost(context: &mut PrivateContext) -> u128 {
-        let gas_settings = context.gas_settings();
-
-        let l2_gas_limit = gas_settings.gas_limits.l2_gas;
-        let da_gas_limit = gas_settings.gas_limits.da_gas;
-        let l2_teardown_gas_limit = gas_settings.teardown_gas_limits.l2_gas;
-        let da_teardown_gas_limit = gas_settings.teardown_gas_limits.da_gas;
-
-        let max_fee_per_da_gas = gas_settings.max_fees_per_gas.fee_per_da_gas;
-        let max_fee_per_l2_gas = gas_settings.max_fees_per_gas.fee_per_l2_gas;
-
-        max_fee_per_da_gas * (da_gas_limit as u128 + da_teardown_gas_limit as u128)
-            + max_fee_per_l2_gas * (l2_gas_limit as u128 + l2_teardown_gas_limit as u128)
     }
 }

@@ -38,9 +38,6 @@ import { join } from "path";
 
 const logger = createLogger("aztec:fund-fpc");
 
-// Fee Juice Faucet on Sepolia (permissioned minter)
-const FEE_JUICE_FAUCET = "0xd1dff4c8465d4dcd0c08a401a1e03effe108f3e1" as const;
-
 const FeeAssetHandlerAbi = [
   {
     inputs: [{ name: "_recipient", type: "address" }],
@@ -67,7 +64,7 @@ interface NetworkConfig {
 
 const NETWORKS: Record<Network, NetworkConfig> = {
   devnet: {
-    nodeUrl: process.env.AZTEC_NODE_URL || "https://next.devnet.aztec-labs.com",
+    nodeUrl: process.env.AZTEC_NODE_URL || "https://v4-devnet-2.aztec-labs.com",
     l1RpcUrl: process.env.L1_RPC_URL || "https://rpc.sepolia.ethpandaops.io",
   },
   testnet: {
@@ -163,7 +160,7 @@ async function fundFpc(options: Options): Promise<void> {
   const nodeInfo = await node.getNodeInfo();
   logger.info(`L2 Node: ${nodeInfo.nodeVersion}`);
 
-  const { feeJuiceAddress, feeJuicePortalAddress } =
+  const { feeJuiceAddress, feeJuicePortalAddress, feeAssetHandlerAddress } =
     nodeInfo.l1ContractAddresses;
   if (feeJuiceAddress.isZero() || feeJuicePortalAddress.isZero()) {
     throw new Error("Fee Juice contracts not deployed on L1");
@@ -182,12 +179,6 @@ async function fundFpc(options: Options): Promise<void> {
     client: l1Client,
   });
 
-  const faucet = getContract({
-    address: FEE_JUICE_FAUCET,
-    abi: FeeAssetHandlerAbi,
-    client: l1Client,
-  });
-
   // Check and mint FJ if needed
   let balance = (await feeJuice.read.balanceOf([
     l1Client.account.address,
@@ -195,7 +186,19 @@ async function fundFpc(options: Options): Promise<void> {
   logger.info(`L1 FJ Balance: ${Number(balance) / 1e18} FJ`);
 
   if (balance < amount) {
+    if (!feeAssetHandlerAddress || feeAssetHandlerAddress.isZero()) {
+      throw new Error(
+        `Insufficient L1 FJ balance (${Number(balance) / 1e18} FJ) and no faucet available on this network. Fund your L1 account manually.`,
+      );
+    }
+
     logger.info("Minting from faucet...");
+    const faucet = getContract({
+      address: feeAssetHandlerAddress.toString() as `0x${string}`,
+      abi: FeeAssetHandlerAbi,
+      client: l1Client,
+    });
+
     const mintAmount = (await faucet.read.mintAmount()) as bigint;
     const mintsNeeded = Math.ceil(
       Number(amount - balance) / Number(mintAmount),

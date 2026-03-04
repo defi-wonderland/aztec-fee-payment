@@ -8,7 +8,6 @@ import { CounterContract } from "../../artifacts/Counter.js";
 import { MeteredFPCContract } from "../../artifacts/MeteredFPC.js";
 import {
   REASONABLE_GAS_LIMITS,
-  REASONABLE_TEARDOWN_GAS_LIMITS,
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
 } from "../utils/gas.js";
@@ -30,11 +29,12 @@ export interface BaseFees {
   feePerL2Gas: string | number | bigint;
 }
 
-/** Common gas setup interface */
+/** Common gas setup interface. teardownGasLimits is for transaction configuration only — it is NOT included in maxGasCost. */
 export interface GasSetup {
   maxFeesPerGas: GasFees;
   maxPriorityFeesPerGas: GasFees;
   gasLimits: Gas;
+  /** Zero by default. Override with REASONABLE_TEARDOWN_GAS_LIMITS for transactions with a teardown phase (e.g. pay_fee_exact). */
   teardownGasLimits: Gas;
   maxGasCost: bigint;
 }
@@ -56,34 +56,22 @@ export async function produceL2Block(wallet: Wallet): Promise<void> {
   await deployCounter(wallet);
 }
 
-/** Get common gas setup for fee payment tests (no teardown). */
+/**
+ * Get common gas setup for fee payment tests.
+ *
+ * teardownGasLimits is always zero here. For pay_fee_exact transactions that
+ * execute a teardown phase, override it with REASONABLE_TEARDOWN_GAS_LIMITS.
+ *
+ * maxGasCost only accounts for gasLimits — teardown gas is already included
+ * in the protocol-level gas budget and must not be double-counted.
+ */
 export async function getGasSetup(aztecNode: AztecNode): Promise<GasSetup> {
   const baseFees = (await aztecNode.getCurrentMinFees()) as BaseFees;
   const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
   const gasLimits: Gas = REASONABLE_GAS_LIMITS;
   const teardownGasLimits: Gas = Gas.from({ l2Gas: 0, daGas: 0 });
   const maxPriorityFeesPerGas: GasFees = MAX_PRIORITY_FEE_PER_GAS;
-  const maxGasCost = maxGasCostFor(maxFeesPerGas, gasLimits, teardownGasLimits);
-
-  return {
-    maxFeesPerGas,
-    maxPriorityFeesPerGas,
-    gasLimits,
-    teardownGasLimits,
-    maxGasCost,
-  };
-}
-
-/** Get gas setup for fee payment tests WITH teardown (for exact refund variants). */
-export async function getGasSetupWithTeardown(
-  aztecNode: AztecNode,
-): Promise<GasSetup> {
-  const baseFees = (await aztecNode.getCurrentMinFees()) as BaseFees;
-  const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
-  const gasLimits: Gas = REASONABLE_GAS_LIMITS;
-  const teardownGasLimits: Gas = REASONABLE_TEARDOWN_GAS_LIMITS;
-  const maxPriorityFeesPerGas: GasFees = MAX_PRIORITY_FEE_PER_GAS;
-  const maxGasCost = maxGasCostFor(maxFeesPerGas, gasLimits, teardownGasLimits);
+  const maxGasCost = maxGasCostFor(maxFeesPerGas, gasLimits);
 
   return {
     maxFeesPerGas,
