@@ -30,12 +30,22 @@ import {
   maxGasCostFor,
   REASONABLE_GAS_LIMITS,
 } from '@defi-wonderland/aztec-fee-payment';
+import { computeInnerAuthWitHash } from '@aztec/stdlib/auth-witness';
+import { Fr } from '@aztec/aztec.js/fields';
 
 // Deploy the FPC (owner is the account contract that authorizes mints)
 const fpc = await deployMeteredFPCContract(wallet, ownerAddress);
 
-// Owner mints internal balance for a user (requires authwit from owner)
-await fpc.methods.mint(userAddress, amount, secret).send();
+// Owner mints internal balance for a user.
+// mint() uses a custom inner-hash authwit: inner = hash([amount, secret]).
+// In production this authwit is issued by the off-chain agent; here shown directly.
+const secret = Fr.random();
+const innerHash = await computeInnerAuthWitHash([new Fr(amount), secret]);
+const authWitness = await wallet.createAuthWit(ownerAddress, { consumer: fpc.address, innerHash });
+
+await fpc.methods.mint(userAddress, amount, secret)
+  .with({ authWitnesses: [authWitness] })
+  .send({ from: ownerAddress });
 
 // User sponsors a transaction — max gas cost is deducted, no refund
 await someContract.methods.doSomething()
