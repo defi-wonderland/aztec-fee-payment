@@ -130,7 +130,8 @@ registerBridgedContract
 
 ### Sub-path Exports
 
-- `@defi-wonderland/aztec-fee-payment/artifacts` - Contract artifacts only
+- `@defi-wonderland/aztec-fee-payment/artifacts/metered` - MeteredFPC contract and artifact
+- `@defi-wonderland/aztec-fee-payment/artifacts/bridged` - BridgedFPC contract and artifact
 - `@defi-wonderland/aztec-fee-payment/fee-payment-methods` - Fee payment methods only
 - `@defi-wonderland/aztec-fee-payment/utils` - Utility functions only
 
