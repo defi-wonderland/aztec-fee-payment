@@ -1,6 +1,6 @@
 # Bridged FPC — Product Requirements Document
 
-**Version**: 1.2
+**Version**: 1.2.1
 **Status**: Active
 **Target Aztec Version**: 4.0.0-devnet.2-patch.1
 **Audience**: Implementation Engineers
@@ -132,7 +132,7 @@ function depositToAztecPublic(bytes32 _to, uint256 _amount, bytes32 _secretHash)
 secret = poseidon2_hash_with_separator([salt, claimer.to_field()], DOM_SEP__FPC_BRIDGE_SECRET)
 secretHash = compute_secret_hash(secret)
 ```
-Domain separator (`0xFEEDF00D`) avoids collisions with other poseidon2 usages. Only the claimer (the specific Aztec address) can reproduce the secret.
+Domain separator (`poseidon2_hash_bytes("az_dom_sep__fpc_bridge_secret")` = `3952304070` / `0xEB935FC6`) avoids collisions with other poseidon2 usages. Only the claimer (the specific Aztec address) can reproduce the secret.
 
 **Content hash** (mirrors `FeeJuicePortal`):
 ```
@@ -266,3 +266,4 @@ The FPC's public FeeJuice balance (used to pay sequencers) is funded separately 
 | 1.0.1 | March 2026 | Changed `mint_bridged` note delivery from `ONCHAIN_CONSTRAINED` to `ONCHAIN_UNCONSTRAINED` for consistency with all other mint paths |
 | 1.1 | March 2026 | Renamed `mint_bridged` → `mint` and `mint_bridged_and_pay_fee` → `mint_and_pay_fee` for consistency with MeteredFPC API; added assertion `amount >= max_gas_cost` in `mint_and_pay_fee` |
 | 1.2 | March 2026 | Documented `mint_and_pay_fee` across all PRD sections: added BR-7 requirement, Noir contract method row, contract interface pseudocode entry, test coverage cases, and `BridgedMintAndPayFeePaymentMethod` TypeScript class |
+| 1.2.1 | March 2026 | Corrected domain separator: `0xFEEDF00D` → `poseidon2_hash_bytes("az_dom_sep__fpc_bridge_secret")` = `3952304070` / `0xEB935FC6` |
