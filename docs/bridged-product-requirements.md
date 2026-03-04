@@ -206,6 +206,18 @@ pub contract BridgedFPC {
 }
 ```
 
+### Shared Library (`fpc_lib`)
+
+`get_max_gas_cost` is not defined inline in BridgedFPC. It is imported from the shared `fpc_lib` Nargo library (`src/nr/fpc_lib/`), the same package used by MeteredFPC. This keeps the gas cost formula consistent across both FPCs and avoids duplication.
+
+```toml
+# BridgedFPC Nargo.toml
+[dependencies]
+fpc_lib = { path = "../fpc_lib" }
+```
+
+The method is annotated `#[contract_library_method]` and re-exported from BridgedFPC so callers can reference it via `BridgedFPC::get_max_gas_cost(context)`.
+
 ### Security Properties
 
 | Property | Mechanism |

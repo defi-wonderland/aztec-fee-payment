@@ -97,12 +97,12 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 | **`FPCExactFeePaymentMethod`** | Implements `FeePaymentMethod` interface. Works with any FPC implementing `pay_fee_exact()`. Calls `pay_fee_exact()` on the FPC in setup phase. Refunds unused gas via teardown. | Implemented |
 | **`MeteredMintAndPayFeePaymentMethod`** | Implements `FeePaymentMethod`. Calls `mint_and_pay_fee(account, amount, secret)` with authwit witness. Self-sponsors the transaction. Solves cold-start. | Implemented |
 | **`MeteredMintThenPayFeePaymentMethod`** | Implements `FeePaymentMethod`. Two-step flow: calls `mint(account, amount, secret)` then `pay_fee()` in the same transaction. Requires existing FJ to pay for the tx. | Implemented |
-| **`deployMeteredFPCContract(wallet, owner)`** | Utility to deploy a Metered FPC contract with the given owner. Returns `MeteredContract` instance. | Implemented |
+| **`deployMeteredFPCContract(wallet, owner)`** | Utility to deploy a Metered FPC contract with the given owner. Returns `MeteredFPCContract` instance. | Implemented |
 | **`maxFeesPerGasFromBaseFees(baseFees, multiplier)`** | Calculates max fees per gas from current base fees with a safety multiplier (default 3x). Returns `GasFees`. | Implemented |
 | **`maxGasCostFor(maxFeesPerGas, gasLimits)`** | Calculates maximum possible gas cost in wei. Formula: `da_gas_limit * max_fee_per_da_gas + l2_gas_limit * max_fee_per_l2_gas`. The `teardownGasLimits` parameter was removed — teardown is already included in the kernel's gas_limits, adding it again was double-counting. Matches the Noir `get_max_gas_cost()` implementation. | Implemented |
 | **`DEFAULT_FEE_MULTIPLIER`** | Exported constant `3n`. Default safety multiplier for `maxFeesPerGasFromBaseFees`. | Implemented |
 | **`REASONABLE_GAS_LIMITS` / `REASONABLE_TEARDOWN_GAS_LIMITS`** | Default gas limit constants sourced from `@aztec/constants`. `REASONABLE_TEARDOWN_GAS_LIMITS` is used only to configure teardown gas allocation in transactions, NOT for fee calculation. | Implemented |
-| **Contract artifacts** | Generated `MeteredContract`, `MeteredContractArtifact`, and `CounterContract` TypeScript bindings from compiled Noir. Public API exports: `MeteredContract` and `MeteredContractArtifact`. `CounterContract`/`CounterContractArtifact` are test-only (not re-exported from main index). | Implemented |
+| **Contract artifacts** | Generated `MeteredFPCContract`, `MeteredFPCContractArtifact`, and `CounterContract` TypeScript bindings from compiled Noir. Public API exports: `MeteredFPCContract` and `MeteredFPCContractArtifact`. `CounterContract`/`CounterContractArtifact` are test-only (not re-exported from main index). | Implemented |
 
 ### Off-chain Service (Trusted Flow)
 
