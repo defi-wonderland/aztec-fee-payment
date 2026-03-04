@@ -88,12 +88,21 @@ import {
   MeteredFeePaymentMethod,
   deployMeteredFPCContract,
 } from '@defi-wonderland/aztec-fee-payment';
+import { computeInnerAuthWitHash } from '@aztec/stdlib/auth-witness';
+import { Fr } from '@aztec/aztec.js/fields';
 
 // Deploy the FPC (owner is the account that authorizes mints)
 const fpc = await deployMeteredFPCContract(wallet, ownerAddress);
 
-// Owner mints internal balance for a user (requires off-chain authwit)
-await fpc.methods.mint(userAddress, amount, secret).send();
+// Owner mints internal balance for a user.
+// In production the authwit is issued by the off-chain agent; shown here directly.
+const secret = Fr.random();
+const innerHash = await computeInnerAuthWitHash([new Fr(amount), secret]);
+const authWitness = await wallet.createAuthWit(ownerAddress, { consumer: fpc.address, innerHash });
+
+await fpc.methods.mint(userAddress, amount, secret)
+  .with({ authWitnesses: [authWitness] })
+  .send({ from: ownerAddress });
 
 // User sponsors a transaction from their internal balance
 await myContract.methods.doSomething()
