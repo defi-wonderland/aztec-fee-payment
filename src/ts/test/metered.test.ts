@@ -9,7 +9,7 @@ import {
 } from "@aztec/stdlib/auth-witness";
 
 import { CounterContract } from "../../artifacts/Counter.js";
-import { MeteredContract } from "../../artifacts/Metered.js";
+import { MeteredFPCContract } from "../../artifacts/MeteredFPC.js";
 import {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
@@ -53,7 +53,7 @@ describe("Metered Fee Payment Contract", () => {
   let bob: AztecAddress;
   let counter: CounterContract;
   let aztecNode: AztecNode;
-  let fpc: MeteredContract;
+  let fpc: MeteredFPCContract;
   let paymentMethod: MeteredFeePaymentMethod;
   let exactPaymentMethod: MeteredExactFeePaymentMethod;
 

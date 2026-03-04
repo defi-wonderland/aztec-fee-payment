@@ -4,7 +4,7 @@
 // external wrapper (see README for details).
 // See src/ts/test/README.md for the full test tree and coverage matrix.
 
-use crate::{Metered, test::utils};
+use crate::{MeteredFPC, test::utils};
 use aztec::oracle::random::random;
 
 // ---- Happy path tests ----
@@ -42,7 +42,7 @@ unconstrained fn mint_reverts_no_authwit() {
 
     let secret = random();
     // Don't register authwit -- call mint directly
-    env.call_private(owner, Metered::at(contract_address).mint(owner, utils::MINT_AMOUNT, secret));
+    env.call_private(owner, MeteredFPC::at(contract_address).mint(owner, utils::MINT_AMOUNT, secret));
 }
 
 /// Authwit registered for one secret, called with a different one.
@@ -58,7 +58,7 @@ unconstrained fn mint_reverts_wrong_secret() {
     utils::add_metered_authwit(env, contract_address, owner, amount, registered_secret);
 
     // Call mint with wrong_secret -- different inner hash, no matching authwit
-    env.call_private(owner, Metered::at(contract_address).mint(owner, amount, wrong_secret));
+    env.call_private(owner, MeteredFPC::at(contract_address).mint(owner, amount, wrong_secret));
 }
 
 /// Authwit registered for one amount, called with a different amount.
@@ -74,7 +74,7 @@ unconstrained fn mint_reverts_wrong_amount() {
     utils::add_metered_authwit(env, contract_address, owner, registered_amount, secret);
 
     // Call mint with wrong_amount -- different inner hash, no matching authwit
-    env.call_private(owner, Metered::at(contract_address).mint(owner, wrong_amount, secret));
+    env.call_private(owner, MeteredFPC::at(contract_address).mint(owner, wrong_amount, secret));
 }
 
 /// Authwit registered on a non-owner account -- should revert.
@@ -90,7 +90,7 @@ unconstrained fn mint_reverts_authwit_on_non_owner() {
     // Register the authwit on 'user' instead of 'owner'
     utils::add_metered_authwit(env, contract_address, user, amount, secret);
 
-    env.call_private(user, Metered::at(contract_address).mint(user, amount, secret));
+    env.call_private(user, MeteredFPC::at(contract_address).mint(user, amount, secret));
 }
 
 /// Authwit replay: same (amount, secret) used twice should be rejected
@@ -103,9 +103,9 @@ unconstrained fn mint_reverts_authwit_replay() {
 
     // First mint: register authwit and spend it successfully
     utils::add_metered_authwit(env, contract_address, owner, amount, secret);
-    env.call_private(owner, Metered::at(contract_address).mint(owner, amount, secret));
+    env.call_private(owner, MeteredFPC::at(contract_address).mint(owner, amount, secret));
 
     // Second mint with the same parameters: the nullifier for this message hash
     // was already emitted, so this must fail regardless of having a valid witness
-    env.call_private(owner, Metered::at(contract_address).mint(owner, amount, secret));
+    env.call_private(owner, MeteredFPC::at(contract_address).mint(owner, amount, secret));
 }

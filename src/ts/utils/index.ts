@@ -7,4 +7,4 @@ export {
 } from "./gas.js";
 
 // Deployment utilities
-export { deployMeteredContract } from "./deploy.js";
+export { deployMeteredFPCContract, registerBridgedContract } from "./deploy.js";

@@ -5,14 +5,14 @@ import { Gas, GasFees } from "@aztec/stdlib/gas";
 import { getFeeJuiceBalance } from "@aztec/aztec.js/utils";
 
 import { CounterContract } from "../../artifacts/Counter.js";
-import { MeteredContract } from "../../artifacts/Metered.js";
+import { MeteredFPCContract } from "../../artifacts/MeteredFPC.js";
 import {
   REASONABLE_GAS_LIMITS,
   REASONABLE_TEARDOWN_GAS_LIMITS,
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
 } from "../utils/gas.js";
-import { deployMeteredContract } from "../utils/deploy.js";
+import { deployMeteredFPCContract } from "../utils/deploy.js";
 import { warpL1Time } from "./harness.js";
 
 /** Global test timeout constant for individual test cases. */
@@ -112,8 +112,8 @@ export async function deploySettledMetered(
   wallet: Wallet,
   owner: AztecAddress,
   aztecNode: AztecNode,
-): Promise<MeteredContract> {
-  const fpc = await deployMeteredContract(wallet, owner);
+): Promise<MeteredFPCContract> {
+  const fpc = await deployMeteredFPCContract(wallet, owner);
   await warpL1Time(aztecNode, CONFIG_DELAY);
   await produceL2Block(wallet);
   return fpc;
@@ -126,6 +126,6 @@ export async function deploySettledMetered(
 export async function deployUnsettledMetered(
   wallet: Wallet,
   owner: AztecAddress,
-): Promise<MeteredContract> {
-  return deployMeteredContract(wallet, owner);
+): Promise<MeteredFPCContract> {
+  return deployMeteredFPCContract(wallet, owner);
 }

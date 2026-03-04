@@ -11,7 +11,7 @@ import { Fr } from "@aztec/foundation/curves/bn254";
 import { AuthWitness } from "@aztec/stdlib/auth-witness";
 
 /**
- * Fee payment method for the Metered contract.
+ * Fee payment method for the MeteredFPC contract.
  * The contract tracks internal balances and deducts max gas cost per transaction.
  * Users must have sufficient balance (via `mint()`) to cover estimated fees.
  * NOTE: Does not refund unused gas - use MeteredExactFeePaymentMethod for refunds.

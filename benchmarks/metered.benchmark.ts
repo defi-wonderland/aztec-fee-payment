@@ -5,6 +5,14 @@ import {
   Benchmark,
   type BenchmarkContext,
 } from "@defi-wonderland/aztec-benchmark";
+import {
+  ContractFunctionInteraction,
+  type RequestInteractionOptions,
+  type SimulateInteractionOptions,
+  type ProfileInteractionOptions,
+  type SendInteractionOptions,
+} from "@aztec/aztec.js/contracts";
+import type { ContractFunctionInteractionCallIntent } from "@aztec/aztec.js/authorization";
 import { Gas, GasFees } from "@aztec/stdlib/gas";
 import { Fr } from "@aztec/aztec.js/fields";
 import {
@@ -20,13 +28,10 @@ import { EmbeddedWallet } from "@aztec/wallets/embedded";
 import { registerInitialLocalNetworkAccountsInWallet } from "@aztec/wallets/testing";
 import { getPXEConfig } from "@aztec/pxe/config";
 import { Barretenberg } from "@aztec/bb.js";
-import { randomBytes } from "node:crypto";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { rmSync } from "node:fs";
+import { z } from "zod";
 
 import { CounterContract } from "../src/artifacts/Counter.js";
-import { MeteredContract } from "../src/artifacts/Metered.js";
+import { MeteredFPCContract } from "../src/artifacts/MeteredFPC.js";
 import {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
@@ -37,16 +42,17 @@ import {
   fundL2AddressWithFeeJuiceFromL1,
   warpL1Time,
 } from "../src/ts/test/harness.js";
-import { produceL2Block } from "../src/ts/test/utils.js";
 import {
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
   REASONABLE_GAS_LIMITS,
   REASONABLE_TEARDOWN_GAS_LIMITS,
 } from "../src/ts/utils/gas.js";
-import { deployMeteredContract } from "../src/ts/utils/deploy.js";
+import { deployMeteredFPCContract } from "../src/ts/utils/deploy.js";
 
-const { NODE_URL = "http://localhost:8080" } = process.env;
+const { NODE_URL } = z
+  .object({ NODE_URL: z.string().url().default("http://localhost:8080") })
+  .parse(process.env);
 const node: AztecNode = createAztecNodeClient(NODE_URL);
 await waitForNode(node);
 const pxeConfig = getPXEConfig();
@@ -68,6 +74,11 @@ async function createAuthWitness(
   return wallet.createAuthWit(ownerAddress, intent);
 }
 
+type NamedBenchmarkedInteraction = {
+  name: string;
+  interaction: ContractFunctionInteractionCallIntent;
+};
+
 /**
  * Wraps a ContractFunctionInteraction so the benchmark profiler (which calls
  * request/simulate/profile/send) always uses a per-interaction FeePaymentMethod
@@ -79,7 +90,7 @@ async function createAuthWitness(
  */
 class FeeWrappedInteraction {
   constructor(
-    private readonly inner: any,
+    private readonly inner: ContractFunctionInteraction,
     private readonly paymentMethod?: FeePaymentMethod,
     private readonly gasSettings?: {
       gasLimits: Gas;
@@ -89,7 +100,7 @@ class FeeWrappedInteraction {
     },
   ) {}
 
-  async request(options: any = {}) {
+  async request(options: RequestInteractionOptions = {}) {
     const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
     return paymentMethod
       ? this.inner.request({
@@ -99,7 +110,7 @@ class FeeWrappedInteraction {
       : this.inner.request(options);
   }
 
-  async simulate(options: any = {}) {
+  async simulate(options: SimulateInteractionOptions) {
     // Why: the profiler passes { estimateGas: true } which makes the wallet
     // call completeFeeOptionsForEstimation, inflating gas limits to 2× block
     // capacity. The Metered contract derives max_gas_cost from gas settings,
@@ -124,19 +135,24 @@ class FeeWrappedInteraction {
         ...restFee,
         ...(estimatedGasPadding !== undefined && { estimatedGasPadding }),
       },
-    };
+    } as SimulateInteractionOptions;
     return this.inner.simulate(this.withFee(adjusted));
   }
 
-  async profile(options: any = {}) {
+  async profile(options: ProfileInteractionOptions) {
     return this.inner.profile(this.withFee(options));
   }
 
-  async send(options: any = {}) {
+  async send(options: SendInteractionOptions) {
     return this.inner.send(this.withFee(options));
   }
 
-  private withFee(options: any): any {
+  private withFee<
+    T extends
+      | SimulateInteractionOptions
+      | ProfileInteractionOptions
+      | SendInteractionOptions,
+  >(options: T): T {
     const paymentMethod = options?.fee?.paymentMethod ?? this.paymentMethod;
     if (!paymentMethod) return options;
     return {
@@ -146,7 +162,7 @@ class FeeWrappedInteraction {
         paymentMethod,
         ...(this.gasSettings && { gasSettings: this.gasSettings }),
       },
-    };
+    } as T;
   }
 }
 
@@ -157,13 +173,17 @@ interface MeteredBenchmarkContext extends BenchmarkContext {
   deployer: AztecAddress;
   accounts: AztecAddress[];
   counterContract: CounterContract;
-  meteredFpc: MeteredContract;
+  meteredFpc: MeteredFPCContract;
   // Existing payment methods (require pre-minted balance)
   meteredPaymentMethod: MeteredFeePaymentMethod;
   meteredExactPaymentMethod: MeteredExactFeePaymentMethod;
   // Payment methods with account contract authwit verification
   mintAndPayFeeMethod: MeteredMintAndPayFeePaymentMethod;
   mintThenPayFeeMethod: MeteredMintThenPayFeePaymentMethod;
+  // Standalone mint benchmark data
+  mintBenchmarkSecret: Fr;
+  mintBenchmarkAmount: bigint;
+  mintBenchmarkAuthWit: AuthWitness;
   // Gas settings (reasonable limits, consistent across all profiler steps)
   gasSettings: {
     gasLimits: Gas;
@@ -181,14 +201,10 @@ export default class CounterContractBenchmark extends Benchmark {
   async setup(): Promise<MeteredBenchmarkContext> {
     await Barretenberg.destroySingleton();
 
-    const dataDirectory = join(
-      tmpdir(),
-      `aztec-metered-${randomBytes(8).toString("hex")}`,
-    );
     const wallet = await EmbeddedWallet.create(node, {
+      ephemeral: true,
       pxeConfig: {
         ...pxeConfig,
-        dataDirectory,
         proverEnabled: false,
       },
     });
@@ -197,11 +213,6 @@ export default class CounterContractBenchmark extends Benchmark {
 
     const cleanup = async () => {
       await wallet.stop();
-      try {
-        rmSync(dataDirectory, { recursive: true, force: true });
-      } catch {
-        // ignore cleanup errors
-      }
     };
 
     const counterContract = await CounterContract.deploy(wallet).send({
@@ -209,7 +220,7 @@ export default class CounterContractBenchmark extends Benchmark {
     });
 
     // Deploy and fund Metered FPC (deployer is the owner who authorizes mints)
-    const meteredFpc = await deployMeteredContract(wallet, deployer);
+    const meteredFpc = await deployMeteredFPCContract(wallet, deployer);
 
     // The contract stores owner as DelayedPublicMutable (CONFIG_DELAY = 600s).
     // Private reads return zero until the delay elapses and add an
@@ -220,7 +231,7 @@ export default class CounterContractBenchmark extends Benchmark {
     await fundL2AddressWithFeeJuiceFromL1(node, wallet, meteredFpc.address, {
       claimTxSender: deployer,
       produceL2Block: async () => {
-        await produceL2Block(wallet);
+        await counterContract.methods.increment().send({ from: deployer });
       },
       loggerName: "benchmark:metered",
     });
@@ -316,6 +327,19 @@ export default class CounterContractBenchmark extends Benchmark {
         .send({ from: deployer });
     }
 
+    // Prepare authwit for the standalone mint benchmark.
+    // Must run after the ten small notes are minted so the benchmark
+    // captures mint in isolation (not polluting the ten-note recursion test).
+    const mintBenchmarkAmount = maxGasCost * 2n;
+    const mintBenchmarkSecret = Fr.random();
+    const mintBenchmarkAuthWit = await createAuthWitness(
+      wallet,
+      deployer,
+      mintBenchmarkSecret,
+      mintBenchmarkAmount,
+      meteredFpc.address,
+    );
+
     return {
       cleanup,
       wallet,
@@ -327,6 +351,9 @@ export default class CounterContractBenchmark extends Benchmark {
       meteredExactPaymentMethod,
       mintAndPayFeeMethod,
       mintThenPayFeeMethod,
+      mintBenchmarkSecret,
+      mintBenchmarkAmount,
+      mintBenchmarkAuthWit,
       gasSettings,
     };
   }
@@ -334,7 +361,11 @@ export default class CounterContractBenchmark extends Benchmark {
   /**
    * Returns the list of CounterContract methods to be benchmarked.
    */
-  getMethods(context: MeteredBenchmarkContext): any[] {
+  getMethods(
+    context: MeteredBenchmarkContext,
+  ): Array<
+    ContractFunctionInteractionCallIntent | NamedBenchmarkedInteraction
+  > {
     const {
       counterContract,
       wallet,
@@ -343,25 +374,40 @@ export default class CounterContractBenchmark extends Benchmark {
       meteredExactPaymentMethod,
       mintAndPayFeeMethod,
       mintThenPayFeeMethod,
+      mintBenchmarkSecret,
+      mintBenchmarkAmount,
+      mintBenchmarkAuthWit,
+      meteredFpc,
       gasSettings,
     } = context;
+
+    const wrap = (
+      inner: ContractFunctionInteraction,
+      paymentMethod?: FeePaymentMethod,
+      gasSettings?: MeteredBenchmarkContext["gasSettings"],
+    ) =>
+      // Safe: the framework only calls request/simulate/profile/send, all implemented above.
+      new FeeWrappedInteraction(
+        inner,
+        paymentMethod,
+        gasSettings,
+      ) as unknown as ContractFunctionInteraction;
 
     // Methods are ordered so that note state flows correctly:
     //   1. increment                            – baseline, no notes consumed
     //   2. increment_metered_ten_notes          – runs when ONLY small notes exist → recursion
-    //   3. increment_metered_mint_and_pay_fee   – self-contained; large change note funds later tests
-    //   4. increment_metered_mint_then_pay_fee  – mints + pay_fee from balance
-    //   5. increment_metered                    – pay_fee from balance (big change note)
-    //   6. increment_metered_exact              – pay_fee_exact with teardown refund (last)
-    const methods = [
+    //   3. mint_metered                         – standalone mint (authwit-gated, no fee sponsorship)
+    //   4. increment_metered_mint_and_pay_fee   – self-contained; large change note funds later tests
+    //   5. increment_metered_mint_then_pay_fee  – mints + pay_fee from balance
+    //   6. increment_metered                    – pay_fee from balance (big change note)
+    //   7. increment_metered_exact              – pay_fee_exact with teardown refund (last)
+    return [
       // Baseline: no custom fee payment
       {
         name: "increment",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
-            counterContract.withWallet(wallet).methods.increment(),
-          ),
+          action: wrap(counterContract.withWallet(wallet).methods.increment()),
         },
       },
       // Many small notes: forces recursion in _subtract_balance because
@@ -371,10 +417,26 @@ export default class CounterContractBenchmark extends Benchmark {
         name: "increment_metered_ten_notes",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
+          action: wrap(
             counterContract.withWallet(wallet).methods.increment(),
             meteredPaymentMethod,
             gasSettings,
+          ),
+        },
+      },
+      // Standalone mint: benchmarks the authwit-gated mint in isolation.
+      // No FPC fee sponsorship — deployer pays with native FeeJuice.
+      // Placed after the ten-note test so the newly minted note does not
+      // affect that recursion measurement.
+      {
+        name: "mint_metered",
+        interaction: {
+          caller: deployer,
+          action: wrap(
+            meteredFpc
+              .withWallet(wallet)
+              .methods.mint(deployer, mintBenchmarkAmount, mintBenchmarkSecret)
+              .with({ authWitnesses: [mintBenchmarkAuthWit] }),
           ),
         },
       },
@@ -384,7 +446,7 @@ export default class CounterContractBenchmark extends Benchmark {
         name: "increment_metered_mint_and_pay_fee",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
+          action: wrap(
             counterContract.withWallet(wallet).methods.increment(),
             mintAndPayFeeMethod,
             gasSettings,
@@ -396,7 +458,7 @@ export default class CounterContractBenchmark extends Benchmark {
         name: "increment_metered_mint_then_pay_fee",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
+          action: wrap(
             counterContract.withWallet(wallet).methods.increment(),
             mintThenPayFeeMethod,
             gasSettings,
@@ -408,7 +470,7 @@ export default class CounterContractBenchmark extends Benchmark {
         name: "increment_metered",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
+          action: wrap(
             counterContract.withWallet(wallet).methods.increment(),
             meteredPaymentMethod,
             gasSettings,
@@ -421,7 +483,7 @@ export default class CounterContractBenchmark extends Benchmark {
         name: "increment_metered_exact",
         interaction: {
           caller: deployer,
-          action: new FeeWrappedInteraction(
+          action: wrap(
             counterContract.withWallet(wallet).methods.increment(),
             meteredExactPaymentMethod,
             gasSettings,
@@ -429,8 +491,6 @@ export default class CounterContractBenchmark extends Benchmark {
         },
       },
     ];
-
-    return methods;
   }
 
   async teardown(context: BenchmarkContext): Promise<void> {
