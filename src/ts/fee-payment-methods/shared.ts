@@ -22,7 +22,7 @@ export class FPCFeePaymentMethod implements FeePaymentMethod {
     throw new Error("Asset is not required for FPC fee payment.");
   }
 
-  getFeePayer() {
+  getFeePayer(): Promise<AztecAddress> {
     return Promise.resolve(this.fpcAddress);
   }
 
@@ -65,7 +65,7 @@ export class FPCExactFeePaymentMethod implements FeePaymentMethod {
     throw new Error("Asset is not required for FPC fee payment.");
   }
 
-  getFeePayer() {
+  getFeePayer(): Promise<AztecAddress> {
     return Promise.resolve(this.fpcAddress);
   }
 
