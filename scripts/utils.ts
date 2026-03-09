@@ -1,5 +1,5 @@
 import { AztecAddress } from "@aztec/aztec.js/addresses";
-import { MeteredContract } from "../src/artifacts/Metered.js";
+import { MeteredFPCContract } from "../src/artifacts/MeteredFPC.js";
 import { AccountWithSecretKey } from "@aztec/aztec.js/account";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { dirname, join } from "path";
@@ -11,7 +11,7 @@ const logger = createLogger("aztec:utils");
 // DeployedContracts interface
 export interface DeployedContracts {
   metered?: {
-    contract: MeteredContract;
+    contract: MeteredFPCContract;
     status: "deployed" | "existing";
   } | null;
   deployer?: AccountWithSecretKey;
@@ -21,11 +21,17 @@ export interface DeploymentMetered {
   address: string;
   salt: string;
   deployer: string;
-  constructorArtifact?: string; // Optional since Metered contract has no constructor
+  constructorArtifact?: string;
+}
+
+export interface DeploymentBridged {
+  address: string;
+  salt: string;
 }
 
 export interface DeploymentData {
   metered?: DeploymentMetered;
+  bridged?: DeploymentBridged;
 }
 
 export interface DeployedContract<T> {
@@ -34,7 +40,7 @@ export interface DeployedContract<T> {
 }
 
 export interface DeploymentContracts {
-  metered?: DeployedContract<MeteredContract>;
+  metered?: DeployedContract<MeteredFPCContract>;
 }
 
 const UNIVERSAL_DEPLOYER =
@@ -43,19 +49,22 @@ const UNIVERSAL_DEPLOYER =
 export function getDeploymentData(
   contracts: DeploymentContracts | null | undefined,
   config: DeploymentConfig,
+  bridgedAddress?: AztecAddress,
 ): DeploymentData {
-  if (!contracts || !contracts.metered) {
-    return {};
-  }
-
   const result: DeploymentData = {};
 
-  if (contracts.metered) {
+  if (contracts?.metered) {
     result.metered = {
       address: contracts.metered.contract.address.toString(),
       salt: config.contracts.metered.salt,
       deployer: UNIVERSAL_DEPLOYER,
-      constructorArtifact: undefined, // Metered contract has no constructor
+    };
+  }
+
+  if (bridgedAddress) {
+    result.bridged = {
+      address: bridgedAddress.toString(),
+      salt: config.contracts.bridged.salt,
     };
   }
 

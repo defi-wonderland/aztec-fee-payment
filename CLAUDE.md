@@ -4,15 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Aztec Fee Payment — a Metered Fee Payment Contract (FPC) for Aztec that sponsors transaction fees using internal balances. Includes a Noir smart contract, a TypeScript SDK (published as `@defi-wonderland/aztec-fee-payment`), and an off-chain agent (Express server) that validates EVM transactions and generates authwits for cross-chain fee sponsorship.
+Aztec Fee Payment — two Fee Payment Contracts (FPCs) for Aztec that sponsor transaction fees using internal balances. Includes Noir smart contracts, a TypeScript SDK (published as `@defi-wonderland/aztec-fee-payment`), and an off-chain agent (Express server) that validates EVM transactions and generates authwits for cross-chain fee sponsorship.
+
+- **Metered FPC** (`src/nr/metered_contract/`) — Agent-based flow: users pay AZT on L1, off-chain agent validates and issues authwits, users mint internal wFJ on Aztec.
+- **Bridged FPC** (`src/nr/bridged_contract/`) — Bridge-based flow: users bridge FJ directly via `FeeJuicePortal` to the FPC address, then call `mint` to convert the bridge claim into private wFJ. Fully private, no owner, no off-chain agent.
 
 ## Spec Guardian
 
 The tech design documents in `docs/` are the **source of truth** for this project:
-- **PRD**: `docs/Fee Payment Contract (FPC) — Product Requirements.md`
+- **Metered FPC PRD**: `docs/metered-product-requirements.md`
+- **Bridged FPC PRD**: `docs/bridged-product-requirements.md`
 
 All code changes MUST stay aligned with these documents. Two mandatory checks enforce this:
-  
+
 ### 1. Pre-Change Validation (BLOCKING)
 
 Before implementing any user-requested code change, launch a read-only `general-purpose` subagent that reads both docs and classifies the proposed change as:
@@ -36,8 +40,7 @@ After any code change that affects contract logic, SDK public API, agent behavio
 ## Prerequisites
 
 - Node.js >= 22, Yarn 1.22.22 (corepack)
-- Aztec CLI v3.0.0-devnet.6-patch.1: `curl -s install.aztec.network | NON_INTERACTIVE=1 BIN_PATH=$HOME/.aztec/bin bash -s`
-- Docker (for Aztec sandbox)
+- Aztec CLI v4.0.0-devnet.2-patch.1: `curl -s install.aztec.network | NON_INTERACTIVE=1 BIN_PATH=$HOME/.aztec/bin bash -s`
 
 ## Commands
 
@@ -54,15 +57,15 @@ yarn codegen          # aztec codegen target --outdir src/artifacts
 # Build TS package (compile + codegen + tsc)
 yarn build
 
-# Tests — integration tests auto-start/stop the sandbox via vitest globalSetup
+# Tests — integration tests require a running Aztec local network
 yarn test             # all tests (Noir + JS)
 yarn test:nr          # Noir unit tests only (aztec test)
-yarn test:js          # JS integration tests (vitest, auto-manages sandbox)
+yarn test:js          # JS integration tests
 
 # Run a single Noir test
 aztec test --package metered_contract <test_name>
 
-# Agent tests (separate vitest config, no sandbox needed)
+# Agent tests (separate vitest config, no local network needed)
 yarn test:agent
 
 # Run a single test file
@@ -85,14 +88,20 @@ yarn lint:prettier
 
 ### Noir Contracts (`src/nr/`)
 
-Two Noir packages (workspace defined in root `Nargo.toml`):
+Three Noir packages (workspace defined in root `Nargo.toml`):
 
-- **`metered_contract`** — The FPC. Storage is a single `Owned<BalanceSet>` mapping accounts to private note-based balances. Key functions:
+- **`metered_contract`** — Agent-based FPC. Storage: `owner: DelayedPublicMutable` + `balances: Owned<BalanceSet>`. Key functions:
   - `pay_fee()` — Deducts max gas cost, no refund (simpler, cheaper proofs)
   - `pay_fee_exact()` — Deducts max gas cost, refunds unused gas in teardown via partial notes
-  - `mint(account, amount)` — Permissionless mint (Phase 1 only, no access control)
+  - `mint(account, amount, secret)` — Authorized mint via owner authwit
+  - `mint_and_pay_fee(account, amount, secret)` — Cold-start: mint + self-sponsor in one tx
   - `_refund(max_gas_cost, partial_note)` — Public teardown function, only callable by self
   - `balance_of(account)` — Unconstrained view
+- **`bridged_contract`** — Bridge-based FPC. Fully private (no public functions). Storage: `balances: Owned<BalanceSet>` only. Key functions:
+  - `pay_fee()` — Deducts max gas cost, no refund
+  - `mint(amount, salt, leaf_index)` — Proves prior `FeeJuice.claim` via nullifier existence, credits wFJ to claimer
+  - `balance_of(account)` — Unconstrained view
+  - Library methods: `derive_bridge_secret`, `get_bridge_gas_msg_hash`, `compute_feejuice_claim_nullifier`
 - **`counter_contract`** — Test utility contract for benchmarks
 
 ### TypeScript SDK (`src/ts/`)
@@ -116,8 +125,8 @@ Express server that validates EVM token transfers and returns Aztec authwits for
 
 ### Test Setup
 
-- **Integration tests** (`vitest.config.ts`) — `globalSetup` in `vitest.setup.ts` auto-starts/stops Aztec sandbox (Docker required). 200s timeouts. Single fork, no parallelism. Must inline `/@aztec/`, `/@noble/`, `/@scure/`, `/viem/` in `server.deps`.
-- **Agent tests** (`vitest.agent.config.ts`) — Separate config, no sandbox, 30s timeout. Also inlines `/zod/`, `/pino/`.
+- **Integration tests** (`vitest.config.ts`) — Requires a running Aztec local network (start manually before running). 200s timeouts. Single fork, no parallelism. Must inline `/@aztec/`, `/@noble/`, `/@scure/`, `/viem/` in `server.deps`.
+- **Agent tests** (`vitest.agent.config.ts`) — Separate config, no local network, 30s timeout. Also inlines `/zod/`, `/pino/`.
 
 ### Deployment (`scripts/`, `config/`)
 
@@ -129,8 +138,9 @@ Express server that validates EVM token transfers and returns Aztec authwits for
 ## Key Patterns
 
 - Contract uses `try_sub` with `max_notes = 1` for single-note optimization (faster proofs)
-- Partial notes (`UintNote::partial`) enable private teardown refunds in `pay_fee_exact`
+- Partial notes (`UintNote::partial`) enable private teardown refunds in `pay_fee_exact` (Metered FPC only)
 - `set_as_fee_payer()` + `end_setup()` is the required FPC pattern for Aztec fee sponsorship
+- `mint` uses `assert_nullifier_exists` + `compute_nullifier_existence_request` to prove a prior `FeeJuice.claim` in private (Bridged FPC only)
 - Commits use conventional commits (`@commitlint/config-conventional`)
 
 ## Vitest Gotchas

@@ -22,7 +22,7 @@
 //     cross-contract calls) belong in the TypeScript integration tests.
 // =============================================================================
 
-use crate::Metered;
+use crate::MeteredFPC;
 use aztec::{
     authwit::auth::{compute_authwit_message_hash, compute_inner_authwit_hash},
     oracle::random::random,
@@ -74,8 +74,8 @@ pub unconstrained fn deploy_contract_unsettled(
     env: &mut TestEnvironment,
     owner: AztecAddress,
 ) -> AztecAddress {
-    let initializer = Metered::interface().constructor(owner);
-    env.deploy("Metered").with_public_initializer(owner, initializer)
+    let initializer = MeteredFPC::interface().constructor(owner);
+    env.deploy("MeteredFPC").with_public_initializer(owner, initializer)
 }
 
 /// Advances the block timestamp past CONFIG_DELAY and mines a block,
@@ -114,7 +114,7 @@ pub unconstrained fn mint_balance(
 ) {
     let secret = random();
     add_metered_authwit(env, contract_address, owner, amount, secret);
-    env.call_private(owner, Metered::at(contract_address).mint(account, amount, secret));
+    env.call_private(owner, MeteredFPC::at(contract_address).mint(account, amount, secret));
 }
 
 /// Returns the internal balance of an account via the utility function.
@@ -123,5 +123,5 @@ pub unconstrained fn get_balance(
     contract_address: AztecAddress,
     account: AztecAddress,
 ) -> u128 {
-    env.simulate_utility(Metered::at(contract_address).balance_of(account))
+    env.simulate_utility(MeteredFPC::at(contract_address).balance_of(account))
 }

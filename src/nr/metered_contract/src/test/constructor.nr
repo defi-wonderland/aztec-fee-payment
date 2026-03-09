@@ -3,7 +3,7 @@
 // effective only after CONFIG_DELAY elapses and a block is mined.
 // See src/TEST-PLAN.md for the full test tree and coverage matrix.
 
-use crate::{Metered, test::utils};
+use crate::{MeteredFPC, test::utils};
 use aztec::{oracle::random::random, test::helpers::test_environment::TestEnvironment};
 
 /// Verifies that the constructor correctly schedules the owner by performing
@@ -25,7 +25,7 @@ unconstrained fn constructor_sets_owner() {
 unconstrained fn constructor_reverts_on_reinit() {
     let (env, contract_address, owner, _) = utils::setup(false);
 
-    env.call_public(owner, Metered::at(contract_address).constructor(owner));
+    env.call_public(owner, MeteredFPC::at(contract_address).constructor(owner));
 }
 
 /// Before CONFIG_DELAY elapses the owner reads as zero, so authwit
@@ -42,5 +42,5 @@ unconstrained fn constructor_owner_not_effective_before_delay() {
     utils::add_metered_authwit(env, contract_address, owner, utils::MINT_AMOUNT, secret);
 
     // This should fail because the owner hasn't settled yet
-    env.call_private(owner, Metered::at(contract_address).mint(owner, utils::MINT_AMOUNT, secret));
+    env.call_private(owner, MeteredFPC::at(contract_address).mint(owner, utils::MINT_AMOUNT, secret));
 }

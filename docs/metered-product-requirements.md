@@ -96,7 +96,7 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 | **`MeteredExactFeePaymentMethod`** | Implements `FeePaymentMethod` interface. Calls `pay_fee_exact()` on the FPC in setup phase. Refunds unused gas via teardown. | Implemented |
 | **`MeteredMintAndPayFeePaymentMethod`** | Implements `FeePaymentMethod`. Calls `mint_and_pay_fee(account, amount, secret)` with authwit witness. Self-sponsors the transaction. Solves cold-start. | Implemented |
 | **`MeteredMintThenPayFeePaymentMethod`** | Implements `FeePaymentMethod`. Two-step flow: calls `mint(account, amount, secret)` then `pay_fee()` in the same transaction. Requires existing FJ to pay for the tx. | Implemented |
-| **`deployMeteredContract(wallet, owner)`** | Utility to deploy a Metered FPC contract with the given owner. Returns `MeteredContract` instance. | Implemented |
+| **`deployMeteredFPCContract(wallet, owner)`** | Utility to deploy a Metered FPC contract with the given owner. Returns `MeteredContract` instance. | Implemented |
 | **`maxFeesPerGasFromBaseFees(baseFees, multiplier)`** | Calculates max fees per gas from current base fees with a safety multiplier (default 3x). Returns `GasFees`. | Implemented |
 | **`maxGasCostFor(maxFeesPerGas, gasLimits, teardownGasLimits)`** | Calculates maximum possible gas cost in wei. Formula matches the Noir `get_max_gas_cost()` implementation. | Implemented |
 | **`REASONABLE_GAS_LIMITS` / `REASONABLE_TEARDOWN_GAS_LIMITS`** | Default gas limit constants sourced from `@aztec/constants`. | Implemented |
@@ -136,7 +136,7 @@ struct Storage<Context> {
 
 ### Deployment Flow
 
-1. SP deploys FPC contract via `deployMeteredContract(wallet, owner)` — the `owner` is the account contract that will authorize mints
+1. SP deploys FPC contract via `deployMeteredFPCContract(wallet, owner)` — the `owner` is the account contract that will authorize mints
 2. After `CONFIG_DELAY` (600s) elapses, the owner becomes effective and `mint()` / `mint_and_pay_fee()` can be called
 3. SP funds FPC with Fee Juice by bridging from L1 via `fundL2AddressWithFeeJuiceFromL1()`
 4. Users approve the TopUp contract to spend AZT, call `topUp(from, amount)`, obtain authwits from SP's off-chain agent (via EIP-712 signed request), and call a minting function (`mint` or `mint_and_pay_fee`) to credit their balance
@@ -226,14 +226,14 @@ import {
   MeteredExactFeePaymentMethod,
   MeteredMintAndPayFeePaymentMethod,
   MeteredMintThenPayFeePaymentMethod,
-  deployMeteredContract,
+  deployMeteredFPCContract,
   maxFeesPerGasFromBaseFees,
   REASONABLE_GAS_LIMITS,
   REASONABLE_TEARDOWN_GAS_LIMITS,
 } from '@defi-wonderland/aztec-fee-payment';
 
 // Deploy FPC with owner address
-const fpc = await deployMeteredContract(wallet, ownerAddress);
+const fpc = await deployMeteredFPCContract(wallet, ownerAddress);
 
 // Mint balance for user (requires authwit from the owner's account contract)
 await fpc.methods.mint(userAddress, amount, secret)

@@ -2,7 +2,7 @@
 // Teardown function to refund unused gas. Only callable by the contract itself.
 // See src/ts/test/README.md for the full test tree and coverage matrix.
 
-use crate::{Metered, test::utils};
+use crate::{MeteredFPC, test::utils};
 use uint_note::PartialUintNote;
 
 /// External caller (not the contract itself) tries to call _refund -- should
@@ -16,5 +16,5 @@ unconstrained fn refund_reverts_external_caller() {
     let dummy_partial_note: PartialUintNote = std::mem::zeroed();
 
     // Call from owner (external address), NOT from the contract itself
-    env.call_public(owner, Metered::at(contract_address)._refund(1000, dummy_partial_note));
+    env.call_public(owner, MeteredFPC::at(contract_address)._refund(1000, dummy_partial_note));
 }

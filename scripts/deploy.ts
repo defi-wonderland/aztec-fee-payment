@@ -32,9 +32,10 @@ import { poseidon2Hash } from "@aztec/foundation/crypto/poseidon";
 
 // Import artifacts
 import {
-  MeteredContract,
-  MeteredContractArtifact,
-} from "../src/artifacts/Metered.js";
+  MeteredFPCContract,
+  MeteredFPCContractArtifact,
+} from "../src/artifacts/MeteredFPC.js";
+import { BridgedFPCContractArtifact } from "../src/artifacts/BridgedFPC.js";
 
 import {
   DeployedContracts,
@@ -304,11 +305,11 @@ export async function deployMetered(
   salt: Fr,
   options: DeployOptions,
   owner: AztecAddress,
-): Promise<{ contract: MeteredContract; status: "deployed" | "existing" }> {
+): Promise<{ contract: MeteredFPCContract; status: "deployed" | "existing" }> {
   logger.info("Checking Metered contract...");
 
   const instance = await getContractInstanceFromInstantiationParams(
-    MeteredContractArtifact,
+    MeteredFPCContractArtifact,
     {
       constructorArgs: [owner],
       salt,
@@ -325,14 +326,14 @@ export async function deployMetered(
     try {
       await pxe.registerContract({
         instance,
-        artifact: MeteredContractArtifact,
+        artifact: MeteredFPCContractArtifact,
       });
-      logger.debug("Metered registered with PXE");
+      logger.debug("MeteredFPC registered with PXE");
     } catch (error) {
-      logger.debug("Metered already registered with PXE");
+      logger.debug("MeteredFPC already registered with PXE");
     }
 
-    const meteredContract = await MeteredContract.at(
+    const meteredContract = await MeteredFPCContract.at(
       instance.address,
       deployer,
     );
@@ -344,9 +345,9 @@ export async function deployMetered(
   const deployMethod = new DeployMethod(
     PublicKeys.default(),
     deployer,
-    MeteredContractArtifact,
+    MeteredFPCContractArtifact,
     (address) =>
-      Contract.at(address.address, MeteredContractArtifact, deployer),
+      Contract.at(address.address, MeteredFPCContractArtifact, deployer),
     [owner],
   );
 
@@ -367,15 +368,18 @@ export async function deployMetered(
     try {
       await pxe.registerContract({
         instance: deployedInstance,
-        artifact: MeteredContractArtifact,
+        artifact: MeteredFPCContractArtifact,
       });
-      logger.debug("Metered registered with PXE");
+      logger.debug("MeteredFPC registered with PXE");
     } catch (error) {
-      logger.debug("Metered already registered with PXE");
+      logger.debug("MeteredFPC already registered with PXE");
     }
   }
 
-  const meteredContract = await MeteredContract.at(contract.address, deployer);
+  const meteredContract = await MeteredFPCContract.at(
+    contract.address,
+    deployer,
+  );
   return { contract: meteredContract, status: "deployed" };
 }
 
@@ -387,42 +391,65 @@ export async function deployMeteredWithRetry(
   options: DeployOptions,
   retryOptions: RetryOptions,
   owner: AztecAddress,
-): Promise<{ contract: MeteredContract; status: "deployed" | "existing" }> {
+): Promise<{ contract: MeteredFPCContract; status: "deployed" | "existing" }> {
   return withRetry(
     () => deployMetered(deployer, node, pxe, salt, options, owner),
-    "Deploy Metered",
+    "Deploy MeteredFPC",
     retryOptions,
   );
 }
 
 interface ComputedAddresses {
   metered: AztecAddress;
+  bridged: AztecAddress;
+}
+
+async function computeMeteredAddress(
+  config: DeploymentConfig,
+  owner: AztecAddress,
+): Promise<AztecAddress> {
+  if (config.contracts.metered.existingAddress) {
+    return AztecAddress.fromString(config.contracts.metered.existingAddress);
+  }
+  // MeteredFPC constructor takes the owner (= deployer); address depends on it.
+  const meteredSalt = Fr.fromString(config.contracts.metered.salt);
+  const meteredInstance = await getContractInstanceFromInstantiationParams(
+    MeteredFPCContractArtifact,
+    {
+      constructorArgs: [owner],
+      salt: meteredSalt,
+      publicKeys: PublicKeys.default(),
+      deployer: AztecAddress.ZERO,
+    },
+  );
+  return meteredInstance.address;
+}
+
+async function computeBridgedAddress(
+  config: DeploymentConfig,
+): Promise<AztecAddress> {
+  // BridgedFPC is fully private: no constructor, no public initializer.
+  // Its address is derived deterministically from the class hash + salt.
+  const bridgedSalt = Fr.fromString(config.contracts.bridged.salt);
+  const bridgedInstance = await getContractInstanceFromInstantiationParams(
+    BridgedFPCContractArtifact,
+    {
+      constructorArgs: [],
+      salt: bridgedSalt,
+      publicKeys: PublicKeys.default(),
+      deployer: AztecAddress.ZERO,
+    },
+  );
+  return bridgedInstance.address;
 }
 
 async function computeContractAddresses(
   config: DeploymentConfig,
+  owner: AztecAddress,
 ): Promise<ComputedAddresses> {
-  // Compute metered address
-  let metered: AztecAddress;
-  if (config.contracts.metered.existingAddress) {
-    metered = AztecAddress.fromString(config.contracts.metered.existingAddress);
-  } else {
-    const meteredSalt = Fr.fromString(config.contracts.metered.salt);
-    // Metered contract has no constructor, so we don't specify constructorArtifact
-    const meteredInstance = await getContractInstanceFromInstantiationParams(
-      MeteredContractArtifact,
-      {
-        constructorArgs: [],
-        salt: meteredSalt,
-        publicKeys: PublicKeys.default(),
-        deployer: AztecAddress.ZERO,
-      },
-    );
-    metered = meteredInstance.address;
-  }
-
   return {
-    metered,
+    metered: await computeMeteredAddress(config, owner),
+    bridged: await computeBridgedAddress(config),
   };
 }
 
@@ -435,15 +462,24 @@ export async function deployToNetwork(
 
   if (options.dryRun) {
     logger.info("[DRY RUN] Computing contract addresses...");
-    const addresses = await computeContractAddresses(config);
+    const bridgedAddress = await computeBridgedAddress(config);
+    const meteredAddress = config.contracts.metered.existingAddress
+      ? AztecAddress.fromString(config.contracts.metered.existingAddress)
+      : null;
+
     const universalDeployer = AztecAddress.ZERO.toString();
 
     const deploymentData: DeploymentData = {
       metered: {
-        address: addresses.metered.toString(),
+        address:
+          meteredAddress?.toString() ??
+          "(requires deployer secret — run without --dry-run)",
         salt: config.contracts.metered.salt,
         deployer: universalDeployer,
-        // Metered contract has no constructor
+      },
+      bridged: {
+        address: bridgedAddress.toString(),
+        salt: config.contracts.bridged.salt,
       },
     };
 
@@ -507,14 +543,18 @@ export async function deployToNetwork(
     );
 
     // Compute and display addresses before deployment
-    const computedAddresses = await computeContractAddresses(config);
+    const computedAddresses = await computeContractAddresses(
+      config,
+      deployer.account.getAddress(),
+    );
     logger.info("\n=== Computed Contract Addresses ===");
-    logger.info(`Metered: ${computedAddresses.metered.toString()}`);
+    logger.info(`MeteredFPC: ${computedAddresses.metered.toString()}`);
+    logger.info(`BridgedFPC: ${computedAddresses.bridged.toString()}`);
     logger.info("===================================\n");
 
     // Deploy or use existing metered
     let metered: {
-      contract: MeteredContract;
+      contract: MeteredFPCContract;
       status: "deployed" | "existing";
     } | null = null;
 
@@ -527,21 +567,21 @@ export async function deployToNetwork(
       );
 
       const meteredInstance = await node.getContract(meteredAddress);
-      if (!meteredInstance) throw new Error("Metered not found");
+      if (!meteredInstance) throw new Error("MeteredFPC not found");
 
-      logger.info(`Metered found at: ${meteredAddress.toString()}`);
+      logger.info(`MeteredFPC found at: ${meteredAddress.toString()}`);
 
       try {
         await pxe.registerContract({
           instance: meteredInstance,
-          artifact: MeteredContractArtifact,
+          artifact: MeteredFPCContractArtifact,
         });
-        logger.debug("Metered registered with PXE");
+        logger.debug("MeteredFPC registered with PXE");
       } catch (error) {
-        logger.debug("Metered already registered with PXE");
+        logger.debug("MeteredFPC already registered with PXE");
       }
 
-      const meteredContract = await MeteredContract.at(
+      const meteredContract = await MeteredFPCContract.at(
         meteredAddress,
         deployer.wallet,
       );
@@ -561,7 +601,7 @@ export async function deployToNetwork(
     }
 
     if (!metered) {
-      throw new Error("Metered deployment failed");
+      throw new Error("MeteredFPC deployment failed");
     }
 
     logger.info("Deployment completed successfully!");
@@ -666,11 +706,13 @@ program
       const hasNewDeployments = contracts.metered?.status === "deployed";
 
       if (hasNewDeployments || contracts.metered) {
+        const bridgedAddress = await computeBridgedAddress(activeConfig);
         const deploymentData = getDeploymentData(
           {
             metered: contracts.metered || undefined,
           },
           activeConfig,
+          bridgedAddress,
         );
 
         if (options.output) {
@@ -691,8 +733,8 @@ program
           logger.info("Uploading artifacts to registry...");
           try {
             const resp = await maybeUploadArtifactToRegistry({
-              artifact: MeteredContractArtifact,
-              filename: "metered_contract-Metered.json",
+              artifact: MeteredFPCContractArtifact,
+              filename: "metered_contract-MeteredFPC.json",
               registryBaseUrl: getArtifactRegistryBaseUrl(),
             });
             if (resp) {
