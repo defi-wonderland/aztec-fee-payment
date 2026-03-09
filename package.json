@@ -45,8 +45,6 @@
     "deploy:local-network": "NODE_NO_WARNINGS=1 tsx scripts/deploy.ts --network local-network",
     "deploy:dry-run": "NODE_NO_WARNINGS=1 tsx scripts/deploy.ts --dry-run",
     "upload:artifacts": "tsx scripts/upload-artifact.ts",
-    "fund-fpc": "NODE_NO_WARNINGS=1 tsx scripts/fund-fpc.ts",
-    "fund-fpc:devnet": "NODE_NO_WARNINGS=1 tsx scripts/fund-fpc.ts --network devnet",
     "agent:dev": "NODE_NO_WARNINGS=1 tsx src/ts/agent/index.ts",
     "test:agent": "vitest run --config vitest.agent.config.ts"
   },
