@@ -4,7 +4,7 @@
 // All tests in this file are disabled due to TXE limitations.
 // See TEST-PLAN.md legend for BLOCKED definitions.
 //
-// use crate::{Metered, test::utils};
+// use crate::{MeteredFPC, test::utils};
 // use aztec::oracle::random::random;
 
 // BLOCKED_1_2 -- pay_fee calls end_setup(); also needs non-zero gas
@@ -19,11 +19,11 @@
 //     utils::add_metered_authwit(env, contract_address, owner, mint_amount, secret);
 //     env.call_private(
 //         owner,
-//         Metered::at(contract_address).mint(user, mint_amount, secret),
+//         MeteredFPC::at(contract_address).mint(user, mint_amount, secret),
 //     );
 //
 //     // Step 2: user pays fee from their minted balance
-//     env.call_private(user, Metered::at(contract_address).pay_fee());
+//     env.call_private(user, MeteredFPC::at(contract_address).pay_fee());
 //
 //     let balance = utils::get_balance(env, contract_address, user);
 //     // balance should be mint_amount - max_gas_cost

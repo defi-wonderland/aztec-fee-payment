@@ -5,7 +5,7 @@ pub mod test;
 /// Tracks internal balances and deducts max gas cost per transaction.
 /// Users must have sufficient balance to cover estimated fees.
 #[aztec]
-pub contract Metered {
+pub contract MeteredFPC {
     use aztec::{
         authwit::auth::{assert_inner_hash_valid_authwit, compute_inner_authwit_hash},
         context::PrivateContext,
@@ -59,7 +59,7 @@ pub contract Metered {
     #[allow_phase_change]
     fn pay_fee() {
         let sender = self.msg_sender();
-        self.internal._deduct_max_gas_cost(sender);
+        let _max_gas_cost = self.internal._deduct_max_gas_cost(sender);
 
         // Set the FPC as the fee payer of the tx.
         self.context.set_as_fee_payer();
@@ -85,7 +85,7 @@ pub contract Metered {
         );
 
         // Set teardown to refund any surplus.
-        self.set_as_teardown(Metered::at(self.address)._refund(max_gas_cost, partial_note));
+        self.set_as_teardown(MeteredFPC::at(self.address)._refund(max_gas_cost, partial_note));
 
         // Set the FPC as the fee payer of the tx.
         self.context.set_as_fee_payer();
@@ -104,6 +104,7 @@ pub contract Metered {
 
         // Calculate the max gas cost from transaction settings.
         let max_gas_cost = get_max_gas_cost(self.context);
+        assert(amount >= max_gas_cost, "Amount too low to cover gas cost");
 
         self.storage.balances.at(account).add(amount - max_gas_cost).deliver(
             MessageDelivery.ONCHAIN_UNCONSTRAINED,

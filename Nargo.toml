@@ -2,7 +2,9 @@
 members = [
     "src/nr/counter_contract",
     "src/nr/metered_contract",
+    "src/nr/bridged_contract",
 ]
 
 [benchmark]
 metered = "benchmarks/metered.benchmark.ts"
+bridged = "benchmarks/bridged.benchmark.ts"

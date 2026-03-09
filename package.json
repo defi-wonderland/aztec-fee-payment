@@ -11,9 +11,13 @@
       "import": "./dist/src/ts/index.js",
       "types": "./dist/src/ts/index.d.ts"
     },
-    "./artifacts": {
-      "import": "./dist/src/artifacts/Metered.js",
-      "types": "./dist/src/artifacts/Metered.d.ts"
+    "./artifacts/metered": {
+      "import": "./dist/src/artifacts/MeteredFPC.js",
+      "types": "./dist/src/artifacts/MeteredFPC.d.ts"
+    },
+    "./artifacts/bridged": {
+      "import": "./dist/src/artifacts/BridgedFPC.js",
+      "types": "./dist/src/artifacts/BridgedFPC.d.ts"
     },
     "./fee-payment-methods": {
       "import": "./dist/src/ts/fee-payment-methods/index.js",
