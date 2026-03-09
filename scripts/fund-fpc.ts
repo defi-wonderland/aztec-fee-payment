@@ -90,7 +90,7 @@ function loadFpcAddress(network: string): string | null {
       .reverse();
     if (!files[0]) return null;
     const data = JSON.parse(readFileSync(join(dir, files[0]), "utf-8"));
-    return data.metered?.address || null;
+    return data.bridged?.address || null;
   } catch {
     return null;
   }

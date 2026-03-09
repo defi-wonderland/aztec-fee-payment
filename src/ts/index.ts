@@ -1,44 +1,28 @@
 /**
  * @defi-wonderland/aztec-fee-payment
  *
- * Fee Payment Contracts (FPCs) for Aztec - enables metered fee payment strategies.
+ * Fee Payment Contracts (FPCs) for Aztec - enables bridged fee payment strategies.
  *
  * @example
  * ```typescript
  * import {
- *   MeteredFPCContract,
+ *   BridgedFPCContract,
  *   FPCFeePaymentMethod,
- *   MeteredMintAndPayFeePaymentMethod,
- *   deployMeteredFPCContract,
+ *   registerBridgedContract,
  * } from '@defi-wonderland/aztec-fee-payment';
  *
- * // Deploy FPC with owner address
- * const fpc = await deployMeteredFPCContract(wallet, ownerAddress);
+ * // Register (no deploy needed — fully private contract)
+ * const fpc = await registerBridgedContract(wallet);
  *
- * // Option 1: Pre-mint balance and use FPCFeePaymentMethod
- * // (requires authwit from the owner's account contract)
- * await fpc.methods.mint(userAddress, amount, secret)
- *   .with({ authWitnesses: [authWitness] })
- *   .send();
- *
+ * // Use FPCFeePaymentMethod after minting internal balance
  * await someContract.methods.doSomething()
  *   .send({
  *     fee: { paymentMethod: new FPCFeePaymentMethod(fpc.address) }
  *   });
- * // Option 2: Mint and pay fee in one transaction
- * const paymentMethod = new MeteredMintAndPayFeePaymentMethod(
- *   fpc.address, userAddress, amount, secret, authWitness
- * );
- * await someContract.methods.doSomething()
- *   .send({ fee: { paymentMethod } });
  * ```
  */
 
 // Contract artifacts and type-safe wrappers
-export {
-  MeteredFPCContract,
-  MeteredFPCContractArtifact,
-} from "../artifacts/MeteredFPC.js";
 export {
   BridgedFPCContract,
   BridgedFPCContractArtifact,
@@ -48,8 +32,6 @@ export {
 export {
   FPCFeePaymentMethod,
   FPCExactFeePaymentMethod,
-  MeteredMintAndPayFeePaymentMethod,
-  MeteredMintThenPayFeePaymentMethod,
   BridgedMintAndPayFeePaymentMethod,
 } from "./fee-payment-methods/index.js";
 
@@ -62,6 +44,5 @@ export {
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
   // Deployment
-  deployMeteredFPCContract,
   registerBridgedContract,
 } from "./utils/index.js";

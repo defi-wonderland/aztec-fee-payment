@@ -11,7 +11,7 @@ import { ExecutionPayload } from "@aztec/stdlib/tx";
 /**
  * Generic fee payment method compatible with any FPC contract that implements pay_fee().
  * Deducts max gas cost from the sender's internal balance. Does not refund unused gas.
- * Suitable for both MeteredFPC and BridgedFPC.
+ * Suitable for any FPC that implements pay_fee().
  *
  * Use FPCExactFeePaymentMethod for transactions that need unused gas refunded.
  */

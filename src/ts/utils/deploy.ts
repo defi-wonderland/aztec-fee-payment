@@ -2,23 +2,7 @@ import { Fr } from "@aztec/foundation/curves/bn254";
 import { Wallet } from "@aztec/aztec.js/wallet";
 import { AztecAddress } from "@aztec/aztec.js/addresses";
 
-import { MeteredFPCContract } from "../../artifacts/MeteredFPC.js";
 import { BridgedFPCContract } from "../../artifacts/BridgedFPC.js";
-
-/**
- * Deploys the Metered FPC contract.
- * @param deployer The wallet used to deploy the contract
- * @param owner The address of the account contract that authorizes mints
- */
-export async function deployMeteredFPCContract(
-  deployer: Wallet,
-  owner: AztecAddress,
-): Promise<MeteredFPCContract> {
-  const deployerAddress = (await deployer.getAccounts())[0]!.item;
-  return MeteredFPCContract.deploy(deployer, owner).send({
-    from: deployerAddress,
-  });
-}
 
 /**
  * Registers the BridgedFPC contract with the PXE without sending any deployment transaction.

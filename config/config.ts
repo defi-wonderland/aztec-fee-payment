@@ -1,8 +1,3 @@
-export interface MeteredConfig {
-  salt: string;
-  existingAddress?: string;
-}
-
 export interface BridgedFPCConfig {
   salt: string;
 }
@@ -17,7 +12,6 @@ export interface DeploymentConfig {
     dataDirectory: string;
   };
   contracts: {
-    metered: MeteredConfig;
     bridged: BridgedFPCConfig;
   };
   deployment: {
@@ -45,7 +39,6 @@ const config: DeploymentConfig = {
     dataDirectory: "deployer-store/",
   },
   contracts: {
-    metered: { salt: "1337" },
     bridged: { salt: "0" },
   },
   deployment: {

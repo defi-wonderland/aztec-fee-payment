@@ -11,10 +11,6 @@
       "import": "./dist/src/ts/index.js",
       "types": "./dist/src/ts/index.d.ts"
     },
-    "./artifacts/metered": {
-      "import": "./dist/src/artifacts/MeteredFPC.js",
-      "types": "./dist/src/artifacts/MeteredFPC.d.ts"
-    },
     "./artifacts/bridged": {
       "import": "./dist/src/artifacts/BridgedFPC.js",
       "types": "./dist/src/artifacts/BridgedFPC.d.ts"
@@ -37,7 +33,7 @@
     "compile": "aztec compile",
     "build": "yarn compile && yarn codegen && bash scripts/build-package.sh",
     "test": "yarn test:nr && yarn test:js",
-    "test:js": "rm -rf pxe-test-metered && vitest run && yarn test:agent",
+    "test:js": "vitest run && yarn test:agent",
     "test:nr": "aztec test",
     "lint:prettier": "prettier '**/*.{js,ts}' --write",
     "ccc": "yarn clean && yarn compile && yarn codegen",

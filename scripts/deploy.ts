@@ -3,9 +3,6 @@ import { Command } from "commander";
 import { PublicKeys } from "@aztec/aztec.js/keys";
 import {
   getContractInstanceFromInstantiationParams,
-  DeployMethod,
-  Contract,
-  DeployOptions,
   type InteractionFeeOptions,
 } from "@aztec/aztec.js/contracts";
 import { AztecAddress } from "@aztec/aztec.js/addresses";
@@ -20,7 +17,6 @@ import {
   waitForNode,
 } from "@aztec/aztec.js/node";
 import { createLogger } from "@aztec/foundation/log";
-import { sleep } from "@aztec/foundation/sleep";
 import { EmbeddedWallet } from "@aztec/wallets/embedded";
 import { registerInitialLocalNetworkAccountsInWallet } from "@aztec/wallets/testing";
 
@@ -31,10 +27,6 @@ import { SPONSORED_FPC_SALT } from "@aztec/constants";
 import { poseidon2Hash } from "@aztec/foundation/crypto/poseidon";
 
 // Import artifacts
-import {
-  MeteredFPCContract,
-  MeteredFPCContractArtifact,
-} from "../src/artifacts/MeteredFPC.js";
 import { BridgedFPCContractArtifact } from "../src/artifacts/BridgedFPC.js";
 
 import {
@@ -49,11 +41,6 @@ import type { PXE, PXECreationOptions } from "@aztec/pxe/server";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import {
-  maybeUploadArtifactToRegistry,
-  getArtifactRegistryBaseUrl,
-  shouldUploadArtifacts,
-} from "../src/ts/artifactRegistry.js";
 
 // Import config
 import config, { DeploymentConfig } from "../config/config.js";
@@ -76,55 +63,11 @@ interface CLIOptions {
   network: Network;
 }
 
-interface RetryOptions {
-  maxRetries?: number;
-  initialDelayMs?: number;
-  backoffMultiplier?: number;
-  maxDelayMs?: number;
-}
-
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  operationName: string,
-  options: RetryOptions,
-): Promise<T> {
-  const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs } = options;
-
-  let lastError: Error;
-  let delayMs = initialDelayMs!;
-
-  for (let attempt = 1; attempt <= maxRetries!; attempt++) {
-    try {
-      logger.info(`${operationName}: Attempt ${attempt}/${maxRetries}`);
-      return await operation();
-    } catch (error) {
-      lastError = error as Error;
-      logger.warn(`${operationName}: Attempt ${attempt} failed:`, error);
-
-      if (attempt < maxRetries!) {
-        const actualDelay = Math.min(delayMs, maxDelayMs!);
-        logger.info(
-          `${operationName}: Retrying in ${actualDelay / 1000} seconds...`,
-        );
-        await sleep(actualDelay);
-        delayMs *= backoffMultiplier!;
-      }
-    }
-  }
-
-  logger.error(`${operationName}: All ${maxRetries} attempts failed`);
-  throw lastError!;
-}
-
 export function logDeployedContracts(contracts: DeployedContracts): void {
   logger.info("Deployed contracts:");
 
   for (const [key, value] of Object.entries(contracts)) {
-    if (value && typeof value === "object" && "contract" in value) {
-      const status =
-        value.status === "deployed" ? "[NEWLY DEPLOYED]" : "[EXISTING]";
-      logger.info(`${key}: ${value.contract.address.toString()} ${status}`);
-    } else if (value instanceof AccountWithSecretKey) {
+    if (value instanceof AccountWithSecretKey) {
       logger.info(`${key}: ${value.getAddress().toString()}`);
     } else {
       logger.info(`${key}: ${value}`);
@@ -286,145 +229,6 @@ export async function createSponsoredFeeOptions(
   };
 }
 
-async function checkContractDeployed(
-  node: AztecNode,
-  address: AztecAddress,
-): Promise<boolean> {
-  try {
-    const instance = await node.getContract(address);
-    return instance != null;
-  } catch (error) {
-    return false;
-  }
-}
-
-export async function deployMetered(
-  deployer: Wallet,
-  node: AztecNode,
-  pxe: PXE,
-  salt: Fr,
-  options: DeployOptions,
-  owner: AztecAddress,
-): Promise<{ contract: MeteredFPCContract; status: "deployed" | "existing" }> {
-  logger.info("Checking Metered contract...");
-
-  const instance = await getContractInstanceFromInstantiationParams(
-    MeteredFPCContractArtifact,
-    {
-      constructorArgs: [owner],
-      salt,
-      publicKeys: PublicKeys.default(),
-      deployer: AztecAddress.ZERO,
-    },
-  );
-
-  const isDeployed = await checkContractDeployed(node, instance.address);
-
-  if (isDeployed) {
-    logger.info(`Metered already deployed at: ${instance.address.toString()}`);
-
-    try {
-      await pxe.registerContract({
-        instance,
-        artifact: MeteredFPCContractArtifact,
-      });
-      logger.debug("MeteredFPC registered with PXE");
-    } catch (error) {
-      logger.debug("MeteredFPC already registered with PXE");
-    }
-
-    const meteredContract = await MeteredFPCContract.at(
-      instance.address,
-      deployer,
-    );
-    return { contract: meteredContract, status: "existing" };
-  }
-
-  logger.info("Deploying Metered contract...");
-
-  const deployMethod = new DeployMethod(
-    PublicKeys.default(),
-    deployer,
-    MeteredFPCContractArtifact,
-    (address) =>
-      Contract.at(address.address, MeteredFPCContractArtifact, deployer),
-    [owner],
-  );
-
-  options = {
-    ...options,
-    contractAddressSalt: salt,
-    universalDeploy: true,
-  };
-
-  const contract = await deployMethod.send({ ...options });
-
-  logger.info(`Metered deployed at: ${contract.address.toString()}`);
-
-  await sleep(2000);
-
-  const deployedInstance = await node.getContract(contract.address);
-  if (deployedInstance) {
-    try {
-      await pxe.registerContract({
-        instance: deployedInstance,
-        artifact: MeteredFPCContractArtifact,
-      });
-      logger.debug("MeteredFPC registered with PXE");
-    } catch (error) {
-      logger.debug("MeteredFPC already registered with PXE");
-    }
-  }
-
-  const meteredContract = await MeteredFPCContract.at(
-    contract.address,
-    deployer,
-  );
-  return { contract: meteredContract, status: "deployed" };
-}
-
-export async function deployMeteredWithRetry(
-  deployer: Wallet,
-  node: AztecNode,
-  pxe: PXE,
-  salt: Fr,
-  options: DeployOptions,
-  retryOptions: RetryOptions,
-  owner: AztecAddress,
-): Promise<{ contract: MeteredFPCContract; status: "deployed" | "existing" }> {
-  return withRetry(
-    () => deployMetered(deployer, node, pxe, salt, options, owner),
-    "Deploy MeteredFPC",
-    retryOptions,
-  );
-}
-
-interface ComputedAddresses {
-  metered: AztecAddress;
-  bridged: AztecAddress;
-}
-
-async function computeMeteredAddress(
-  config: DeploymentConfig,
-  owner: AztecAddress,
-): Promise<AztecAddress> {
-  if (config.contracts.metered.existingAddress) {
-    return AztecAddress.fromString(config.contracts.metered.existingAddress);
-  }
-  // MeteredFPC constructor takes the owner (= deployer); address depends on it.
-  const meteredSalt = Fr.fromString(config.contracts.metered.salt);
-  const meteredInstance = await getContractInstanceFromInstantiationParams(
-    MeteredFPCContractArtifact,
-    {
-      constructorArgs: [owner],
-      salt: meteredSalt,
-      publicKeys: PublicKeys.default(),
-      deployer: AztecAddress.ZERO,
-    },
-  );
-  return meteredInstance.address;
-}
-
 async function computeBridgedAddress(
   config: DeploymentConfig,
 ): Promise<AztecAddress> {
@@ -443,16 +247,6 @@ async function computeBridgedAddress(
   return bridgedInstance.address;
 }
 
-async function computeContractAddresses(
-  config: DeploymentConfig,
-  owner: AztecAddress,
-): Promise<ComputedAddresses> {
-  return {
-    metered: await computeMeteredAddress(config, owner),
-    bridged: await computeBridgedAddress(config),
-  };
-}
-
 export async function deployToNetwork(
   options: CLIOptions,
   config: DeploymentConfig,
@@ -463,20 +257,8 @@ export async function deployToNetwork(
   if (options.dryRun) {
     logger.info("[DRY RUN] Computing contract addresses...");
     const bridgedAddress = await computeBridgedAddress(config);
-    const meteredAddress = config.contracts.metered.existingAddress
-      ? AztecAddress.fromString(config.contracts.metered.existingAddress)
-      : null;
-
-    const universalDeployer = AztecAddress.ZERO.toString();
 
     const deploymentData: DeploymentData = {
-      metered: {
-        address:
-          meteredAddress?.toString() ??
-          "(requires deployer secret — run without --dry-run)",
-        salt: config.contracts.metered.salt,
-        deployer: universalDeployer,
-      },
       bridged: {
         address: bridgedAddress.toString(),
         salt: config.contracts.bridged.salt,
@@ -518,98 +300,15 @@ export async function deployToNetwork(
       await waitForNode(node);
     }
 
-    const pxe = await setupPXE(node, config);
-    const deployer = await createAccount(
-      pxe,
-      node,
-      deployerSecretStr,
-      config.network.name,
-    );
-    logger.info(
-      `Deployer account: ${deployer.account.getAddress().toString()}`,
-    );
-    const sponsoredFeeOptions = await createSponsoredFeeOptions(
-      pxe,
-      config.network.name,
-    );
-
-    const deployOptions: DeployOptions = {
-      from: deployer.account.getAddress(),
-      ...(sponsoredFeeOptions && { fee: sponsoredFeeOptions }),
-    };
-
-    logger.info(
-      `Deploying with account: ${deployer.account.getAddress().toString()}`,
-    );
-
-    // Compute and display addresses before deployment
-    const computedAddresses = await computeContractAddresses(
-      config,
-      deployer.account.getAddress(),
-    );
+    // Compute and display bridged address
+    const bridgedAddress = await computeBridgedAddress(config);
     logger.info("\n=== Computed Contract Addresses ===");
-    logger.info(`MeteredFPC: ${computedAddresses.metered.toString()}`);
-    logger.info(`BridgedFPC: ${computedAddresses.bridged.toString()}`);
+    logger.info(`BridgedFPC: ${bridgedAddress.toString()}`);
     logger.info("===================================\n");
-
-    // Deploy or use existing metered
-    let metered: {
-      contract: MeteredFPCContract;
-      status: "deployed" | "existing";
-    } | null = null;
-
-    if (config.contracts.metered.existingAddress) {
-      logger.info(
-        `Using existing metered at ${config.contracts.metered.existingAddress}`,
-      );
-      const meteredAddress = AztecAddress.fromString(
-        config.contracts.metered.existingAddress,
-      );
-
-      const meteredInstance = await node.getContract(meteredAddress);
-      if (!meteredInstance) throw new Error("MeteredFPC not found");
-
-      logger.info(`MeteredFPC found at: ${meteredAddress.toString()}`);
-
-      try {
-        await pxe.registerContract({
-          instance: meteredInstance,
-          artifact: MeteredFPCContractArtifact,
-        });
-        logger.debug("MeteredFPC registered with PXE");
-      } catch (error) {
-        logger.debug("MeteredFPC already registered with PXE");
-      }
-
-      const meteredContract = await MeteredFPCContract.at(
-        meteredAddress,
-        deployer.wallet,
-      );
-      metered = { contract: meteredContract, status: "existing" };
-    } else {
-      logger.info("Deploying or checking metered contract...");
-      const meteredSalt = Fr.fromString(config.contracts.metered.salt);
-      metered = await deployMeteredWithRetry(
-        deployer.wallet,
-        node,
-        pxe,
-        meteredSalt,
-        deployOptions,
-        config.deployment.retryOptions,
-        deployer.account.getAddress(),
-      );
-    }
-
-    if (!metered) {
-      throw new Error("MeteredFPC deployment failed");
-    }
 
     logger.info("Deployment completed successfully!");
 
-    const deployedContracts: DeployedContracts = {
-      metered,
-      deployer: deployer.account,
-    };
+    const deployedContracts: DeployedContracts = {};
 
     return deployedContracts;
   } catch (error) {
@@ -682,7 +381,7 @@ function getActiveConfig(network: Network): DeploymentConfig {
 
 program
   .name("deploy")
-  .description("Deploy Metered Fee Payment Contract")
+  .description("Deploy Fee Payment Contracts")
   .version(packageJson.version)
   .option(
     "--deployer-secret <secret>",
@@ -702,56 +401,20 @@ program
       const contracts = await deployToNetwork(options, activeConfig);
       logDeployedContracts(contracts);
 
-      // Check if any contract was newly deployed
-      const hasNewDeployments = contracts.metered?.status === "deployed";
+      const bridgedAddress = await computeBridgedAddress(activeConfig);
+      const deploymentData = getDeploymentData(activeConfig, bridgedAddress);
 
-      if (hasNewDeployments || contracts.metered) {
-        const bridgedAddress = await computeBridgedAddress(activeConfig);
-        const deploymentData = getDeploymentData(
-          {
-            metered: contracts.metered || undefined,
-          },
-          activeConfig,
-          bridgedAddress,
+      if (options.output) {
+        const filePath = saveDeploymentData(
+          deploymentData,
+          options.network,
+          options.output,
         );
-
-        if (options.output) {
-          const filePath = saveDeploymentData(
-            deploymentData,
-            options.network,
-            options.output,
-          );
-          logger.info(`Deployment data written to ${filePath}`);
-        } else {
-          // Auto-save to deployments directory
-          const filePath = saveDeploymentData(deploymentData, options.network);
-          logger.info(`Deployment data auto-saved to ${filePath}`);
-        }
-
-        // Upload artifacts to registry if enabled and contract was newly deployed
-        if (hasNewDeployments && shouldUploadArtifacts()) {
-          logger.info("Uploading artifacts to registry...");
-          try {
-            const resp = await maybeUploadArtifactToRegistry({
-              artifact: MeteredFPCContractArtifact,
-              filename: "metered_contract-MeteredFPC.json",
-              registryBaseUrl: getArtifactRegistryBaseUrl(),
-            });
-            if (resp) {
-              logger.info(
-                `Artifact uploaded successfully: ${JSON.stringify(resp, null, 2)}`,
-              );
-            }
-          } catch (error) {
-            logger.warn(
-              `Failed to upload artifact (non-fatal): ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-            );
-          }
-        }
-      } else if (options.output) {
-        logger.info("No new contracts deployed, skipping output file creation");
+        logger.info(`Deployment data written to ${filePath}`);
+      } else {
+        // Auto-save to deployments directory
+        const filePath = saveDeploymentData(deploymentData, options.network);
+        logger.info(`Deployment data auto-saved to ${filePath}`);
       }
 
       process.exit(0);

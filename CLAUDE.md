@@ -4,25 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Aztec Fee Payment — two Fee Payment Contracts (FPCs) for Aztec that sponsor transaction fees using internal balances. Includes Noir smart contracts, a TypeScript SDK (published as `@defi-wonderland/aztec-fee-payment`), and an off-chain agent (Express server) that validates EVM transactions and generates authwits for cross-chain fee sponsorship.
+Aztec Fee Payment — a Fee Payment Contract (FPC) for Aztec that sponsors transaction fees using internal balances. Includes a Noir smart contract, a TypeScript SDK (published as `@defi-wonderland/aztec-fee-payment`), and an off-chain agent (Express server) that validates EVM transactions and generates authwits for cross-chain fee sponsorship.
 
-- **Metered FPC** (`src/nr/metered_contract/`) — Agent-based flow: users pay AZT on L1, off-chain agent validates and issues authwits, users mint internal wFJ on Aztec.
 - **Bridged FPC** (`src/nr/bridged_contract/`) — Bridge-based flow: users bridge FJ directly via `FeeJuicePortal` to the FPC address, then call `mint` to convert the bridge claim into private wFJ. Fully private, no owner, no off-chain agent.
+
+> **Note:** The Metered FPC (`metered_contract`) has been deprecated and removed. Only the Bridged FPC remains.
 
 ## Spec Guardian
 
-The tech design documents in `docs/` are the **source of truth** for this project:
-- **Metered FPC PRD**: `docs/metered-product-requirements.md`
+The tech design document in `docs/` is the **source of truth** for this project:
 - **Bridged FPC PRD**: `docs/bridged-product-requirements.md`
 
-All code changes MUST stay aligned with these documents. Two mandatory checks enforce this:
+All code changes MUST stay aligned with this document. Two mandatory checks enforce this:
 
 ### 1. Pre-Change Validation (BLOCKING)
 
-Before implementing any user-requested code change, launch a read-only `general-purpose` subagent that reads both docs and classifies the proposed change as:
+Before implementing any user-requested code change, launch a read-only `general-purpose` subagent that reads the doc and classifies the proposed change as:
 - **ALIGNED** — explicitly described or directly implied by the spec
 - **CONTRADICTION** — conflicts with a specific decision/requirement/constraint (must quote the section)
-- **EXTENSION** — adds behavior, fields, endpoints, or flows not covered by either doc
+- **EXTENSION** — adds behavior, fields, endpoints, or flows not covered by the doc
 
 **If ALIGNED**: proceed with implementation.
 **If CONTRADICTION or EXTENSION**: use `AskUserQuestion` with options: (1) "Proceed and update docs after", (2) "Abort", (3) "Modify approach". Do NOT implement without asking.
@@ -32,7 +32,7 @@ Skip this check for: refactors with no behavior change, test-only changes, forma
 ### 2. Post-Change Doc Sync (AUTOMATIC)
 
 After any code change that affects contract logic, SDK public API, agent behavior/config/endpoints, error codes, or security properties, launch a `general-purpose` subagent (with edit permissions) that:
-1. Reads both docs and identifies sections made outdated by the change
+1. Reads the doc and identifies sections made outdated by the change
 2. Edits only affected sections (requirements tables, status fields, code examples, API specs, schemas, prose)
 3. Bumps the version in the Version History table (minor for features/behavior changes, patch for clarifications) with today's date
 4. Returns a summary of all doc edits — relay this summary to the user
@@ -62,14 +62,11 @@ yarn test             # all tests (Noir + JS)
 yarn test:nr          # Noir unit tests only (aztec test)
 yarn test:js          # JS integration tests
 
-# Run a single Noir test
-aztec test --package metered_contract <test_name>
-
 # Agent tests (separate vitest config, no local network needed)
 yarn test:agent
 
 # Run a single test file
-npx vitest run src/ts/test/metered.test.ts
+npx vitest run src/ts/test/bridged.test.ts
 npx vitest run --config vitest.agent.config.ts src/ts/agent/test/secret.test.ts
 
 # Off-chain agent dev server
@@ -88,29 +85,22 @@ yarn lint:prettier
 
 ### Noir Contracts (`src/nr/`)
 
-Three Noir packages (workspace defined in root `Nargo.toml`):
+Two Noir packages (workspace defined in root `Nargo.toml`):
 
-- **`metered_contract`** — Agent-based FPC. Storage: `owner: DelayedPublicMutable` + `balances: Owned<BalanceSet>`. Key functions:
-  - `pay_fee()` — Deducts max gas cost, no refund (simpler, cheaper proofs)
-  - `pay_fee_exact()` — Deducts max gas cost, refunds unused gas in teardown via partial notes
-  - `mint(account, amount, secret)` — Authorized mint via owner authwit
-  - `mint_and_pay_fee(account, amount, secret)` — Cold-start: mint + self-sponsor in one tx
-  - `_refund(max_gas_cost, partial_note)` — Public teardown function, only callable by self
-  - `balance_of(account)` — Unconstrained view
 - **`bridged_contract`** — Bridge-based FPC. Fully private (no public functions). Storage: `balances: Owned<BalanceSet>` only. Key functions:
   - `pay_fee()` — Deducts max gas cost, no refund
   - `mint(amount, salt, leaf_index)` — Proves prior `FeeJuice.claim` via nullifier existence, credits wFJ to claimer
   - `balance_of(account)` — Unconstrained view
   - Library methods: `derive_bridge_secret`, `get_bridge_gas_msg_hash`, `compute_feejuice_claim_nullifier`
-- **`counter_contract`** — Test utility contract for benchmarks
+- **`counter_contract`** — Test utility contract for integration tests
 
 ### TypeScript SDK (`src/ts/`)
 
-Published as `@defi-wonderland/aztec-fee-payment` with four export paths:
-- `.` — Main: `MeteredFPCContract`, `FPCFeePaymentMethod`, `FPCExactFeePaymentMethod`, gas utils, deploy helper
-- `./artifacts` — Generated contract bindings
-- `./fee-payment-methods` — `FPCFeePaymentMethod` (no refund) and `FPCExactFeePaymentMethod` (with teardown refund)
-- `./utils` — Gas calculation helpers (`maxGasCostFor`, `maxFeesPerGasFromBaseFees`), deploy helper
+Published as `@defi-wonderland/aztec-fee-payment` with export paths:
+- `.` — Main: `BridgedFPCContract`, `FPCFeePaymentMethod`, `FPCExactFeePaymentMethod`, gas utils, registration helper
+- `./artifacts/bridged` — Generated contract bindings
+- `./fee-payment-methods` — `FPCFeePaymentMethod` (no refund), `FPCExactFeePaymentMethod` (with teardown refund), `BridgedMintAndPayFeePaymentMethod`
+- `./utils` — Gas calculation helpers (`maxGasCostFor`, `maxFeesPerGasFromBaseFees`), `registerBridgedContract`
 
 ### Off-Chain Agent (`src/ts/agent/`)
 
@@ -137,10 +127,8 @@ Express server that validates EVM token transfers and returns Aztec authwits for
 
 ## Key Patterns
 
-- Contract uses `try_sub` with `max_notes = 1` for single-note optimization (faster proofs)
-- Partial notes (`UintNote::partial`) enable private teardown refunds in `pay_fee_exact` (Metered FPC only)
 - `set_as_fee_payer()` + `end_setup()` is the required FPC pattern for Aztec fee sponsorship
-- `mint` uses `assert_nullifier_exists` + `compute_nullifier_existence_request` to prove a prior `FeeJuice.claim` in private (Bridged FPC only)
+- `mint` uses `assert_nullifier_exists` + `compute_nullifier_existence_request` to prove a prior `FeeJuice.claim` in private (Bridged FPC)
 - Commits use conventional commits (`@commitlint/config-conventional`)
 
 ## Vitest Gotchas
