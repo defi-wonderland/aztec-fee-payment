@@ -6,36 +6,51 @@
  * @example
  * ```typescript
  * import {
- *   MeteredContract,
+ *   MeteredFPCContract,
  *   MeteredFeePaymentMethod,
- *   deployMeteredContract,
+ *   MeteredMintAndPayFeePaymentMethod,
+ *   deployMeteredFPCContract,
  * } from '@defi-wonderland/aztec-fee-payment';
  *
- * // Deploy FPC
- * const fpc = await deployMeteredContract(wallet);
+ * // Deploy FPC with owner address
+ * const fpc = await deployMeteredFPCContract(wallet, ownerAddress);
  *
- * // Mint balance for user
- * await fpc.methods.mint(userAddress, 1_000_000_000_000n).send();
+ * // Option 1: Pre-mint balance and use MeteredFeePaymentMethod
+ * // (requires authwit from the owner's account contract)
+ * await fpc.methods.mint(userAddress, amount, secret)
+ *   .with({ authWitnesses: [authWitness] })
+ *   .send();
  *
- * // Use sponsored payment
  * await someContract.methods.doSomething()
  *   .send({
  *     fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) }
- *   })
- *   ;
+ *   });
+ * // Option 2: Mint and pay fee in one transaction
+ * const paymentMethod = new MeteredMintAndPayFeePaymentMethod(
+ *   fpc.address, userAddress, amount, secret, authWitness
+ * );
+ * await someContract.methods.doSomething()
+ *   .send({ fee: { paymentMethod } });
  * ```
  */
 
 // Contract artifacts and type-safe wrappers
 export {
-  MeteredContract,
-  MeteredContractArtifact,
-} from "../artifacts/Metered.js";
+  MeteredFPCContract,
+  MeteredFPCContractArtifact,
+} from "../artifacts/MeteredFPC.js";
+export {
+  BridgedFPCContract,
+  BridgedFPCContractArtifact,
+} from "../artifacts/BridgedFPC.js";
 
 // Fee payment method implementations
 export {
   MeteredFeePaymentMethod,
   MeteredExactFeePaymentMethod,
+  MeteredMintAndPayFeePaymentMethod,
+  MeteredMintThenPayFeePaymentMethod,
+  BridgedMintAndPayFeePaymentMethod,
 } from "./fee-payment-methods/index.js";
 
 // Utilities for integrators
@@ -46,5 +61,6 @@ export {
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
   // Deployment
-  deployMeteredContract,
+  deployMeteredFPCContract,
+  registerBridgedContract,
 } from "./utils/index.js";

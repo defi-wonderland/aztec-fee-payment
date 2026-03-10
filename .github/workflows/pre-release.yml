@@ -7,7 +7,7 @@ jobs:
   pre-release:
     uses: defi-wonderland/aztec-ci-actions/.github/workflows/pre-release.yml@v0
     with:
-      package-dir: src/ts
+      package-dir: export/@defi-wonderland/aztec-fee-payment
     secrets: inherit
     permissions:
       contents: write
