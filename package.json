@@ -77,7 +77,7 @@
     "@aztec/pxe": "4.0.0-devnet.2-patch.1",
     "@aztec/stdlib": "4.0.0-devnet.2-patch.1",
     "@aztec/wallets": "4.0.0-devnet.2-patch.1",
-    "@commitlint/cli": "20.4.2",
+    "@commitlint/cli": "20.4.3",
     "@commitlint/config-conventional": "20.4.2",
     "@defi-wonderland/aztec-benchmark": "4.0.0-devnet.2-patch.1",
     "@types/jest": "30.0.0",
