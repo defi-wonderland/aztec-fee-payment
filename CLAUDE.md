@@ -92,13 +92,13 @@ Two Noir packages (workspace defined in root `Nargo.toml`):
   - `mint(amount, salt, leaf_index)` — Proves prior `FeeJuice.claim` via nullifier existence, credits wFJ to claimer
   - `balance_of(account)` — Unconstrained view
   - Library methods: `derive_bridge_secret`, `get_bridge_gas_msg_hash`, `compute_feejuice_claim_nullifier`
-- **`counter_contract`** — Test utility contract for integration tests
+- **`counter_contract`** — Test utility contract for benchmarks and integration tests
 
 ### TypeScript SDK (`src/ts/`)
 
 Published as `@defi-wonderland/aztec-fee-payment` with export paths:
 - `.` — Main: `BridgedFPCContract`, `FPCFeePaymentMethod`, `FPCExactFeePaymentMethod`, gas utils, registration helper
-- `./artifacts/bridged` — Generated contract bindings
+- `./artifacts` — Generated contract bindings
 - `./fee-payment-methods` — `FPCFeePaymentMethod` (no refund), `FPCExactFeePaymentMethod` (with teardown refund), `BridgedMintAndPayFeePaymentMethod`
 - `./utils` — Gas calculation helpers (`maxGasCostFor`, `maxFeesPerGasFromBaseFees`), `registerBridgedContract`
 
@@ -128,7 +128,7 @@ Express server that validates EVM token transfers and returns Aztec authwits for
 ## Key Patterns
 
 - `set_as_fee_payer()` + `end_setup()` is the required FPC pattern for Aztec fee sponsorship
-- `mint` uses `assert_nullifier_exists` + `compute_nullifier_existence_request` to prove a prior `FeeJuice.claim` in private (Bridged FPC)
+- `mint` uses `assert_nullifier_exists` + `compute_nullifier_existence_request` to prove a prior `FeeJuice.claim` in private (Bridged FPC only)
 - Commits use conventional commits (`@commitlint/config-conventional`)
 
 ## Vitest Gotchas
