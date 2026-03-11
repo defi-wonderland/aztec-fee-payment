@@ -1,15 +1,14 @@
 # Aztec Fee Payment Contracts
 
-A collection of Fee Payment Contracts (FPCs) for Aztec that enable transaction fee sponsorship strategies.
+A Fee Payment Contract (FPC) for Aztec that enables transaction fee sponsorship via bridged FeeJuice.
 
 ## Overview
 
-This repository provides two production-ready FPC implementations:
-
 | Contract | Description | Auth model |
 |----------|-------------|-----------|
-| **MeteredFPC** | Tracks internal balances, deducts max gas cost. Optional exact refund via teardown. | Off-chain agent issues authwits for mints |
 | **BridgedFPC** | Fully private. Users bridge FeeJuice from L1; the bridge claim converts to internal wFJ balance for fee sponsorship. | Cryptographic bridge proof (no owner, no agent) |
+
+> **Note:** The Metered FPC has been deprecated and removed. Only the Bridged FPC remains.
 
 ## Project Structure
 
@@ -17,7 +16,6 @@ This repository provides two production-ready FPC implementations:
 ├── src/
 │   ├── nr/                          # Noir smart contracts
 │   │   ├── counter_contract/        # Test utility contract
-│   │   ├── metered_contract/        # MeteredFPC
 │   │   └── bridged_contract/        # BridgedFPC
 │   └── ts/                          # TypeScript package
 │       ├── artifacts/               # Generated contract bindings
@@ -76,37 +74,6 @@ See [src/ts/README.md](src/ts/README.md) for detailed documentation on using the
 
 ```bash
 yarn add @defi-wonderland/aztec-fee-payment
-```
-
-### MeteredFPC
-
-Tracks internal balances per account. An off-chain agent authorizes mints via authwits. Supports an optional exact-refund teardown flow.
-
-```typescript
-import {
-  MeteredFPCContract,
-  FPCFeePaymentMethod,
-  deployMeteredFPCContract,
-} from '@defi-wonderland/aztec-fee-payment';
-import { computeInnerAuthWitHash } from '@aztec/stdlib/auth-witness';
-import { Fr } from '@aztec/aztec.js/fields';
-
-// Deploy the FPC (owner is the account that authorizes mints)
-const fpc = await deployMeteredFPCContract(wallet, ownerAddress);
-
-// Owner mints internal balance for a user.
-// In production the authwit is issued by the off-chain agent; shown here directly.
-const secret = Fr.random();
-const innerHash = await computeInnerAuthWitHash([new Fr(amount), secret]);
-const authWitness = await wallet.createAuthWit(ownerAddress, { consumer: fpc.address, innerHash });
-
-await fpc.methods.mint(userAddress, amount, secret)
-  .with({ authWitnesses: [authWitness] })
-  .send({ from: ownerAddress });
-
-// User sponsors a transaction from their internal balance
-await myContract.methods.doSomething()
-  .send({ fee: { paymentMethod: new FPCFeePaymentMethod(fpc.address) } });
 ```
 
 ### BridgedFPC
