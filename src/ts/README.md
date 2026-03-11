@@ -12,55 +12,9 @@ yarn add @defi-wonderland/aztec-fee-payment
 
 | Contract | Description | Auth model |
 |----------|-------------|-----------|
-| **MeteredFPC** | Tracks internal balances, deducts max gas cost. Optional exact refund via teardown. | Off-chain agent issues authwits for mints |
 | **BridgedFPC** | Fully private. Bridge FeeJuice from L1; the claim converts to internal wFJ for fee sponsorship. | Cryptographic bridge proof (no owner, no agent) |
 
 ## Quick Start
-
-### MeteredFPC
-
-Tracks internal balances per account. An off-chain agent authorizes mints via authwits. Supports an exact-refund teardown variant (`pay_fee_exact`).
-
-```typescript
-import {
-  MeteredFPCContract,
-  FPCFeePaymentMethod,
-  FPCExactFeePaymentMethod,
-  deployMeteredFPCContract,
-  maxGasCostFor,
-  REASONABLE_GAS_LIMITS,
-} from '@defi-wonderland/aztec-fee-payment';
-import { computeInnerAuthWitHash } from '@aztec/stdlib/auth-witness';
-import { Fr } from '@aztec/aztec.js/fields';
-
-// Deploy the FPC (owner is the account contract that authorizes mints)
-const fpc = await deployMeteredFPCContract(wallet, ownerAddress);
-
-// Owner mints internal balance for a user.
-// mint() uses a custom inner-hash authwit: inner = hash([amount, secret]).
-// In production this authwit is issued by the off-chain agent; here shown directly.
-const secret = Fr.random();
-const innerHash = await computeInnerAuthWitHash([new Fr(amount), secret]);
-const authWitness = await wallet.createAuthWit(ownerAddress, { consumer: fpc.address, innerHash });
-
-await fpc.methods.mint(userAddress, amount, secret)
-  .with({ authWitnesses: [authWitness] })
-  .send({ from: ownerAddress });
-
-// User sponsors a transaction — max gas cost is deducted, no refund
-await someContract.methods.doSomething()
-  .send({
-    from: userAddress,
-    fee: { paymentMethod: new FPCFeePaymentMethod(fpc.address) },
-  });
-
-// Or with exact refund (teardown credits back unused gas)
-await someContract.methods.doSomething()
-  .send({
-    from: userAddress,
-    fee: { paymentMethod: new FPCExactFeePaymentMethod(fpc.address) },
-  });
-```
 
 ### BridgedFPC
 
