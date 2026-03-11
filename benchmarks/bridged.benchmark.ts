@@ -30,7 +30,7 @@ import { z } from "zod";
 import { CounterContract } from "../src/artifacts/Counter.js";
 import { BridgedFPCContract } from "../src/artifacts/BridgedFPC.js";
 import {
-  MeteredFeePaymentMethod,
+  FPCFeePaymentMethod,
   BridgedMintAndPayFeePaymentMethod,
 } from "../src/ts/fee-payment-methods/index.js";
 import {
@@ -40,7 +40,6 @@ import {
 import { registerBridgedContract } from "../src/ts/utils/deploy.js";
 import {
   maxFeesPerGasFromBaseFees,
-  maxGasCostFor,
   REASONABLE_GAS_LIMITS,
   REASONABLE_TEARDOWN_GAS_LIMITS,
 } from "../src/ts/utils/gas.js";
@@ -131,7 +130,7 @@ interface BridgedBenchmarkContext extends BenchmarkContext {
   deployer: AztecAddress;
   counterContract: CounterContract;
   bridgedFpc: BridgedFPCContract;
-  bridgedPaymentMethod: MeteredFeePaymentMethod;
+  bridgedPaymentMethod: FPCFeePaymentMethod;
   mintAndPayFeeMethod: BridgedMintAndPayFeePaymentMethod;
   // Pre-bridged deposit kept for the mint_and_pay_fee benchmark method.
   // The L1 deposit is done in setup; FeeJuice.claim + mint_and_pay_fee
@@ -208,12 +207,6 @@ export default class BridgedFPCBenchmark extends Benchmark {
       maxFeesPerGas,
     };
 
-    const maxGasCost = maxGasCostFor(
-      maxFeesPerGas,
-      REASONABLE_GAS_LIMITS,
-      REASONABLE_TEARDOWN_GAS_LIMITS,
-    );
-
     // Bridge 1: fund internal wFJ balance for the pay_fee benchmark methods.
     // FeeJuice.claim + mint happen here so the balance is ready at benchmark time.
     const saltForBalance = Fr.random();
@@ -268,9 +261,7 @@ export default class BridgedFPCBenchmark extends Benchmark {
       { loggerName: "benchmark:bridged-bridge-mint-and-pay" },
     );
 
-    const bridgedPaymentMethod = new MeteredFeePaymentMethod(
-      bridgedFpc.address,
-    );
+    const bridgedPaymentMethod = new FPCFeePaymentMethod(bridgedFpc.address);
 
     const mintAndPayFeeMethod = new BridgedMintAndPayFeePaymentMethod(
       bridgedFpc.address,

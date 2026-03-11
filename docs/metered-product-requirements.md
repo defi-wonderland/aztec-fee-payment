@@ -1,6 +1,6 @@
 # Fee Payment Contract (FPC) — Product Requirements Document
 
-**Version**: 4.0
+**Version**: 4.1
 **Status**: Active
 **Current Phase**: Phase 2 (Authorized Mint with Authwit)
 **Target Aztec Version**: 4.0.0-devnet.1-patch.0
@@ -58,8 +58,8 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 
 **As a user with wFJ balance, I want to sponsor my transactions without managing Fee Juice directly.**
 
-- Use `MeteredFeePaymentMethod` for simple fee payment (max gas cost deducted, no refund)
-- Use `MeteredExactFeePaymentMethod` for exact fee payment (refund of unused gas in teardown)
+- Use `FPCFeePaymentMethod` for simple fee payment (max gas cost deducted, no refund)
+- Use `FPCExactFeePaymentMethod` for exact fee payment (refund of unused gas in teardown)
 - FPC pays the actual transaction fee from its FJ balance
 
 **As a user, I want to check my remaining fee balance before transacting.**
@@ -87,21 +87,22 @@ Users interacting with Aztec need Fee Juice (FJ) to pay for transaction costs, b
 | **Method: `_verify_authwit(amount, secret)`** | Internal private. Computes `inner_hash = H(amount, secret)`, reads `owner` from `DelayedPublicMutable`, delegates signature verification to the owner's account contract via `assert_inner_hash_valid_authwit()`. | Implemented |
 | **Method: `_refund(max_gas_cost, partial_note)`** | Public, `#[only_self]`. Teardown function called by `pay_fee_exact()`. Calculates `refund_amount = max_gas_cost - transaction_fee` and completes the partial note if refund > 0. | Implemented |
 | **Method: `balance_of(account)`** | Unconstrained utility view. Returns the wFJ balance of an account. | Implemented |
-| **Library: `get_max_gas_cost(context)`** | `#[contract_library_method]`. Calculates max gas cost from transaction gas settings: `(DA limit + DA teardown) * max_fee_per_da_gas + (L2 limit + L2 teardown) * max_fee_per_l2_gas`. | Implemented |
+| **Library: `get_max_gas_cost(context)`** | `#[contract_library_method]` defined in shared `fpc_lib` package, imported by both MeteredFPC and BridgedFPC. Calculates max gas cost from transaction gas settings: `da_gas_limit * max_fee_per_da_gas + l2_gas_limit * max_fee_per_l2_gas`. Note: teardown gas limits are NOT added separately — the kernel's gas_meter already includes teardown within the gas_limits. | Implemented |
 
 ### TypeScript SDK
 
 | Requirement | Acceptance Criteria | Status |
 | --- | --- | --- |
-| **`MeteredFeePaymentMethod`** | Implements `FeePaymentMethod` interface. Calls `pay_fee()` on the FPC in setup phase. No refund of unused gas. | Implemented |
-| **`MeteredExactFeePaymentMethod`** | Implements `FeePaymentMethod` interface. Calls `pay_fee_exact()` on the FPC in setup phase. Refunds unused gas via teardown. | Implemented |
+| **`FPCFeePaymentMethod`** | Implements `FeePaymentMethod` interface. Works with ANY FPC contract implementing `pay_fee()` — both MeteredFPC and BridgedFPC. Calls `pay_fee()` on the FPC in setup phase. No refund of unused gas. | Implemented |
+| **`FPCExactFeePaymentMethod`** | Implements `FeePaymentMethod` interface. Works with any FPC implementing `pay_fee_exact()`. Calls `pay_fee_exact()` on the FPC in setup phase. Refunds unused gas via teardown. | Implemented |
 | **`MeteredMintAndPayFeePaymentMethod`** | Implements `FeePaymentMethod`. Calls `mint_and_pay_fee(account, amount, secret)` with authwit witness. Self-sponsors the transaction. Solves cold-start. | Implemented |
 | **`MeteredMintThenPayFeePaymentMethod`** | Implements `FeePaymentMethod`. Two-step flow: calls `mint(account, amount, secret)` then `pay_fee()` in the same transaction. Requires existing FJ to pay for the tx. | Implemented |
-| **`deployMeteredFPCContract(wallet, owner)`** | Utility to deploy a Metered FPC contract with the given owner. Returns `MeteredContract` instance. | Implemented |
+| **`deployMeteredFPCContract(wallet, owner)`** | Utility to deploy a Metered FPC contract with the given owner. Returns `MeteredFPCContract` instance. | Implemented |
 | **`maxFeesPerGasFromBaseFees(baseFees, multiplier)`** | Calculates max fees per gas from current base fees with a safety multiplier (default 3x). Returns `GasFees`. | Implemented |
-| **`maxGasCostFor(maxFeesPerGas, gasLimits, teardownGasLimits)`** | Calculates maximum possible gas cost in wei. Formula matches the Noir `get_max_gas_cost()` implementation. | Implemented |
-| **`REASONABLE_GAS_LIMITS` / `REASONABLE_TEARDOWN_GAS_LIMITS`** | Default gas limit constants sourced from `@aztec/constants`. | Implemented |
-| **Contract artifacts** | Generated `MeteredContract`, `MeteredContractArtifact`, and `CounterContract` TypeScript bindings from compiled Noir. Public API exports: `MeteredContract` and `MeteredContractArtifact`. `CounterContract`/`CounterContractArtifact` are test-only (not re-exported from main index). | Implemented |
+| **`maxGasCostFor(maxFeesPerGas, gasLimits)`** | Calculates maximum possible gas cost in wei. Formula: `da_gas_limit * max_fee_per_da_gas + l2_gas_limit * max_fee_per_l2_gas`. The `teardownGasLimits` parameter was removed — teardown is already included in the kernel's gas_limits, adding it again was double-counting. Matches the Noir `get_max_gas_cost()` implementation. | Implemented |
+| **`DEFAULT_FEE_MULTIPLIER`** | Exported constant `3n`. Default safety multiplier for `maxFeesPerGasFromBaseFees`. | Implemented |
+| **`REASONABLE_GAS_LIMITS` / `REASONABLE_TEARDOWN_GAS_LIMITS`** | Default gas limit constants sourced from `@aztec/constants`. `REASONABLE_TEARDOWN_GAS_LIMITS` is used only to configure teardown gas allocation in transactions, NOT for fee calculation. | Implemented |
+| **Contract artifacts** | Generated `MeteredFPCContract`, `MeteredFPCContractArtifact`, and `CounterContract` TypeScript bindings from compiled Noir. Public API exports: `MeteredFPCContract` and `MeteredFPCContractArtifact`. `CounterContract`/`CounterContractArtifact` are test-only (not re-exported from main index). | Implemented |
 
 ### Off-chain Service (Trusted Flow)
 
@@ -211,24 +212,27 @@ sequenceDiagram
 
 ### Gas Cost Calculation
 
-Max gas cost = `(DA gas limit + DA teardown limit) * max_fee_per_da_gas + (L2 gas limit + L2 teardown limit) * max_fee_per_l2_gas`
+Max gas cost = `da_gas_limit * max_fee_per_da_gas + l2_gas_limit * max_fee_per_l2_gas`
+
+Teardown gas limits are **not** added separately — the kernel's gas_meter already includes teardown within the gas_limits. Adding teardown_gas_limits again was previously causing double-counting (fixed in v4.1).
 
 This formula is implemented identically in both:
-- **Noir**: `get_max_gas_cost()` contract library method
-- **TypeScript**: `maxGasCostFor()` utility function
+- **Noir**: `get_max_gas_cost()` — defined in shared `fpc_lib` library, imported by both MeteredFPC and BridgedFPC
+- **TypeScript**: `maxGasCostFor(maxFeesPerGas, gasLimits)` — the `teardownGasLimits` parameter has been removed
 
-Use `maxFeesPerGasFromBaseFees(baseFees, 3n)` to calculate fees with a 3x safety multiplier over current base fees.
+Use `maxFeesPerGasFromBaseFees(baseFees, DEFAULT_FEE_MULTIPLIER)` (or `maxFeesPerGasFromBaseFees(baseFees, 3n)`) to calculate fees with a 3x safety multiplier over current base fees.
 
 ### SDK Usage
 
 ```typescript
 import {
-  MeteredFeePaymentMethod,
-  MeteredExactFeePaymentMethod,
+  FPCFeePaymentMethod,
+  FPCExactFeePaymentMethod,
   MeteredMintAndPayFeePaymentMethod,
   MeteredMintThenPayFeePaymentMethod,
   deployMeteredFPCContract,
   maxFeesPerGasFromBaseFees,
+  DEFAULT_FEE_MULTIPLIER,
   REASONABLE_GAS_LIMITS,
   REASONABLE_TEARDOWN_GAS_LIMITS,
 } from '@defi-wonderland/aztec-fee-payment';
@@ -241,21 +245,24 @@ await fpc.methods.mint(userAddress, amount, secret)
   .with({ authWitnesses: [authWitness] })
   .send();
 
+const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees, DEFAULT_FEE_MULTIPLIER);
+
 // Option 1: pay_fee (no refund) - simpler, cheaper
+// Use FPCFeePaymentMethod (works with MeteredFPC and BridgedFPC)
 await someContract.methods.doSomething()
   .send({
     fee: {
-      paymentMethod: new MeteredFeePaymentMethod(fpc.address),
-      gasSettings: { gasLimits, teardownGasLimits: Gas.empty(), maxFeesPerGas },
+      paymentMethod: new FPCFeePaymentMethod(fpc.address),
+      gasSettings: { gasLimits: REASONABLE_GAS_LIMITS, teardownGasLimits: Gas.empty(), maxFeesPerGas },
     },
   });
 
-// Option 2: pay_fee_exact (with refund) - user pays only actual fee
+// Option 2: pay_fee_exact (with refund) - user pays only actual fee (Metered FPC only)
 await someContract.methods.doSomething()
   .send({
     fee: {
-      paymentMethod: new MeteredExactFeePaymentMethod(fpc.address),
-      gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+      paymentMethod: new FPCExactFeePaymentMethod(fpc.address),
+      gasSettings: { gasLimits: REASONABLE_GAS_LIMITS, teardownGasLimits: REASONABLE_TEARDOWN_GAS_LIMITS, maxFeesPerGas },
     },
   });
 
@@ -594,3 +601,4 @@ To avoid changing the FPC contract, Phase 1 can assume all ERC20 transfers come 
 | 3.5 | 2026-02-11 | Corrected sender filtering description: sender is recovered from EIP-712 signature (via `recoverClaimRequestSigner`) and passed as `from` filter to the validator — not "pinned to first matching transfer". Removed references to `verifyClaimRequestSignature` (only `recoverClaimRequestSigner` exists). Updated Backend Verification Logic, EVM payment flow, sequence diagram, security considerations #7 and #10, and payment verification acceptance criteria. |
 | 3.6 | 2026-02-12 | Secret derivation now includes sender address: `secret = sign(sha256(txHash \|\| sender), spKey).r % Fr.MODULUS`. The 32-byte txHash is concatenated with the 20-byte sender address (recovered from EIP-712 signature) and SHA-256'd to produce the ECDSA signing input. Provides per-sender secret isolation. Updated EVM payment flow, Backend Verification Logic, Phase 2 table, stateless design properties, security considerations #3 and #9, sequence diagram, API response comments, mint() requirement and transition note. |
 | 4.0 | 2026-02-25 | Key changes: (1) `owner` is now `DelayedPublicMutable<AztecAddress, CONFIG_DELAY>` with `CONFIG_DELAY = 600`; constructor schedules owner, effective after delay. (2) Added `update_owner(owner)` for transferable ownership. (3) `mint(account, amount, secret)` takes explicit `account` parameter (not `msg_sender`); authwit verified via owner's account contract; nullifier pushed for replay prevention. (4) Added `mint_and_pay_fee(account, amount, secret)` for cold-start self-sponsoring (credits `amount - max_gas_cost`). (5) Removed legacy permissionless `mint(account, amount)`. (6) `pay_fee`/`pay_fee_exact` use `#[allow_phase_change]` (replaces `#[nophasecheck]`) and recursive `try_sub` with `INITIAL_TRANSFER_CALL_MAX_NOTES = 2`. (7) SDK adds `MeteredMintAndPayFeePaymentMethod` and `MeteredMintThenPayFeePaymentMethod`; `deployMeteredFPCContract` now takes `owner` parameter. (8) Target Aztec version bumped to `4.0.0-devnet.1-patch.0`. |
+| 4.1 | 2026-03-04 | (1) **Teardown double-counting fix**: `get_max_gas_cost` formula corrected — teardown gas limits removed from calculation (kernel's gas_meter already includes teardown in gas_limits). New formula: `da_gas_limit * max_fee_per_da_gas + l2_gas_limit * max_fee_per_l2_gas`. Fix applies to both Noir and TypeScript. (2) **Shared `fpc_lib`**: `get_max_gas_cost` moved to a shared `fpc_lib` Nargo library package; both MeteredFPC and BridgedFPC now import from it. (3) **SDK**: `maxGasCostFor` drops `teardownGasLimits` parameter; `DEFAULT_FEE_MULTIPLIER = 3n` constant exported; `FPCFeePaymentMethod` replaces `MeteredFeePaymentMethod` as the FPC-agnostic payment class (works with any FPC implementing `pay_fee()`); `FPCExactFeePaymentMethod` replaces `MeteredExactFeePaymentMethod`. `REASONABLE_TEARDOWN_GAS_LIMITS` retained for transaction configuration only, not fee calculation. |

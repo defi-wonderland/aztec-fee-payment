@@ -107,9 +107,9 @@ Three Noir packages (workspace defined in root `Nargo.toml`):
 ### TypeScript SDK (`src/ts/`)
 
 Published as `@defi-wonderland/aztec-fee-payment` with four export paths:
-- `.` — Main: `MeteredContract`, `MeteredFeePaymentMethod`, `MeteredExactFeePaymentMethod`, gas utils, deploy helper
+- `.` — Main: `MeteredFPCContract`, `FPCFeePaymentMethod`, `FPCExactFeePaymentMethod`, gas utils, deploy helper
 - `./artifacts` — Generated contract bindings
-- `./fee-payment-methods` — `MeteredFeePaymentMethod` (no refund) and `MeteredExactFeePaymentMethod` (with teardown refund)
+- `./fee-payment-methods` — `FPCFeePaymentMethod` (no refund) and `FPCExactFeePaymentMethod` (with teardown refund)
 - `./utils` — Gas calculation helpers (`maxGasCostFor`, `maxFeesPerGasFromBaseFees`), deploy helper
 
 ### Off-Chain Agent (`src/ts/agent/`)

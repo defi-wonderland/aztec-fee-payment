@@ -1,6 +1,5 @@
+export { FPCFeePaymentMethod, FPCExactFeePaymentMethod } from "./shared.js";
 export {
-  MeteredFeePaymentMethod,
-  MeteredExactFeePaymentMethod,
   MeteredMintAndPayFeePaymentMethod,
   MeteredMintThenPayFeePaymentMethod,
 } from "./metered.js";

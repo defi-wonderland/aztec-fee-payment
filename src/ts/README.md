@@ -24,8 +24,8 @@ Tracks internal balances per account. An off-chain agent authorizes mints via au
 ```typescript
 import {
   MeteredFPCContract,
-  MeteredFeePaymentMethod,
-  MeteredExactFeePaymentMethod,
+  FPCFeePaymentMethod,
+  FPCExactFeePaymentMethod,
   deployMeteredFPCContract,
   maxGasCostFor,
   REASONABLE_GAS_LIMITS,
@@ -51,14 +51,14 @@ await fpc.methods.mint(userAddress, amount, secret)
 await someContract.methods.doSomething()
   .send({
     from: userAddress,
-    fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) },
+    fee: { paymentMethod: new FPCFeePaymentMethod(fpc.address) },
   });
 
 // Or with exact refund (teardown credits back unused gas)
 await someContract.methods.doSomething()
   .send({
     from: userAddress,
-    fee: { paymentMethod: new MeteredExactFeePaymentMethod(fpc.address) },
+    fee: { paymentMethod: new FPCExactFeePaymentMethod(fpc.address) },
   });
 ```
 
@@ -68,7 +68,7 @@ Fully private; no owner and no off-chain agent. Users bridge FeeJuice from L1 to
 
 ```typescript
 import {
-  MeteredFeePaymentMethod,
+  FPCFeePaymentMethod,
   BridgedMintAndPayFeePaymentMethod,
   registerBridgedContract,
 } from '@defi-wonderland/aztec-fee-payment';
@@ -88,7 +88,7 @@ await fpc.methods.mint(amount, salt, leafIndex).send();
 await someContract.methods.doSomething()
   .send({
     from: userAddress,
-    fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) },
+    fee: { paymentMethod: new FPCFeePaymentMethod(fpc.address) },
   });
 
 // Or cold-start: FeeJuice.claim + mint_and_pay_fee in one transaction (no prior mint needed)
@@ -125,8 +125,8 @@ MeteredFPCContract, MeteredFPCContractArtifact
 BridgedFPCContract, BridgedFPCContractArtifact
 
 // Fee Payment Methods
-MeteredFeePaymentMethod          // pay_fee (no refund)
-MeteredExactFeePaymentMethod     // pay_fee_exact (teardown refund)
+FPCFeePaymentMethod                // pay_fee (no refund, works with any FPC)
+FPCExactFeePaymentMethod           // pay_fee_exact (teardown refund, works only with MeteredFPC)
 MeteredMintAndPayFeePaymentMethod  // mint + pay_fee in one tx (MeteredFPC)
 MeteredMintThenPayFeePaymentMethod // mint then pay_fee in one tx (MeteredFPC)
 BridgedMintAndPayFeePaymentMethod  // FeeJuice.claim + mint_and_pay_fee (BridgedFPC)

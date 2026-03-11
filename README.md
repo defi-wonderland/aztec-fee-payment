@@ -85,7 +85,7 @@ Tracks internal balances per account. An off-chain agent authorizes mints via au
 ```typescript
 import {
   MeteredFPCContract,
-  MeteredFeePaymentMethod,
+  FPCFeePaymentMethod,
   deployMeteredFPCContract,
 } from '@defi-wonderland/aztec-fee-payment';
 import { computeInnerAuthWitHash } from '@aztec/stdlib/auth-witness';
@@ -106,7 +106,7 @@ await fpc.methods.mint(userAddress, amount, secret)
 
 // User sponsors a transaction from their internal balance
 await myContract.methods.doSomething()
-  .send({ fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) } });
+  .send({ fee: { paymentMethod: new FPCFeePaymentMethod(fpc.address) } });
 ```
 
 ### BridgedFPC
@@ -116,7 +116,7 @@ Fully private; no owner and no off-chain agent. Users bridge FeeJuice from L1 to
 ```typescript
 import {
   BridgedFPCContract,
-  MeteredFeePaymentMethod,
+  FPCFeePaymentMethod,
   BridgedMintAndPayFeePaymentMethod,
   registerBridgedContract,
 } from '@defi-wonderland/aztec-fee-payment';
@@ -137,7 +137,7 @@ await fpc.methods.mint(amount, salt, leafIndex).send();
 
 // User sponsors a transaction from their internal balance
 await myContract.methods.doSomething()
-  .send({ fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) } });
+  .send({ fee: { paymentMethod: new FPCFeePaymentMethod(fpc.address) } });
 
 // --- Cold-start: claim + mint + pay fee in one transaction ---
 await myContract.methods.doSomething()

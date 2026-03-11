@@ -7,7 +7,7 @@
  * ```typescript
  * import {
  *   MeteredFPCContract,
- *   MeteredFeePaymentMethod,
+ *   FPCFeePaymentMethod,
  *   MeteredMintAndPayFeePaymentMethod,
  *   deployMeteredFPCContract,
  * } from '@defi-wonderland/aztec-fee-payment';
@@ -15,7 +15,7 @@
  * // Deploy FPC with owner address
  * const fpc = await deployMeteredFPCContract(wallet, ownerAddress);
  *
- * // Option 1: Pre-mint balance and use MeteredFeePaymentMethod
+ * // Option 1: Pre-mint balance and use FPCFeePaymentMethod
  * // (requires authwit from the owner's account contract)
  * await fpc.methods.mint(userAddress, amount, secret)
  *   .with({ authWitnesses: [authWitness] })
@@ -23,7 +23,7 @@
  *
  * await someContract.methods.doSomething()
  *   .send({
- *     fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) }
+ *     fee: { paymentMethod: new FPCFeePaymentMethod(fpc.address) }
  *   });
  * // Option 2: Mint and pay fee in one transaction
  * const paymentMethod = new MeteredMintAndPayFeePaymentMethod(
@@ -46,8 +46,8 @@ export {
 
 // Fee payment method implementations
 export {
-  MeteredFeePaymentMethod,
-  MeteredExactFeePaymentMethod,
+  FPCFeePaymentMethod,
+  FPCExactFeePaymentMethod,
   MeteredMintAndPayFeePaymentMethod,
   MeteredMintThenPayFeePaymentMethod,
   BridgedMintAndPayFeePaymentMethod,
@@ -56,6 +56,7 @@ export {
 // Utilities for integrators
 export {
   // Gas calculations
+  DEFAULT_FEE_MULTIPLIER,
   REASONABLE_GAS_LIMITS,
   REASONABLE_TEARDOWN_GAS_LIMITS,
   maxFeesPerGasFromBaseFees,

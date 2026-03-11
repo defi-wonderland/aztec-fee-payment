@@ -10,7 +10,6 @@ pub mod test;
 #[aztec]
 pub contract BridgedFPC {
     use aztec::{
-        context::PrivateContext,
         hash::{
             compute_l1_to_l2_message_hash, compute_l1_to_l2_message_nullifier, compute_secret_hash,
         },
@@ -26,6 +25,7 @@ pub contract BridgedFPC {
         state_vars::Owned,
     };
     use balance_set::BalanceSet;
+    use fpc_lib::get_max_gas_cost;
 
     // gas-optimized max notes for initial transfer call
     global INITIAL_TRANSFER_CALL_MAX_NOTES: u32 = 2;
@@ -314,30 +314,4 @@ pub contract BridgedFPC {
         compute_l1_to_l2_message_nullifier(message_hash, secret)
     }
 
-    /// @notice Calculates the worst-case gas cost from transaction gas settings.
-    /// @dev max_fee_per_da_gas * (da_gas_limit + da_teardown_gas_limit)
-    ///    + max_fee_per_l2_gas * (l2_gas_limit + l2_teardown_gas_limit)
-    ///
-    /// `max_priority_fees_per_gas` is intentionally excluded: following EIP-1559
-    /// semantics, `max_fees_per_gas` already bounds the per-gas cost.
-    ///
-    /// @param context The context of the private call
-    /// @return The maximum gas cost for the transaction
-    #[contract_library_method]
-    pub fn get_max_gas_cost(context: &mut PrivateContext) -> u128 {
-        // TODO: abstract into common library function to be reused by MeteredFPC
-        // TODO: fix according to #89
-        let gas_settings = context.gas_settings();
-
-        let l2_gas_limit = gas_settings.gas_limits.l2_gas;
-        let da_gas_limit = gas_settings.gas_limits.da_gas;
-        let l2_teardown_gas_limit = gas_settings.teardown_gas_limits.l2_gas;
-        let da_teardown_gas_limit = gas_settings.teardown_gas_limits.da_gas;
-
-        let max_fee_per_da_gas = gas_settings.max_fees_per_gas.fee_per_da_gas;
-        let max_fee_per_l2_gas = gas_settings.max_fees_per_gas.fee_per_l2_gas;
-
-        max_fee_per_da_gas * (da_gas_limit as u128 + da_teardown_gas_limit as u128)
-            + max_fee_per_l2_gas * (l2_gas_limit as u128 + l2_teardown_gas_limit as u128)
-    }
 }

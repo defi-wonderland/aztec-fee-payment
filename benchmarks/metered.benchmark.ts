@@ -33,8 +33,8 @@ import { z } from "zod";
 import { CounterContract } from "../src/artifacts/Counter.js";
 import { MeteredFPCContract } from "../src/artifacts/MeteredFPC.js";
 import {
-  MeteredFeePaymentMethod,
-  MeteredExactFeePaymentMethod,
+  FPCFeePaymentMethod,
+  FPCExactFeePaymentMethod,
   MeteredMintAndPayFeePaymentMethod,
   MeteredMintThenPayFeePaymentMethod,
 } from "../src/ts/fee-payment-methods/index.js";
@@ -175,8 +175,8 @@ interface MeteredBenchmarkContext extends BenchmarkContext {
   counterContract: CounterContract;
   meteredFpc: MeteredFPCContract;
   // Existing payment methods (require pre-minted balance)
-  meteredPaymentMethod: MeteredFeePaymentMethod;
-  meteredExactPaymentMethod: MeteredExactFeePaymentMethod;
+  meteredPaymentMethod: FPCFeePaymentMethod;
+  meteredExactPaymentMethod: FPCExactFeePaymentMethod;
   // Payment methods with account contract authwit verification
   mintAndPayFeeMethod: MeteredMintAndPayFeePaymentMethod;
   mintThenPayFeeMethod: MeteredMintThenPayFeePaymentMethod;
@@ -246,19 +246,13 @@ export default class CounterContractBenchmark extends Benchmark {
       maxFeesPerGas,
     };
 
-    const maxGasCost = maxGasCostFor(
-      maxFeesPerGas,
-      REASONABLE_GAS_LIMITS,
-      REASONABLE_TEARDOWN_GAS_LIMITS,
-    );
+    const maxGasCost = maxGasCostFor(maxFeesPerGas, REASONABLE_GAS_LIMITS);
 
     // =========================================================================
     // Create payment methods
     // =========================================================================
-    const meteredPaymentMethod = new MeteredFeePaymentMethod(
-      meteredFpc.address,
-    );
-    const meteredExactPaymentMethod = new MeteredExactFeePaymentMethod(
+    const meteredPaymentMethod = new FPCFeePaymentMethod(meteredFpc.address);
+    const meteredExactPaymentMethod = new FPCExactFeePaymentMethod(
       meteredFpc.address,
     );
 

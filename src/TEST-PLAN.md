@@ -148,8 +148,109 @@ BLOCKED₂ = TXE gas settings default to 0 (`GasSettings.empty()`), so
 ## Fee Payment Strategies (TS)
 
 ```
-MeteredFeePaymentMethod           --> pay_fee()
-MeteredExactFeePaymentMethod      --> pay_fee_exact()
-MeteredMintAndPayFeePaymentMethod --> mint_and_pay_fee(account, amount, secret)
+FPCFeePaymentMethod                --> pay_fee()
+FPCExactFeePaymentMethod           --> pay_fee_exact()
+MeteredMintAndPayFeePaymentMethod  --> mint_and_pay_fee(account, amount, secret)
 MeteredMintThenPayFeePaymentMethod --> mint(account, amount, secret) + pay_fee()
+```
+
+---
+
+# Bridged FPC -- Test Coverage
+
+## Contract Functions & Failure Modes
+
+```
+mint(amount, salt, leaf_index)
+├── valid bridge claim (FeeJuice.claim nullifier exists)
+│   ├── credits claimer by amount
+│   └── wrong claimer (mismatched nullifier)          ⇒ REVERT
+├── double-spend: same leaf_index used twice           ⇒ REVERT  duplicate nullifier
+└── FeeJuice.claim was never called                   ⇒ REVERT  nullifier not in tree
+
+pay_fee()
+├── sender balance >= max_gas_cost
+│   ├── deducts max_gas_cost from sender (no refund)
+│   └── sets contract as fee payer
+└── sender balance < max_gas_cost                     ⇒ REVERT
+
+mint_and_pay_fee(amount, salt, leaf_index)
+├── valid bridge claim, amount > max_gas_cost
+│   └── credits claimer with (amount - max_gas_cost)
+├── amount < max_gas_cost                             ⇒ REVERT  "Amount too low to cover gas cost"
+└── invalid bridge claim                              ⇒ REVERT
+
+balance_of(account)
+├── returns balance for known account
+└── returns 0 for unknown account
+```
+
+## Library Helpers
+
+```
+derive_bridge_secret(salt, claimer)
+├── deterministic: same inputs → same secret
+├── differs by salt
+└── differs by claimer
+
+get_bridge_gas_msg_hash(fpc_address, amount)
+├── deterministic: same inputs → same hash
+├── differs by amount
+└── differs by fpc_address
+
+compute_feejuice_claim_nullifier(fpc_address, amount, salt, claimer, leaf_index, chain_id, version)
+├── deterministic: same inputs → same nullifier
+├── differs by claimer
+├── differs by salt
+├── differs by amount
+└── differs by leaf_index
+```
+
+## What's Tested Where
+
+```
+                                    Unit (Noir/TXE)    Integration (TS)
+                                    ───────────────    ────────────────
+derive_bridge_secret
+  deterministic                         x
+  differs by salt                       x
+  differs by claimer                    x
+
+get_bridge_gas_msg_hash
+  deterministic                         x
+  differs by amount                     x
+  differs by fpc_address                x
+
+compute_feejuice_claim_nullifier
+  deterministic                         x
+  differs by claimer                    x
+  differs by salt                       x
+  differs by amount                     x
+  differs by leaf_index                 x
+
+mint
+  success (credits claimer)             BLOCKED_A          x
+  wrong claimer (nullifier mismatch)    BLOCKED_A          x
+  double-spend (replay)                 BLOCKED_A          x
+
+pay_fee
+  success (deducts maxGasCost)          BLOCKED_BC         x
+
+mint_and_pay_fee
+  success (credits amount - cost)       BLOCKED_ABC        x
+  amount < cost (explicit assert)       BLOCKED_ABC        x
+
+x        = tested
+BLOCKED_A = TXE cannot inject a FeeJuice-siloed nullifier into the nullifier tree;
+            assert_nullifier_exists always fails without a prior FeeJuice.claim
+BLOCKED_B = TXE gas settings default to 0 (GasSettings.empty()), so max_gas_cost
+            is always 0 and gas-dependent assertions are infeasible
+BLOCKED_C = end_setup() breaks TXE kernel simulation (phase-counter assertion)
+```
+
+## Fee Payment Strategies (TS)
+
+```
+FPCFeePaymentMethod               --> pay_fee()
+BridgedMintAndPayFeePaymentMethod --> FeeJuice.claim + mint_and_pay_fee(amount, salt, leaf_index)
 ```

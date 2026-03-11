@@ -7,7 +7,7 @@ import { FeeJuiceContract } from "@aztec/noir-contracts.js/FeeJuice";
 import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 
 import { BridgedFPCContract } from "../../artifacts/BridgedFPC.js";
-import { MeteredFeePaymentMethod } from "../fee-payment-methods/index.js";
+import { FPCFeePaymentMethod } from "../fee-payment-methods/index.js";
 import { registerBridgedContract } from "../utils/deploy.js";
 
 import {
@@ -30,7 +30,7 @@ describe("Bridged FPC", () => {
   let bob: AztecAddress;
   let aztecNode: AztecNode;
   let fpc: BridgedFPCContract;
-  let paymentMethod: MeteredFeePaymentMethod;
+  let paymentMethod: FPCFeePaymentMethod;
 
   beforeAll(async () => {
     const ctx = await createLocalNetworkContext({
@@ -61,7 +61,7 @@ describe("Bridged FPC", () => {
     );
     expect(balance).toBeGreaterThan(0n);
 
-    paymentMethod = new MeteredFeePaymentMethod(fpc.address);
+    paymentMethod = new FPCFeePaymentMethod(fpc.address);
   });
 
   // --- mint success → pay_fee ---

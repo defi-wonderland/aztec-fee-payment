@@ -11,8 +11,8 @@ import {
 import { CounterContract } from "../../artifacts/Counter.js";
 import { MeteredFPCContract } from "../../artifacts/MeteredFPC.js";
 import {
-  MeteredFeePaymentMethod,
-  MeteredExactFeePaymentMethod,
+  FPCFeePaymentMethod,
+  FPCExactFeePaymentMethod,
   MeteredMintAndPayFeePaymentMethod,
   MeteredMintThenPayFeePaymentMethod,
 } from "../fee-payment-methods/index.js";
@@ -22,13 +22,13 @@ import {
   fundL2AddressWithFeeJuiceFromL1,
 } from "./harness.js";
 
+import { REASONABLE_TEARDOWN_GAS_LIMITS } from "../utils/gas.js";
 import {
   TEST_TIMEOUT,
   deployCounter,
   produceL2Block,
   deploySettledMetered,
   getGasSetup,
-  getGasSetupWithTeardown,
   getBalance,
 } from "./utils.js";
 
@@ -54,8 +54,8 @@ describe("Metered Fee Payment Contract", () => {
   let counter: CounterContract;
   let aztecNode: AztecNode;
   let fpc: MeteredFPCContract;
-  let paymentMethod: MeteredFeePaymentMethod;
-  let exactPaymentMethod: MeteredExactFeePaymentMethod;
+  let paymentMethod: FPCFeePaymentMethod;
+  let exactPaymentMethod: FPCExactFeePaymentMethod;
 
   const MINT_AMOUNT = 100_000_000_000_000_000_000n;
 
@@ -89,8 +89,8 @@ describe("Metered Fee Payment Contract", () => {
     );
     expect(balance).toBeGreaterThan(0n);
 
-    paymentMethod = new MeteredFeePaymentMethod(fpc.address);
-    exactPaymentMethod = new MeteredExactFeePaymentMethod(fpc.address);
+    paymentMethod = new FPCFeePaymentMethod(fpc.address);
+    exactPaymentMethod = new FPCExactFeePaymentMethod(fpc.address);
   });
 
   beforeEach(async () => {
@@ -163,8 +163,8 @@ describe("Metered Fee Payment Contract", () => {
         .balance_of(alice)
         .simulate({ from: alice });
 
-      const { maxFeesPerGas, gasLimits, teardownGasLimits, maxGasCost } =
-        await getGasSetupWithTeardown(aztecNode);
+      const { maxFeesPerGas, gasLimits } = await getGasSetup(aztecNode);
+      const teardownGasLimits = REASONABLE_TEARDOWN_GAS_LIMITS;
 
       const receipt = await counter.methods.increment().send({
         from: alice,
@@ -253,8 +253,8 @@ describe("Metered Fee Payment Contract", () => {
   it(
     "pay_fee_exact INVALID: fails when user has insufficient balance",
     async () => {
-      const { maxFeesPerGas, gasLimits, teardownGasLimits } =
-        await getGasSetupWithTeardown(aztecNode);
+      const { maxFeesPerGas, gasLimits } = await getGasSetup(aztecNode);
+      const teardownGasLimits = REASONABLE_TEARDOWN_GAS_LIMITS;
 
       // Mint 1 wei to bob -- non-zero but well below maxGasCost
       const secret = Fr.random();
@@ -466,7 +466,7 @@ describe("Metered Fee Payment Contract", () => {
       const { maxFeesPerGas, gasLimits, teardownGasLimits } =
         await getGasSetup(aztecNode);
 
-      const unfundedPaymentMethod = new MeteredFeePaymentMethod(
+      const unfundedPaymentMethod = new FPCFeePaymentMethod(
         unfundedFpc.address,
       );
 
@@ -505,10 +505,10 @@ describe("Metered Fee Payment Contract", () => {
         .with({ authWitnesses: [authWitness] })
         .send({ from: alice });
 
-      const { maxFeesPerGas, gasLimits, teardownGasLimits } =
-        await getGasSetupWithTeardown(aztecNode);
+      const { maxFeesPerGas, gasLimits } = await getGasSetup(aztecNode);
+      const teardownGasLimits = REASONABLE_TEARDOWN_GAS_LIMITS;
 
-      const unfundedExactPaymentMethod = new MeteredExactFeePaymentMethod(
+      const unfundedExactPaymentMethod = new FPCExactFeePaymentMethod(
         unfundedFpc.address,
       );
 
