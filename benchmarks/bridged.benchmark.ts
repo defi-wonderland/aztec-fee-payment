@@ -182,7 +182,9 @@ export default class BridgedFPCBenchmark extends Benchmark {
       await wallet.stop();
     };
 
-    const counterContract = await CounterContract.deploy(wallet).send({
+    const { contract: counterContract } = await CounterContract.deploy(
+      wallet,
+    ).send({
       from: deployer,
     });
 
