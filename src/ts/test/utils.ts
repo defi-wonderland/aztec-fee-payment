@@ -41,7 +41,10 @@ export async function deployCounter(
   deployer: Wallet,
 ): Promise<CounterContract> {
   const deployerAddress = (await deployer.getAccounts())[0]!.item;
-  return CounterContract.deploy(deployer).send({ from: deployerAddress });
+  const { contract } = await CounterContract.deploy(deployer).send({
+    from: deployerAddress,
+  });
+  return contract;
 }
 
 /**

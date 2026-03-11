@@ -99,7 +99,7 @@ describe("Bridged FPC", () => {
         .send({ from: alice });
 
       // Step 3: Mint internal wFJ balance by proving the FeeJuice nullifier exists.
-      const balanceBefore = await fpc.methods
+      const { result: balanceBefore } = await fpc.methods
         .balance_of(alice)
         .simulate({ from: alice });
 
@@ -107,7 +107,7 @@ describe("Bridged FPC", () => {
         .mint(claimAmount, salt, leafIndex)
         .send({ from: alice });
 
-      const balanceAfter = await fpc.methods
+      const { result: balanceAfter } = await fpc.methods
         .balance_of(alice)
         .simulate({ from: alice });
 
@@ -115,14 +115,14 @@ describe("Bridged FPC", () => {
 
       // Step 4: Sponsor a counter increment using the wFJ balance.
       const fpcFeeJuiceBefore = await getBalance(fpc.address, aztecNode);
-      const internalBalanceBefore = await fpc.methods
+      const { result: internalBalanceBefore } = await fpc.methods
         .balance_of(alice)
         .simulate({ from: alice });
 
       const { maxFeesPerGas, gasLimits, teardownGasLimits, maxGasCost } =
         await getGasSetup(aztecNode);
 
-      const receipt = await counter.methods.increment().send({
+      const { receipt } = await counter.methods.increment().send({
         from: alice,
         fee: {
           paymentMethod,
@@ -134,7 +134,7 @@ describe("Bridged FPC", () => {
       expect(receipt.hasExecutionSucceeded()).toBe(true);
 
       const fpcFeeJuiceAfter = await getBalance(fpc.address, aztecNode);
-      const internalBalanceAfter = await fpc.methods
+      const { result: internalBalanceAfter } = await fpc.methods
         .balance_of(alice)
         .simulate({ from: alice });
 
