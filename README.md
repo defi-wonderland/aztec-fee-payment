@@ -8,8 +8,6 @@ A Fee Payment Contract (FPC) for Aztec that enables transaction fee sponsorship 
 |----------|-------------|-----------|
 | **BridgedFPC** | Fully private. Users bridge FeeJuice from L1; the bridge claim converts to internal wFJ balance for fee sponsorship. | Cryptographic bridge proof (no owner, no agent) |
 
-> **Note:** The Metered FPC has been deprecated and removed. Only the Bridged FPC remains.
-
 ## Project Structure
 
 ```
