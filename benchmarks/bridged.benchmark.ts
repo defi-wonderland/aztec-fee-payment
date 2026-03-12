@@ -59,7 +59,6 @@ type NamedBenchmarkedInteraction = {
 /**
  * Wraps a ContractFunctionInteraction so the benchmark profiler always uses
  * a per-interaction FeePaymentMethod and gas settings.
- * (Same pattern as metered.benchmark.ts — see that file for full rationale.)
  */
 class FeeWrappedInteraction {
   constructor(
@@ -83,8 +82,7 @@ class FeeWrappedInteraction {
   }
 
   async simulate(options: SimulateInteractionOptions) {
-    // Strip estimateGas to avoid wallet inflating gas limits — same reasoning
-    // as in metered.benchmark.ts (see UPGRADE CHECK comment there).
+    // Strip estimateGas to avoid wallet inflating gas limits.
     const { estimateGas, estimatedGasPadding, ...restFee } = options.fee ?? {};
     const adjusted = {
       ...options,

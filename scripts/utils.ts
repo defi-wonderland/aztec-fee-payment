@@ -1,5 +1,4 @@
 import { AztecAddress } from "@aztec/aztec.js/addresses";
-import { MeteredFPCContract } from "../src/artifacts/MeteredFPC.js";
 import { AccountWithSecretKey } from "@aztec/aztec.js/account";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { dirname, join } from "path";
@@ -10,18 +9,7 @@ const logger = createLogger("aztec:utils");
 
 // DeployedContracts interface
 export interface DeployedContracts {
-  metered?: {
-    contract: MeteredFPCContract;
-    status: "deployed" | "existing";
-  } | null;
   deployer?: AccountWithSecretKey;
-}
-
-export interface DeploymentMetered {
-  address: string;
-  salt: string;
-  deployer: string;
-  constructorArtifact?: string;
 }
 
 export interface DeploymentBridged {
@@ -30,36 +18,14 @@ export interface DeploymentBridged {
 }
 
 export interface DeploymentData {
-  metered?: DeploymentMetered;
   bridged?: DeploymentBridged;
 }
 
-export interface DeployedContract<T> {
-  contract: T;
-  status: "deployed" | "existing";
-}
-
-export interface DeploymentContracts {
-  metered?: DeployedContract<MeteredFPCContract>;
-}
-
-const UNIVERSAL_DEPLOYER =
-  "0x0000000000000000000000000000000000000000000000000000000000000000";
-
 export function getDeploymentData(
-  contracts: DeploymentContracts | null | undefined,
   config: DeploymentConfig,
   bridgedAddress?: AztecAddress,
 ): DeploymentData {
   const result: DeploymentData = {};
-
-  if (contracts?.metered) {
-    result.metered = {
-      address: contracts.metered.contract.address.toString(),
-      salt: config.contracts.metered.salt,
-      deployer: UNIVERSAL_DEPLOYER,
-    };
-  }
 
   if (bridgedAddress) {
     result.bridged = {

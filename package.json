@@ -11,10 +11,6 @@
       "import": "./dist/src/ts/index.js",
       "types": "./dist/src/ts/index.d.ts"
     },
-    "./artifacts/metered": {
-      "import": "./dist/src/artifacts/MeteredFPC.js",
-      "types": "./dist/src/artifacts/MeteredFPC.d.ts"
-    },
     "./artifacts/bridged": {
       "import": "./dist/src/artifacts/BridgedFPC.js",
       "types": "./dist/src/artifacts/BridgedFPC.d.ts"
@@ -37,7 +33,7 @@
     "compile": "aztec compile",
     "build": "yarn compile && yarn codegen && bash scripts/build-package.sh",
     "test": "yarn test:nr && yarn test:js",
-    "test:js": "rm -rf pxe-test-metered && vitest run && yarn test:agent",
+    "test:js": "vitest run && yarn test:agent",
     "test:nr": "aztec test",
     "lint:prettier": "prettier '**/*.{js,ts}' --write",
     "ccc": "yarn clean && yarn compile && yarn codegen",
@@ -49,8 +45,6 @@
     "deploy:local-network": "NODE_NO_WARNINGS=1 tsx scripts/deploy.ts --network local-network",
     "deploy:dry-run": "NODE_NO_WARNINGS=1 tsx scripts/deploy.ts --dry-run",
     "upload:artifacts": "tsx scripts/upload-artifact.ts",
-    "fund-fpc": "NODE_NO_WARNINGS=1 tsx scripts/fund-fpc.ts",
-    "fund-fpc:devnet": "NODE_NO_WARNINGS=1 tsx scripts/fund-fpc.ts --network devnet",
     "agent:dev": "NODE_NO_WARNINGS=1 tsx src/ts/agent/index.ts",
     "test:agent": "vitest run --config vitest.agent.config.ts"
   },

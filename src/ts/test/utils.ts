@@ -5,14 +5,11 @@ import { Gas, GasFees } from "@aztec/stdlib/gas";
 import { getFeeJuiceBalance } from "@aztec/aztec.js/utils";
 
 import { CounterContract } from "../../artifacts/Counter.js";
-import { MeteredFPCContract } from "../../artifacts/MeteredFPC.js";
 import {
   REASONABLE_GAS_LIMITS,
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
 } from "../utils/gas.js";
-import { deployMeteredFPCContract } from "../utils/deploy.js";
-import { warpL1Time } from "./harness.js";
 
 /** Global test timeout constant for individual test cases. */
 export const TEST_TIMEOUT = 300_000;
@@ -88,32 +85,4 @@ export async function getBalance(
   aztecNode: AztecNode,
 ): Promise<bigint> {
   return getFeeJuiceBalance(address, aztecNode);
-}
-
-const CONFIG_DELAY = 600;
-
-/**
- * Deploys the Metered FPC and warps L1 time so the DelayedPublicMutable
- * owner is settled and readable in private context.
- */
-export async function deploySettledMetered(
-  wallet: Wallet,
-  owner: AztecAddress,
-  aztecNode: AztecNode,
-): Promise<MeteredFPCContract> {
-  const fpc = await deployMeteredFPCContract(wallet, owner);
-  await warpL1Time(aztecNode, CONFIG_DELAY);
-  await produceL2Block(wallet);
-  return fpc;
-}
-
-/**
- * Deploys the Metered FPC without warping time. The owner is scheduled
- * but not yet effective -- useful for testing incomplete initialization.
- */
-export async function deployUnsettledMetered(
-  wallet: Wallet,
-  owner: AztecAddress,
-): Promise<MeteredFPCContract> {
-  return deployMeteredFPCContract(wallet, owner);
 }
