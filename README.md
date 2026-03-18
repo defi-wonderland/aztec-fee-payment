@@ -1,14 +1,11 @@
 # Aztec Fee Payment Contracts
 
-A collection of Fee Payment Contracts (FPCs) for Aztec that enable transaction fee sponsorship strategies.
+A Fee Payment Contract (FPC) for Aztec that enables transaction fee sponsorship via bridged FeeJuice.
 
 ## Overview
 
-This repository provides two production-ready FPC implementations:
-
 | Contract | Description | Auth model |
 |----------|-------------|-----------|
-| **MeteredFPC** | Tracks internal balances, deducts max gas cost. Optional exact refund via teardown. | Off-chain agent issues authwits for mints |
 | **BridgedFPC** | Fully private. Users bridge FeeJuice from L1; the bridge claim converts to internal wFJ balance for fee sponsorship. | Cryptographic bridge proof (no owner, no agent) |
 
 ## Project Structure
@@ -17,7 +14,6 @@ This repository provides two production-ready FPC implementations:
 ├── src/
 │   ├── nr/                          # Noir smart contracts
 │   │   ├── counter_contract/        # Test utility contract
-│   │   ├── metered_contract/        # MeteredFPC
 │   │   └── bridged_contract/        # BridgedFPC
 │   └── ts/                          # TypeScript package
 │       ├── artifacts/               # Generated contract bindings
@@ -108,6 +104,7 @@ await fpc.methods.mint(userAddress, amount, secret)
 await myContract.methods.doSomething()
   .send({ fee: { paymentMethod: new FPCFeePaymentMethod(fpc.address) } });
 ```
+
 
 ### BridgedFPC
 

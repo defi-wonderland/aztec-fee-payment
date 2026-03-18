@@ -12,7 +12,6 @@ yarn add @defi-wonderland/aztec-fee-payment
 
 | Contract | Description | Auth model |
 |----------|-------------|-----------|
-| **MeteredFPC** | Tracks internal balances, deducts max gas cost. Optional exact refund via teardown. | Off-chain agent issues authwits for mints |
 | **BridgedFPC** | Fully private. Bridge FeeJuice from L1; the claim converts to internal wFJ for fee sponsorship. | Cryptographic bridge proof (no owner, no agent) |
 
 ## Quick Start
@@ -61,6 +60,7 @@ await someContract.methods.doSomething()
     fee: { paymentMethod: new FPCExactFeePaymentMethod(fpc.address) },
   });
 ```
+
 
 ### BridgedFPC
 
