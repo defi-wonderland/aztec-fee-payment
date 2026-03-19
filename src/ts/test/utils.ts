@@ -1,16 +1,9 @@
 import { Wallet } from "@aztec/aztec.js/wallet";
-import { GasFees } from "@aztec/stdlib/gas";
 
 import { CounterContract } from "../../artifacts/Counter.js";
 
 /** Global test timeout constant for individual test cases. */
 export const TEST_TIMEOUT = 300_000;
-
-/** Global constant for max priority fee per gas */
-export const MAX_PRIORITY_FEE_PER_GAS = GasFees.from({
-  feePerDaGas: 1000000000000000000n,
-  feePerL2Gas: 1000000000000000000n,
-});
 
 /** Deploys the Counter contract. */
 export async function deployCounter(
