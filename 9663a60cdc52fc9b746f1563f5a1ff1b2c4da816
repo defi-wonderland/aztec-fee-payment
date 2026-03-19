@@ -1,0 +1,36 @@
+package.json
+  a4e8c6cc4d529095 76,100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.15",
+  "base_commit_sha": "9663a60cdc52fc9b746f1563f5a1ff1b2c4da816",
+  "prompts": {
+    "498d4fccb774a5d6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "88e7427d-1df1-48f3-8c5a-fb8e2ba5e1db",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "xorsal <zorzal@wonderland.xyz>",
+      "messages": [],
+      "total_additions": 17,
+      "total_deletions": 17,
+      "accepted_lines": 12,
+      "overriden_lines": 0
+    },
+    "a4e8c6cc4d529095": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6df80179-de90-43d6-a29c-393b66d85503",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "xorsal <zorzal@wonderland.xyz>",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 4,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}
