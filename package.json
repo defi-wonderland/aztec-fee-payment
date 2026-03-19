@@ -73,7 +73,7 @@
     "@aztec/wallets": "4.1.0-rc.4",
     "@commitlint/cli": "20.4.1",
     "@commitlint/config-conventional": "20.4.1",
-    "@defi-wonderland/aztec-benchmark": "https://github.com/defi-wonderland/aztec-benchmark/releases/download/prerelease-879734f/defi-wonderland-aztec-benchmark-4.0.0-devnet.2-patch.1-prerelease.879734f.tgz",
+    "@defi-wonderland/aztec-benchmark": "4.1.0-rc.4",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
     "@types/node": "25.2.3",
@@ -97,7 +97,6 @@
     "yarn": ">=1.22.0"
   },
   "resolutions": {
-    "@noble/hashes": "1.8.0",
-    "@aztec/foundation": "4.1.0-rc.4"
+    "@noble/hashes": "1.8.0"
   }
 }
