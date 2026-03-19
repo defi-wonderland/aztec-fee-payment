@@ -120,7 +120,6 @@ Express server that validates EVM token transfers and returns Aztec authwits for
 
 - `deploy.ts` — CLI with `--network` flag (devnet/testnet/local-network) and `--dry-run`
 - `config/config.ts` — Deployment config (node URLs, salts, retry options)
-- `deployments/` — Stored deployment addresses per network
 
 ## Key Patterns
 
