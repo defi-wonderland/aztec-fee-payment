@@ -2,13 +2,20 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { EmbeddedWallet } from "@aztec/wallets/embedded";
 import type { AztecNode } from "@aztec/aztec.js/node";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
+import { Gas } from "@aztec/stdlib/gas";
 import { Fr } from "@aztec/aztec.js/fields";
+import { getFeeJuiceBalance } from "@aztec/aztec.js/utils";
 import { FeeJuiceContract } from "@aztec/noir-contracts.js/FeeJuice";
 import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 
 import { BridgedFPCContract } from "../../artifacts/BridgedFPC.js";
 import { FPCFeePaymentMethod } from "../fee-payment-methods/index.js";
 import { registerBridgedContract } from "../utils/deploy.js";
+import {
+  maxFeesPerGasFromBaseFees,
+  maxGasCostFor,
+  REASONABLE_GAS_LIMITS,
+} from "../utils/gas.js";
 
 import {
   LOCAL_AZTEC_NODE_URL,
@@ -17,12 +24,7 @@ import {
   bridgeForMint,
 } from "./harness.js";
 
-import {
-  TEST_TIMEOUT,
-  deployCounter,
-  getGasSetup,
-  getBalance,
-} from "./utils.js";
+import { TEST_TIMEOUT, deployCounter } from "./utils.js";
 
 describe("Bridged FPC", () => {
   let wallet: EmbeddedWallet;
@@ -99,7 +101,7 @@ describe("Bridged FPC", () => {
         .send({ from: alice });
 
       // Step 3: Mint internal wFJ balance by proving the FeeJuice nullifier exists.
-      const balanceBefore = await fpc.methods
+      const { result: balanceBefore } = await fpc.methods
         .balance_of(alice)
         .simulate({ from: alice });
 
@@ -107,22 +109,28 @@ describe("Bridged FPC", () => {
         .mint(claimAmount, salt, leafIndex)
         .send({ from: alice });
 
-      const balanceAfter = await fpc.methods
+      const { result: balanceAfter } = await fpc.methods
         .balance_of(alice)
         .simulate({ from: alice });
 
       expect(balanceAfter).toBe(balanceBefore + BigInt(claimAmount));
 
       // Step 4: Sponsor a counter increment using the wFJ balance.
-      const fpcFeeJuiceBefore = await getBalance(fpc.address, aztecNode);
-      const internalBalanceBefore = await fpc.methods
+      const fpcFeeJuiceBefore = await getFeeJuiceBalance(
+        fpc.address,
+        aztecNode,
+      );
+      const { result: internalBalanceBefore } = await fpc.methods
         .balance_of(alice)
         .simulate({ from: alice });
 
-      const { maxFeesPerGas, gasLimits, teardownGasLimits, maxGasCost } =
-        await getGasSetup(aztecNode);
+      const baseFees = await aztecNode.getCurrentMinFees();
+      const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
+      const gasLimits = REASONABLE_GAS_LIMITS;
+      const teardownGasLimits = Gas.from({ l2Gas: 0, daGas: 0 });
+      const maxGasCost = maxGasCostFor(maxFeesPerGas, gasLimits);
 
-      const receipt = await counter.methods.increment().send({
+      const { receipt } = await counter.methods.increment().send({
         from: alice,
         fee: {
           paymentMethod,
@@ -133,8 +141,8 @@ describe("Bridged FPC", () => {
       expect(receipt.isMined()).toBe(true);
       expect(receipt.hasExecutionSucceeded()).toBe(true);
 
-      const fpcFeeJuiceAfter = await getBalance(fpc.address, aztecNode);
-      const internalBalanceAfter = await fpc.methods
+      const fpcFeeJuiceAfter = await getFeeJuiceBalance(fpc.address, aztecNode);
+      const { result: internalBalanceAfter } = await fpc.methods
         .balance_of(alice)
         .simulate({ from: alice });
 

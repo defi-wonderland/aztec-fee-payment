@@ -50,7 +50,7 @@ pub unconstrained fn get_balance(
     contract_address: AztecAddress,
     account: AztecAddress,
 ) -> u128 {
-    env.simulate_utility(BridgedFPC::at(contract_address).balance_of(account))
+    env.execute_utility(BridgedFPC::at(contract_address).balance_of(account))
 }
 
 /// Returns a random salt for use in bridge secret derivation.

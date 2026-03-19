@@ -1,6 +1,6 @@
 # @defi-wonderland/aztec-fee-payment
 
-Fee Payment Contracts (FPCs) for Aztec. This package provides two fee payment strategies for sponsoring transaction fees on behalf of users.
+Fee Payment Contract (FPC) for Aztec. This package provides a fully private fee payment strategy for sponsoring transaction fees on behalf of users.
 
 ## Installation
 
@@ -75,26 +75,20 @@ If private logic fails, the transaction is never included — no fees are charge
 
 ```typescript
 // Contracts
-MeteredFPCContract, MeteredFPCContractArtifact
 BridgedFPCContract, BridgedFPCContractArtifact
 
 // Fee Payment Methods
-FPCFeePaymentMethod                // pay_fee (no refund, works with any FPC)
-FPCExactFeePaymentMethod           // pay_fee_exact (teardown refund, works only with MeteredFPC)
-MeteredMintAndPayFeePaymentMethod  // mint + pay_fee in one tx (MeteredFPC)
-MeteredMintThenPayFeePaymentMethod // mint then pay_fee in one tx (MeteredFPC)
+FPCFeePaymentMethod                // pay_fee (no refund)
 BridgedMintAndPayFeePaymentMethod  // FeeJuice.claim + mint_and_pay_fee (BridgedFPC)
 
 // Utilities
 REASONABLE_GAS_LIMITS, REASONABLE_TEARDOWN_GAS_LIMITS
 maxFeesPerGasFromBaseFees, maxGasCostFor
-deployMeteredFPCContract
 registerBridgedContract
 ```
 
 ### Sub-path Exports
 
-- `@defi-wonderland/aztec-fee-payment/artifacts/metered` - MeteredFPC contract and artifact
 - `@defi-wonderland/aztec-fee-payment/artifacts/bridged` - BridgedFPC contract and artifact
 - `@defi-wonderland/aztec-fee-payment/fee-payment-methods` - Fee payment methods only
 - `@defi-wonderland/aztec-fee-payment/utils` - Utility functions only

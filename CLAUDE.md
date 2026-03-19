@@ -8,8 +8,6 @@ Aztec Fee Payment — a Fee Payment Contract (FPC) for Aztec that sponsors trans
 
 - **Bridged FPC** (`src/nr/bridged_contract/`) — Bridge-based flow: users bridge FJ directly via `FeeJuicePortal` to the FPC address, then call `mint` to convert the bridge claim into private wFJ. Fully private, no owner, no off-chain agent.
 
-> **Note:** The Metered FPC (`metered_contract`) has been deprecated and removed. Only the Bridged FPC remains.
-
 ## Spec Guardian
 
 The tech design document in `docs/` is the **source of truth** for this project:
@@ -97,9 +95,9 @@ Two Noir packages (workspace defined in root `Nargo.toml`):
 ### TypeScript SDK (`src/ts/`)
 
 Published as `@defi-wonderland/aztec-fee-payment` with export paths:
-- `.` — Main: `BridgedFPCContract`, `FPCFeePaymentMethod`, gas utils, registration helper
+- `.` — Main: `BridgedFPCContract`, `FPCFeePaymentMethod`, `FPCExactFeePaymentMethod`, gas utils, registration helper
 - `./artifacts` — Generated contract bindings
-- `./fee-payment-methods` — `FPCFeePaymentMethod` (no refund), `BridgedMintAndPayFeePaymentMethod`
+- `./fee-payment-methods` — `FPCFeePaymentMethod` (no refund), `FPCExactFeePaymentMethod` (with teardown refund), `BridgedMintAndPayFeePaymentMethod`
 - `./utils` — Gas calculation helpers (`maxGasCostFor`, `maxFeesPerGasFromBaseFees`), `registerBridgedContract`
 
 ### Off-Chain Agent (`src/ts/agent/`)
@@ -122,7 +120,6 @@ Express server that validates EVM token transfers and returns Aztec authwits for
 
 - `deploy.ts` — CLI with `--network` flag (devnet/testnet/local-network) and `--dry-run`
 - `config/config.ts` — Deployment config (node URLs, salts, retry options)
-- `deployments/` — Stored deployment addresses per network
 
 ## Key Patterns
 
