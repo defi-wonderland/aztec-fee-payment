@@ -1,6 +1,6 @@
 # Deployment Records
 
-This directory contains deployment records for the Metered contract across different networks.
+This directory contains deployment records for the BridgedFPC contract across different networks.
 
 ## Structure
 

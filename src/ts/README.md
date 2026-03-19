@@ -1,6 +1,6 @@
 # @defi-wonderland/aztec-fee-payment
 
-Fee Payment Contracts (FPCs) for Aztec. This package provides two fee payment strategies for sponsoring transaction fees on behalf of users.
+Fee Payment Contract (FPC) for Aztec. This package provides a fully private fee payment strategy for sponsoring transaction fees on behalf of users.
 
 ## Installation
 
@@ -15,52 +15,6 @@ yarn add @defi-wonderland/aztec-fee-payment
 | **BridgedFPC** | Fully private. Bridge FeeJuice from L1; the claim converts to internal wFJ for fee sponsorship. | Cryptographic bridge proof (no owner, no agent) |
 
 ## Quick Start
-
-### MeteredFPC
-
-Tracks internal balances per account. An off-chain agent authorizes mints via authwits. Supports an exact-refund teardown variant (`pay_fee_exact`).
-
-```typescript
-import {
-  MeteredFPCContract,
-  FPCFeePaymentMethod,
-  FPCExactFeePaymentMethod,
-  deployMeteredFPCContract,
-  maxGasCostFor,
-  REASONABLE_GAS_LIMITS,
-} from '@defi-wonderland/aztec-fee-payment';
-import { computeInnerAuthWitHash } from '@aztec/stdlib/auth-witness';
-import { Fr } from '@aztec/aztec.js/fields';
-
-// Deploy the FPC (owner is the account contract that authorizes mints)
-const fpc = await deployMeteredFPCContract(wallet, ownerAddress);
-
-// Owner mints internal balance for a user.
-// mint() uses a custom inner-hash authwit: inner = hash([amount, secret]).
-// In production this authwit is issued by the off-chain agent; here shown directly.
-const secret = Fr.random();
-const innerHash = await computeInnerAuthWitHash([new Fr(amount), secret]);
-const authWitness = await wallet.createAuthWit(ownerAddress, { consumer: fpc.address, innerHash });
-
-await fpc.methods.mint(userAddress, amount, secret)
-  .with({ authWitnesses: [authWitness] })
-  .send({ from: ownerAddress });
-
-// User sponsors a transaction — max gas cost is deducted, no refund
-await someContract.methods.doSomething()
-  .send({
-    from: userAddress,
-    fee: { paymentMethod: new FPCFeePaymentMethod(fpc.address) },
-  });
-
-// Or with exact refund (teardown credits back unused gas)
-await someContract.methods.doSomething()
-  .send({
-    from: userAddress,
-    fee: { paymentMethod: new FPCExactFeePaymentMethod(fpc.address) },
-  });
-```
-
 
 ### BridgedFPC
 
@@ -121,26 +75,20 @@ If private logic fails, the transaction is never included — no fees are charge
 
 ```typescript
 // Contracts
-MeteredFPCContract, MeteredFPCContractArtifact
 BridgedFPCContract, BridgedFPCContractArtifact
 
 // Fee Payment Methods
-FPCFeePaymentMethod                // pay_fee (no refund, works with any FPC)
-FPCExactFeePaymentMethod           // pay_fee_exact (teardown refund, works only with MeteredFPC)
-MeteredMintAndPayFeePaymentMethod  // mint + pay_fee in one tx (MeteredFPC)
-MeteredMintThenPayFeePaymentMethod // mint then pay_fee in one tx (MeteredFPC)
+FPCFeePaymentMethod                // pay_fee (no refund)
 BridgedMintAndPayFeePaymentMethod  // FeeJuice.claim + mint_and_pay_fee (BridgedFPC)
 
 // Utilities
 REASONABLE_GAS_LIMITS, REASONABLE_TEARDOWN_GAS_LIMITS
 maxFeesPerGasFromBaseFees, maxGasCostFor
-deployMeteredFPCContract
 registerBridgedContract
 ```
 
 ### Sub-path Exports
 
-- `@defi-wonderland/aztec-fee-payment/artifacts/metered` - MeteredFPC contract and artifact
 - `@defi-wonderland/aztec-fee-payment/artifacts/bridged` - BridgedFPC contract and artifact
 - `@defi-wonderland/aztec-fee-payment/fee-payment-methods` - Fee payment methods only
 - `@defi-wonderland/aztec-fee-payment/utils` - Utility functions only

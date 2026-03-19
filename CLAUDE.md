@@ -8,8 +8,6 @@ Aztec Fee Payment — a Fee Payment Contract (FPC) for Aztec that sponsors trans
 
 - **Bridged FPC** (`src/nr/bridged_contract/`) — Bridge-based flow: users bridge FJ directly via `FeeJuicePortal` to the FPC address, then call `mint` to convert the bridge claim into private wFJ. Fully private, no owner, no off-chain agent.
 
-> **Note:** The Metered FPC (`metered_contract`) has been deprecated and removed. Only the Bridged FPC remains.
-
 ## Spec Guardian
 
 The tech design document in `docs/` is the **source of truth** for this project:
