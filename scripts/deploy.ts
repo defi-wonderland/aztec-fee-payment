@@ -161,11 +161,9 @@ export async function createAccount(
     }
     const accountAddress = accounts[0]!;
     logger.info(`Using local network account: ${accountAddress.toString()}`);
-    // Local-network only needs getAddress() for deployment purposes.
-    // Callers should not rely on other AccountWithSecretKey methods for this path.
     const account = {
       getAddress: () => accountAddress,
-    } as Pick<AccountWithSecretKey, "getAddress"> as AccountWithSecretKey;
+    } as AccountWithSecretKey;
     return { wallet, account };
   }
 
@@ -378,22 +376,7 @@ const networkConfigs: Record<Network, Partial<DeploymentConfig>> = {
 };
 
 function getActiveConfig(network: Network): DeploymentConfig {
-  const overrides = networkConfigs[network];
-  return {
-    ...config,
-    ...overrides,
-    network: { ...config.network, ...overrides.network },
-    deployer: { ...config.deployer, ...overrides.deployer },
-    deployment: {
-      ...config.deployment,
-      ...overrides.deployment,
-      retryOptions: {
-        ...config.deployment.retryOptions,
-        ...overrides.deployment?.retryOptions,
-      },
-    },
-    contracts: { ...config.contracts, ...overrides.contracts },
-  };
+  return { ...config, ...networkConfigs[network] } as DeploymentConfig;
 }
 
 program
