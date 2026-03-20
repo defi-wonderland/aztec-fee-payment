@@ -113,7 +113,7 @@ class MinimalWallet extends BaseWallet {
   private readonly addressToAccount = new Map<string, AccountWithSecretKey>();
 
   constructor(pxe: PXE, aztecNode: AztecNode) {
-    super(pxe as unknown as any, aztecNode);
+    super(pxe, aztecNode);
   }
 
   public addAccount(account: AccountWithSecretKey) {
@@ -161,9 +161,11 @@ export async function createAccount(
     }
     const accountAddress = accounts[0]!;
     logger.info(`Using local network account: ${accountAddress.toString()}`);
+    // Local-network only needs getAddress() for deployment purposes.
+    // Callers should not rely on other AccountWithSecretKey methods for this path.
     const account = {
       getAddress: () => accountAddress,
-    } as AccountWithSecretKey;
+    } as Pick<AccountWithSecretKey, "getAddress"> as AccountWithSecretKey;
     return { wallet, account };
   }
 
@@ -306,7 +308,7 @@ export async function deployToNetwork(
     logger.info(`BridgedFPC: ${bridgedAddress.toString()}`);
     logger.info("===================================\n");
 
-    logger.info("Deployment completed successfully!");
+    logger.info("Address computation completed. No contracts were deployed.");
 
     const deployedContracts: DeployedContracts = {};
 
@@ -376,7 +378,22 @@ const networkConfigs: Record<Network, Partial<DeploymentConfig>> = {
 };
 
 function getActiveConfig(network: Network): DeploymentConfig {
-  return { ...config, ...networkConfigs[network] } as DeploymentConfig;
+  const overrides = networkConfigs[network];
+  return {
+    ...config,
+    ...overrides,
+    network: { ...config.network, ...overrides.network },
+    deployer: { ...config.deployer, ...overrides.deployer },
+    deployment: {
+      ...config.deployment,
+      ...overrides.deployment,
+      retryOptions: {
+        ...config.deployment.retryOptions,
+        ...overrides.deployment?.retryOptions,
+      },
+    },
+    contracts: { ...config.contracts, ...overrides.contracts },
+  };
 }
 
 program
