@@ -3,7 +3,7 @@
 **Version**: 4.1
 **Status**: Active
 **Current Phase**: Phase 2 (Authorized Mint with Authwit)
-**Target Aztec Version**: 4.0.0-devnet.1-patch.0
+**Target Aztec Version**: 4.1.0-rc.4
 **Audience**: Implementation Engineers
 **Date**: February 2026
 

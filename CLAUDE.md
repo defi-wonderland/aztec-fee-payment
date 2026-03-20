@@ -38,7 +38,7 @@ After any code change that affects contract logic, SDK public API, agent behavio
 ## Prerequisites
 
 - Node.js >= 22, Yarn 1.22.22 (corepack)
-- Aztec CLI v4.0.0-devnet.2-patch.1: `curl -s install.aztec.network | NON_INTERACTIVE=1 BIN_PATH=$HOME/.aztec/bin bash -s`
+- Aztec CLI v4.1.0-rc.4: `curl -s install.aztec.network | NON_INTERACTIVE=1 BIN_PATH=$HOME/.aztec/bin bash -s`
 
 ## Commands
 
