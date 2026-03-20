@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import type { NoirCompiledContract } from "@aztec/aztec.js/abi";
-import { loadContractArtifact } from "@aztec/aztec.js/abi";
 
 export type ArtifactRegistryUploadResponse =
   | {
@@ -68,17 +67,16 @@ export async function uploadArtifactToRegistry(params: {
   const parsed: unknown = text ? safeJsonParse(text) : { success: res.ok };
 
   if (res.ok) {
-    return (parsed as ArtifactRegistryUploadResponse) ?? { success: true };
+    return isRegistryResponseObject(parsed)
+      ? (parsed as ArtifactRegistryUploadResponse)
+      : { success: true };
   }
 
   // Duplicate artifact (already uploaded) should not break deploys unless strict mode is enabled.
   if (res.status === 409) {
-    return (
-      (parsed as ArtifactRegistryUploadResponse) ?? {
-        success: true,
-        message: "Artifact already exists in registry",
-      }
-    );
+    return isRegistryResponseObject(parsed)
+      ? { ...(parsed as ArtifactRegistryUploadResponse), success: true }
+      : { success: true, message: "Artifact already exists in registry" };
   }
 
   const msg =
@@ -200,4 +198,8 @@ function safeJsonParse(text: string): unknown {
   } catch {
     return text;
   }
+}
+
+function isRegistryResponseObject(value: unknown): boolean {
+  return typeof value === "object" && value !== null && "success" in value;
 }

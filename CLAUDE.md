@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Aztec Fee Payment — a Fee Payment Contract (FPC) for Aztec that sponsors transaction fees using internal balances. Includes a Noir smart contract, a TypeScript SDK (published as `@defi-wonderland/aztec-fee-payment`), and an off-chain agent (Express server) that validates EVM transactions and generates authwits for cross-chain fee sponsorship.
+Aztec Fee Payment — a Fee Payment Contract (FPC) for Aztec that sponsors transaction fees using internal balances. Includes a Noir smart contract and a TypeScript SDK (published as `@defi-wonderland/aztec-fee-payment`).
 
 - **Bridged FPC** (`src/nr/bridged_contract/`) — Bridge-based flow: users bridge FJ directly via `FeeJuicePortal` to the FPC address, then call `mint` to convert the bridge claim into private wFJ. Fully private, no owner, no off-chain agent.
 
@@ -29,7 +29,7 @@ Skip this check for: refactors with no behavior change, test-only changes, forma
 
 ### 2. Post-Change Doc Sync (AUTOMATIC)
 
-After any code change that affects contract logic, SDK public API, agent behavior/config/endpoints, error codes, or security properties, launch a `general-purpose` subagent (with edit permissions) that:
+After any code change that affects contract logic, SDK public API, error codes, or security properties, launch a `general-purpose` subagent (with edit permissions) that:
 1. Reads the doc and identifies sections made outdated by the change
 2. Edits only affected sections (requirements tables, status fields, code examples, API specs, schemas, prose)
 3. Bumps the version in the Version History table (minor for features/behavior changes, patch for clarifications) with today's date
@@ -38,7 +38,7 @@ After any code change that affects contract logic, SDK public API, agent behavio
 ## Prerequisites
 
 - Node.js >= 22, Yarn 1.22.22 (corepack)
-- Aztec CLI v4.0.0-devnet.2-patch.1: `curl -s install.aztec.network | NON_INTERACTIVE=1 BIN_PATH=$HOME/.aztec/bin bash -s`
+- Aztec CLI v4.1.0-rc.4: `curl -s install.aztec.network | NON_INTERACTIVE=1 BIN_PATH=$HOME/.aztec/bin bash -s`
 
 ## Commands
 
@@ -60,15 +60,8 @@ yarn test             # all tests (Noir + JS)
 yarn test:nr          # Noir unit tests only (aztec test)
 yarn test:js          # JS integration tests
 
-# Agent tests (separate vitest config, no local network needed)
-yarn test:agent
-
 # Run a single test file
 npx vitest run src/ts/test/bridged.test.ts
-npx vitest run --config vitest.agent.config.ts src/ts/agent/test/secret.test.ts
-
-# Off-chain agent dev server
-yarn agent:dev
 
 # Deployment
 yarn deploy:devnet    # Deploy to devnet
@@ -100,21 +93,9 @@ Published as `@defi-wonderland/aztec-fee-payment` with export paths:
 - `./fee-payment-methods` — `FPCFeePaymentMethod` (no refund), `FPCExactFeePaymentMethod` (with teardown refund), `BridgedMintAndPayFeePaymentMethod`
 - `./utils` — Gas calculation helpers (`maxGasCostFor`, `maxFeesPerGasFromBaseFees`), `registerBridgedContract`
 
-### Off-Chain Agent (`src/ts/agent/`)
-
-Express server that validates EVM token transfers and returns Aztec authwits for fee sponsorship:
-
-- **Config** (`config/`) — Env-based via Zod. Required: `SP_SIGNING_KEY`, `FPC_ADDRESS`, `OWNER_ADDRESS`, plus `CHAIN_<id>_*` groups
-- **Services**:
-  - `evm/` — `MultiChainEVMClient` validates EVM transactions, `parser` filters by recipient + `aztTokenAddress`, `validator` checks confirmations/amounts
-  - `crypto/` — `SecretGenerator` (deterministic ECDSA on txHash, extracts r mod BN254 Fr), `AuthwitGenerator` (Schnorr-based inner/outer hash), `eip712` types
-- **Routes** — Single endpoint: `POST /api/v1/authwit/request`
-- **Middleware** — Pino logger, Zod validation, rate limiting, error handler
-
 ### Test Setup
 
 - **Integration tests** (`vitest.config.ts`) — Requires a running Aztec local network (start manually before running). 200s timeouts. Single fork, no parallelism. Must inline `/@aztec/`, `/@noble/`, `/@scure/`, `/viem/` in `server.deps`.
-- **Agent tests** (`vitest.agent.config.ts`) — Separate config, no local network, 30s timeout. Also inlines `/zod/`, `/pino/`.
 
 ### Deployment (`scripts/`, `config/`)
 
@@ -132,4 +113,4 @@ Express server that validates EVM token transfers and returns Aztec authwits for
 - `encodeEventLog` does NOT exist in the bundled viem — use `encodeEventTopics` + `encodeAbiParameters`
 - `vi.mock` for classes must use actual `class` syntax in vitest v4
 - Aztec Schnorr signatures use random nonces (NOT deterministic)
-- Both vitest configs require a `@noble/hashes/utils` resolve alias pointing to the exact ESM file — without it, CI may resolve a nested version missing the `anumber` export
+- The vitest config requires a `@noble/hashes/utils` resolve alias pointing to the exact ESM file — without it, CI may resolve a nested version missing the `anumber` export

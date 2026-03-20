@@ -12,11 +12,11 @@ A Fee Payment Contract (FPC) for Aztec that enables transaction fee sponsorship 
 
 ```
 ├── src/
+│   ├── artifacts/                   # Generated contract bindings
 │   ├── nr/                          # Noir smart contracts
 │   │   ├── counter_contract/        # Test utility contract
 │   │   └── bridged_contract/        # BridgedFPC
 │   └── ts/                          # TypeScript package
-│       ├── artifacts/               # Generated contract bindings
 │       ├── fee-payment-methods/     # Fee payment method classes
 │       ├── utils/                   # Utilities (gas, deploy)
 │       └── test/                    # Integration tests
@@ -55,7 +55,7 @@ aztec codegen target --outdir src/artifacts
 Start the Aztec sandbox:
 
 ```bash
-yarn start:sandbox
+aztec start --local-network
 ```
 
 Run all tests:

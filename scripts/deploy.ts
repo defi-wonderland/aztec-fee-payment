@@ -113,7 +113,7 @@ class MinimalWallet extends BaseWallet {
   private readonly addressToAccount = new Map<string, AccountWithSecretKey>();
 
   constructor(pxe: PXE, aztecNode: AztecNode) {
-    super(pxe as unknown as any, aztecNode);
+    super(pxe, aztecNode);
   }
 
   public addAccount(account: AccountWithSecretKey) {
@@ -306,7 +306,7 @@ export async function deployToNetwork(
     logger.info(`BridgedFPC: ${bridgedAddress.toString()}`);
     logger.info("===================================\n");
 
-    logger.info("Deployment completed successfully!");
+    logger.info("Address computation completed. No contracts were deployed.");
 
     const deployedContracts: DeployedContracts = {};
 
