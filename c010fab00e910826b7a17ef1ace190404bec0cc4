@@ -1,0 +1,27 @@
+package.json
+  920c78ef877eedbc 36,47
+scripts/deploy.ts
+  920c78ef877eedbc 166,379
+CLAUDE.md
+  920c78ef877eedbc 7,116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.15",
+  "base_commit_sha": "c010fab00e910826b7a17ef1ace190404bec0cc4",
+  "prompts": {
+    "920c78ef877eedbc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eaa7c44a-018a-4749-bfcd-05112008fd71",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "xorsal <zorzal@wonderland.xyz>",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 55,
+      "accepted_lines": 8,
+      "overriden_lines": 0
+    }
+  }
+}
