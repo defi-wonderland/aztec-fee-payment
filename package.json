@@ -1,5 +1,5 @@
 {
-  "name": "aztec-fee-payment-monorepo",
+  "name": "aztec-fee-payment",
   "version": "4.1.0-rc.4",
   "private": true,
   "repository": "https://github.com/defi-wonderland/aztec-fee-payment.git",
