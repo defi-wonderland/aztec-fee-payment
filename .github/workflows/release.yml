@@ -1,0 +1,82 @@
+name: Production Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version from package.json (e.g., 1.0.0 or 1.0.0-beta.1). Do NOT include the "v" prefix.'
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ══════════════════════════════════════════════════════════════════════════════
+  # PRODUCTION RELEASE JOB
+  # ══════════════════════════════════════════════════════════════════════════════
+  release:
+    name: Release
+    environment: Production
+    runs-on: ubuntu-latest-m
+    timeout-minutes: 60
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write  # Required to create and push tags
+
+    env:
+      PROJECT_NAME: '@defi-wonderland/aztec-fee-payment'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Aztec environment
+        id: setup-aztec
+        uses: defi-wonderland/aztec-ci-actions/actions/setup-aztec@v0
+        with:
+          start-pxe: 'false'
+          run-codegen: 'true'
+
+      # TODO: Automate changing package.json version from the workflow input
+      #       (e.g., open a PR or push a signed commit) so manual edits are not required.
+      - name: Validate input version matches package.json
+        run: |
+          INPUT_VERSION="${{ github.event.inputs.version }}"
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "Input version: $INPUT_VERSION"
+          echo "package.json version: $PKG_VERSION"
+          if [ "$INPUT_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Input version ($INPUT_VERSION) does not match package.json version ($PKG_VERSION). Update package.json or re-run with the matching version (no 'v' prefix)."
+            exit 1
+          fi
+
+      - name: Build package
+        run: yarn build
+
+      - name: Setup Node.js for NPM publish
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Publish to NPM
+        run: cd export/${{ env.PROJECT_NAME }} && npm publish --access public --tag latest
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release Tag (adds 'v' prefix to input)
+        run: |
+          TAG_NAME="v${{ github.event.inputs.version }}"
+          # Check if tag already exists
+          if git ls-remote --tags origin | grep -q "refs/tags/${TAG_NAME}$"; then
+            echo "::error::Tag ${TAG_NAME} already exists. Please use a different version."
+            exit 1
+          fi
+          git tag "${TAG_NAME}"
+          git push origin "${TAG_NAME}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
