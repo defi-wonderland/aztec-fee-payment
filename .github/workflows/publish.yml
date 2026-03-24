@@ -62,12 +62,12 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Build package
-        run: yarn build
-
       - name: Update version (dev branch)
         if: github.ref == 'refs/heads/dev'
         run: yarn version --new-version "0.0.0-snapshot.${GITHUB_SHA::8}" --no-git-tag-version
+
+      - name: Build package
+        run: yarn build
 
       - name: Publish snapshot (dev branch)
         if: github.ref == 'refs/heads/dev'
