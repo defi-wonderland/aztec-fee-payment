@@ -1,0 +1,23 @@
+docs/bridged-product-requirements.md
+  7917e6f1d3bb4aab 3,5,282-283
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.17",
+  "base_commit_sha": "4159951a7c3bde35f0b9e3f9e7c63b3b93bb7ee2",
+  "prompts": {
+    "7917e6f1d3bb4aab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9ebfaa6-1499-48aa-b044-cf1cc245c6f0",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "xorsal <zorzal@wonderland.xyz>",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 3,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    }
+  }
+}
