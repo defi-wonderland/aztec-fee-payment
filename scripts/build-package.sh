@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_NAME="@defi-wonderland/aztec-fee-payment"
+PROJECT_NAME="@wonderland/aztec-fee-payment"
 EXPORT_DIR="export/${PROJECT_NAME}"
 
 # ── Compile TS SDK to JS ─────────────────────────────────────────
