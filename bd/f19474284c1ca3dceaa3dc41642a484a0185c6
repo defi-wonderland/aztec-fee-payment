@@ -1,0 +1,23 @@
+.github/workflows/publish.yml
+  7917e6f1d3bb4aab 69-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.17",
+  "base_commit_sha": "bdf19474284c1ca3dceaa3dc41642a484a0185c6",
+  "prompts": {
+    "7917e6f1d3bb4aab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9ebfaa6-1499-48aa-b044-cf1cc245c6f0",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "xorsal <zorzal@wonderland.xyz>",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 3,
+      "accepted_lines": 3,
+      "overriden_lines": 0
+    }
+  }
+}
