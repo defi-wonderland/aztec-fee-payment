@@ -1,7 +1,9 @@
 [workspace]
 members = [
+    "src/nr/fpc_lib",
     "src/nr/counter_contract",
+    "src/nr/bridged_contract",
 ]
 
 [benchmark]
-counter = "benchmarks/counter.benchmark.ts"
+bridged = "benchmarks/bridged.benchmark.ts"

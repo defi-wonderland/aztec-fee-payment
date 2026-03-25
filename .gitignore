@@ -1,5 +1,5 @@
 node_modules
-target/
+/target/
 src/artifacts/
 log/
 .vscode
@@ -8,3 +8,18 @@ codegenCache.json
 .env
 .cursor
 pxe-test/
+pxe-test-*/
+benchmarks/*.benchmark.json
+tsconfig.tsbuildinfo
+deployer-wallet-*/
+deployments/local-network/
+devnet-*/
+testnet-*/
+local-network-*/
+*-fpc-store-*/
+deployments/*/pending-claims.json
+src/ts/dist
+dist/
+export/
+wallet_data_*
+pxe_data_*

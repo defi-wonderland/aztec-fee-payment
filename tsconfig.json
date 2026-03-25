@@ -21,6 +21,13 @@
     "composite": true,
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*", "scripts/**/*.ts", "benchmarks/**/*.ts", "jest.setup.ts", "jest.teardown.ts", "target/**/*", "artifacts/**/*"],
-  "exclude": ["node_modules"]
+  "include": [
+    "src/artifacts/**/*",
+    "src/ts/**/*",
+    "scripts/**/*.ts",
+    "benchmarks/**/*.ts",
+    "vitest.setup.ts",
+    "target/**/*"
+  ],
+  "exclude": ["node_modules", "src/ts/dist"]
 }
