@@ -260,8 +260,8 @@ The FPC's public FeeJuice balance (used to pay sequencers) is funded separately 
 
 ### Test Infrastructure
 
-- Tests require Aztec sandbox running locally (`aztec start --sandbox`)
-- Test timeout: 300 seconds
+- Tests require Aztec sandbox running locally (`aztec start --local-network`)
+- Test timeout: 200 seconds
 - Tests run sequentially (no parallelism) due to shared sandbox state
 - No `warpL1Time` needed — no owner delay (`DelayedPublicMutable` not used)
 - `Counter` contract used as the application contract for testing fee sponsorship

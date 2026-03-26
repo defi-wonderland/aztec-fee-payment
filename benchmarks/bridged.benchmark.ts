@@ -31,6 +31,7 @@ import {
   bridgeForMint,
 } from "../src/ts/test/harness.js";
 import { registerBridgedContract } from "../src/ts/utils/deploy.js";
+import { TEST_SALT } from "../src/ts/test/utils.js";
 import {
   maxFeesPerGasFromBaseFees,
   REASONABLE_GAS_LIMITS,
@@ -105,7 +106,7 @@ export default class BridgedFPCBenchmark extends Benchmark {
     });
 
     // Register BridgedFPC — fully private, no on-chain deployment tx required.
-    const bridgedFpc = await registerBridgedContract(wallet);
+    const bridgedFpc = await registerBridgedContract(wallet, TEST_SALT);
 
     // Fund the FPC's public FeeJuice balance so it can pay sequencers.
     await fundL2AddressWithFeeJuiceFromL1(node, wallet, bridgedFpc.address, {
