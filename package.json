@@ -11,9 +11,9 @@
       "import": "./dist/src/ts/index.js",
       "types": "./dist/src/ts/index.d.ts"
     },
-    "./artifacts/bridged": {
-      "import": "./dist/src/artifacts/BridgedFPC.js",
-      "types": "./dist/src/artifacts/BridgedFPC.d.ts"
+    "./artifacts/private": {
+      "import": "./dist/src/artifacts/PrivateFPC.js",
+      "types": "./dist/src/artifacts/PrivateFPC.d.ts"
     },
     "./fee-payment-methods": {
       "import": "./dist/src/ts/fee-payment-methods/index.js",

@@ -138,7 +138,7 @@ export async function fundL2AddressWithFeeJuiceFromL1(
 
 /**
  * Domain separator for FPC bridge secret derivation — must match the Noir constant
- * `DOM_SEP__FPC_BRIDGE_SECRET` in bridged_contract/src/main.nr.
+ * `DOM_SEP__FPC_BRIDGE_SECRET` in private_contract/src/main.nr.
  * Computed as: poseidon2_hash_bytes("az_dom_sep__fpc_bridge_secret") as u32
  */
 const DOM_SEP__FPC_BRIDGE_SECRET = Number(
@@ -157,7 +157,7 @@ export type BridgeForMintResult = {
 };
 
 /**
- * Bridges FeeJuice from L1 to the BridgedFPC with a claimer-bound secret,
+ * Bridges FeeJuice from L1 to the PrivateFPC with a claimer-bound secret,
  * enabling the claimer to later call `mint` on L2.
  *
  * Flow:
@@ -169,7 +169,7 @@ export type BridgeForMintResult = {
  *   6. Returns `{ secret, claimAmount, leafIndex }` for use in `FeeJuice.claim` + `mint`
  *
  * @param aztecNode     Aztec node client (for L1 contract addresses and message polling)
- * @param fpcAddress    The BridgedFPC contract address (the L1 deposit recipient)
+ * @param fpcAddress    The PrivateFPC contract address (the L1 deposit recipient)
  * @param claimer       The Aztec address of the user who will claim on L2
  * @param salt          A random value chosen by the claimer (used in secret derivation)
  * @param produceL2Block Callback to mine an L2 block (needed to advance past the message block)
@@ -287,11 +287,11 @@ export async function bridgeForMint(
   }
   if (!ready) {
     throw new Error(
-      `L1→L2 message not yet ingested by node for BridgedFPC deposit: ${messageHash.toString()}`,
+      `L1→L2 message not yet ingested by node for PrivateFPC deposit: ${messageHash.toString()}`,
     );
   }
 
-  logger.info(`BridgedFPC deposit ready, leafIndex=${leafIndex.toString()}`);
+  logger.info(`PrivateFPC deposit ready, leafIndex=${leafIndex.toString()}`);
   return { secret, claimAmount, leafIndex };
 }
 

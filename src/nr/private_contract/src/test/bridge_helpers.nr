@@ -4,7 +4,7 @@
 //
 // Pure computation helpers. No oracle calls -- all tests runnable in TXE.
 
-use crate::{BridgedFPC, test::utils};
+use crate::{PrivateFPC, test::utils};
 use aztec::oracle::random::random;
 
 // ---- derive_bridge_secret ----
@@ -15,8 +15,8 @@ unconstrained fn derive_bridge_secret_is_deterministic() {
     let (_, _, user, _) = utils::setup();
     let salt = random();
 
-    let secret_a = BridgedFPC::derive_bridge_secret(salt, user);
-    let secret_b = BridgedFPC::derive_bridge_secret(salt, user);
+    let secret_a = PrivateFPC::derive_bridge_secret(salt, user);
+    let secret_b = PrivateFPC::derive_bridge_secret(salt, user);
 
     assert(secret_a == secret_b, "Same inputs must yield same secret");
 }
@@ -28,8 +28,8 @@ unconstrained fn derive_bridge_secret_differs_by_salt() {
     let salt_a = random();
     let salt_b = random();
 
-    let secret_a = BridgedFPC::derive_bridge_secret(salt_a, user);
-    let secret_b = BridgedFPC::derive_bridge_secret(salt_b, user);
+    let secret_a = PrivateFPC::derive_bridge_secret(salt_a, user);
+    let secret_b = PrivateFPC::derive_bridge_secret(salt_b, user);
 
     assert(secret_a != secret_b, "Different salts must yield different secrets");
 }
@@ -40,8 +40,8 @@ unconstrained fn derive_bridge_secret_differs_by_claimer() {
     let (_, _, user, other) = utils::setup();
     let salt = random();
 
-    let secret_user = BridgedFPC::derive_bridge_secret(salt, user);
-    let secret_other = BridgedFPC::derive_bridge_secret(salt, other);
+    let secret_user = PrivateFPC::derive_bridge_secret(salt, user);
+    let secret_other = PrivateFPC::derive_bridge_secret(salt, other);
 
     assert(secret_user != secret_other, "Different claimers must yield different secrets");
 }
@@ -54,8 +54,8 @@ unconstrained fn get_bridge_gas_msg_hash_is_deterministic() {
     let (_, contract_address, _, _) = utils::setup();
     let amount: u128 = 1_000_000;
 
-    let hash_a = BridgedFPC::get_bridge_gas_msg_hash(contract_address, amount);
-    let hash_b = BridgedFPC::get_bridge_gas_msg_hash(contract_address, amount);
+    let hash_a = PrivateFPC::get_bridge_gas_msg_hash(contract_address, amount);
+    let hash_b = PrivateFPC::get_bridge_gas_msg_hash(contract_address, amount);
 
     assert(hash_a == hash_b, "Same inputs must yield same content hash");
 }
@@ -65,8 +65,8 @@ unconstrained fn get_bridge_gas_msg_hash_is_deterministic() {
 unconstrained fn get_bridge_gas_msg_hash_differs_by_amount() {
     let (_, contract_address, _, _) = utils::setup();
 
-    let hash_a = BridgedFPC::get_bridge_gas_msg_hash(contract_address, 1_000_000);
-    let hash_b = BridgedFPC::get_bridge_gas_msg_hash(contract_address, 2_000_000);
+    let hash_a = PrivateFPC::get_bridge_gas_msg_hash(contract_address, 1_000_000);
+    let hash_b = PrivateFPC::get_bridge_gas_msg_hash(contract_address, 2_000_000);
 
     assert(hash_a != hash_b, "Different amounts must yield different hashes");
 }
@@ -77,8 +77,8 @@ unconstrained fn get_bridge_gas_msg_hash_differs_by_fpc_address() {
     let (_, contract_address, other, _) = utils::setup();
     let amount: u128 = 1_000_000;
 
-    let hash_fpc = BridgedFPC::get_bridge_gas_msg_hash(contract_address, amount);
-    let hash_other = BridgedFPC::get_bridge_gas_msg_hash(other, amount);
+    let hash_fpc = PrivateFPC::get_bridge_gas_msg_hash(contract_address, amount);
+    let hash_other = PrivateFPC::get_bridge_gas_msg_hash(other, amount);
 
     assert(hash_fpc != hash_other, "Different FPC addresses must yield different hashes");
 }
@@ -95,7 +95,7 @@ unconstrained fn compute_feejuice_claim_nullifier_is_deterministic() {
     let (chain_id, version) =
         env.utility_context(|context| (context.chain_id(), context.version()));
 
-    let nullifier_a = BridgedFPC::compute_feejuice_claim_nullifier(
+    let nullifier_a = PrivateFPC::compute_feejuice_claim_nullifier(
         contract_address,
         amount,
         salt,
@@ -104,7 +104,7 @@ unconstrained fn compute_feejuice_claim_nullifier_is_deterministic() {
         chain_id,
         version,
     );
-    let nullifier_b = BridgedFPC::compute_feejuice_claim_nullifier(
+    let nullifier_b = PrivateFPC::compute_feejuice_claim_nullifier(
         contract_address,
         amount,
         salt,
@@ -127,7 +127,7 @@ unconstrained fn compute_feejuice_claim_nullifier_differs_by_claimer() {
     let (chain_id, version) =
         env.utility_context(|context| (context.chain_id(), context.version()));
 
-    let nullifier_user = BridgedFPC::compute_feejuice_claim_nullifier(
+    let nullifier_user = PrivateFPC::compute_feejuice_claim_nullifier(
         contract_address,
         amount,
         salt,
@@ -136,7 +136,7 @@ unconstrained fn compute_feejuice_claim_nullifier_differs_by_claimer() {
         chain_id,
         version,
     );
-    let nullifier_other = BridgedFPC::compute_feejuice_claim_nullifier(
+    let nullifier_other = PrivateFPC::compute_feejuice_claim_nullifier(
         contract_address,
         amount,
         salt,
@@ -160,7 +160,7 @@ unconstrained fn compute_feejuice_claim_nullifier_differs_by_salt() {
     let (chain_id, version) =
         env.utility_context(|context| (context.chain_id(), context.version()));
 
-    let nullifier_a = BridgedFPC::compute_feejuice_claim_nullifier(
+    let nullifier_a = PrivateFPC::compute_feejuice_claim_nullifier(
         contract_address,
         amount,
         salt_a,
@@ -169,7 +169,7 @@ unconstrained fn compute_feejuice_claim_nullifier_differs_by_salt() {
         chain_id,
         version,
     );
-    let nullifier_b = BridgedFPC::compute_feejuice_claim_nullifier(
+    let nullifier_b = PrivateFPC::compute_feejuice_claim_nullifier(
         contract_address,
         amount,
         salt_b,
@@ -191,7 +191,7 @@ unconstrained fn compute_feejuice_claim_nullifier_differs_by_amount() {
     let (chain_id, version) =
         env.utility_context(|context| (context.chain_id(), context.version()));
 
-    let nullifier_a = BridgedFPC::compute_feejuice_claim_nullifier(
+    let nullifier_a = PrivateFPC::compute_feejuice_claim_nullifier(
         contract_address,
         1_000_000,
         salt,
@@ -200,7 +200,7 @@ unconstrained fn compute_feejuice_claim_nullifier_differs_by_amount() {
         chain_id,
         version,
     );
-    let nullifier_b = BridgedFPC::compute_feejuice_claim_nullifier(
+    let nullifier_b = PrivateFPC::compute_feejuice_claim_nullifier(
         contract_address,
         2_000_000,
         salt,
@@ -222,7 +222,7 @@ unconstrained fn compute_feejuice_claim_nullifier_differs_by_leaf_index() {
     let (chain_id, version) =
         env.utility_context(|context| (context.chain_id(), context.version()));
 
-    let nullifier_a = BridgedFPC::compute_feejuice_claim_nullifier(
+    let nullifier_a = PrivateFPC::compute_feejuice_claim_nullifier(
         contract_address,
         amount,
         salt,
@@ -231,7 +231,7 @@ unconstrained fn compute_feejuice_claim_nullifier_differs_by_leaf_index() {
         chain_id,
         version,
     );
-    let nullifier_b = BridgedFPC::compute_feejuice_claim_nullifier(
+    let nullifier_b = PrivateFPC::compute_feejuice_claim_nullifier(
         contract_address,
         amount,
         salt,

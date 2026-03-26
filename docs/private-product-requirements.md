@@ -1,4 +1,4 @@
-# Bridged FPC — Product Requirements Document
+# Private FPC — Product Requirements Document
 
 **Version**: 1.3.1
 **Status**: Active
@@ -10,13 +10,13 @@
 
 ## Problem Statement
 
-Users bridging FeeJuice (FJ) from L1 into Aztec must deposit via `FeeJuicePortal`, claim FJ on L2, then acquire internal wFJ to sponsor transactions. If the bridge recipient is the FPC, FJ lands in its public balance — but users need **private** wFJ for `pay_fee()`. This PRD defines a flow where self-bridgers convert bridged FJ into internal wFJ credit in a private L2 call, without new L1 infrastructure or public contract methods.
+Users bridging FeeJuice (FJ) from L1 into Aztec must deposit via `FeeJuicePortal`, claim FJ on L2, then acquire internal FJ to sponsor transactions. If the bridge recipient is the FPC, FJ lands in its public balance — but users need **private** FJ for `pay_fee()`. This PRD defines a flow where self-bridgers convert bridged FJ into internal FJ credit in a private L2 call, without new L1 infrastructure or public contract methods.
 
 ---
 
 ## Goals
 
-1. **Self-bridge to internal balance**: Bridge to FPC address → single private L2 call → wFJ credit.
+1. **Self-bridge to internal balance**: Bridge to FPC address → single private L2 call → FJ credit.
 2. **No new L1 logic**: Reuse `FeeJuicePortal` → `FeeJuice`; extend FPC only.
 3. **Full privacy**: `mint` is private; no public validation call.
 4. **Deterministic auth**: Secret derived from `(salt, claimer)`; `msg_sender` binds authorization.
@@ -34,7 +34,7 @@ Users bridging FeeJuice (FJ) from L1 into Aztec must deposit via `FeeJuicePortal
 
 ## User Stories
 
-**As a user who bridged FJ to the FPC on L1**, I want internal wFJ so I can sponsor transactions:
+**As a user who bridged FJ to the FPC on L1**, I want internal FJ so I can sponsor transactions:
 
 - L1: `FeeJuicePortal.depositToAztecPublic(_to=FPC, _amount, _secretHash)` where `_secretHash = compute_secret_hash(derive_bridge_secret(salt, claimer))`
 - L2 (can batch in same tx):
@@ -62,15 +62,15 @@ Users bridging FeeJuice (FJ) from L1 into Aztec must deposit via `FeeJuicePortal
 | BR-6 | **Correct amount** | `amount` must match the bridged amount exactly; mismatch yields a wrong nullifier that fails the existence check. | Planned |
 | BR-7 | **Cold-start `mint_and_pay_fee`** | `mint_and_pay_fee(amount, salt, leaf_index)` combines bridge claim proof with fee payment in one call. Asserts `amount >= max_gas_cost`; credits `amount - max_gas_cost` to claimer; sets FPC as fee payer. Same security guarantees as `mint` (claimer auth, nullifier existence, double-spend prevention). | Planned |
 
-### Noir Contract: Bridged FPC
+### Noir Contract: Private FPC
 
 | Requirement | Acceptance Criteria | Status |
 | --- | --- | --- |
 | **Storage** | `balances: Owned<BalanceSet<Context>>` only. No owner field, no `DelayedPublicMutable`. | Planned |
-| **Method: `pay_fee()`** | Private, `#[allow_phase_change]`. Deducts max gas cost from `msg_sender`'s wFJ balance via recursive `try_sub`; calls `set_as_fee_payer()` then `end_setup()`. No refund. | Planned |
+| **Method: `pay_fee()`** | Private, `#[allow_phase_change]`. Deducts max gas cost from `msg_sender`'s FJ balance via recursive `try_sub`; calls `set_as_fee_payer()` then `end_setup()`. No refund. | Planned |
 | **Method: `mint(amount, salt, leaf_index)`** | Private. Derives `secret = poseidon2([salt, claimer], DOM_SEP)`; reconstructs FeeJuice claim nullifier; asserts existence; pushes FPC-scoped nullifier; mints `amount` to claimer with `ONCHAIN_UNCONSTRAINED` delivery. | Planned |
-| **Method: `mint_and_pay_fee(amount, salt, leaf_index)`** | Private, `#[allow_phase_change]`. Cold-start flow: same bridge claim proof as `mint`, but credits `amount - max_gas_cost` instead of full `amount`; asserts `amount >= max_gas_cost`; calls `set_as_fee_payer()` then `end_setup()`. Enables mint + fee sponsorship in a single transaction without prior wFJ balance. | Planned |
-| **Method: `balance_of(account)`** | Unconstrained utility view. Returns the wFJ balance of an account. | Planned |
+| **Method: `mint_and_pay_fee(amount, salt, leaf_index)`** | Private, `#[allow_phase_change]`. Cold-start flow: same bridge claim proof as `mint`, but credits `amount - max_gas_cost` instead of full `amount`; asserts `amount >= max_gas_cost`; calls `set_as_fee_payer()` then `end_setup()`. Enables mint + fee sponsorship in a single transaction without prior FJ balance. | Planned |
+| **Method: `balance_of(account)`** | Unconstrained utility view. Returns the FJ balance of an account. | Planned |
 | **Library: `derive_bridge_secret(salt, claimer)`** | `#[contract_library_method]`. Returns `poseidon2_hash_with_separator([salt, claimer.to_field()], DOM_SEP__FPC_BRIDGE_SECRET)`. | Planned |
 | **Library: `get_bridge_gas_msg_hash(fpc_address, amount)`** | `#[contract_library_method]`. Computes `sha256(selector[0:4] \|\| fpc \|\| amount)` where selector is `keccak256("claim(bytes32,uint256)")[0:4]` evaluated at comptime. Mirrors `FeeJuicePortal.depositToAztecPublic`. | Planned |
 | **Library: `compute_feejuice_claim_nullifier(...)`** | `#[contract_library_method]`. Reconstructs the nullifier emitted by `FeeJuice.claim` for a given deposit. Uses `compute_l1_to_l2_message_hash` + `compute_l1_to_l2_message_nullifier`. | Planned |
@@ -82,11 +82,11 @@ Users bridging FeeJuice (FJ) from L1 into Aztec must deposit via `FeeJuicePortal
 | Requirement | Acceptance Criteria | Status |
 | --- | --- | --- |
 | **`bridgeForMint` harness helper** | Computes bridge secret from `(salt, claimer)`, calls `depositToAztecPublic` with correct `secretHash`, polls for message ingestion, returns `{ secret, leafIndex, claimAmount }`. | Planned |
-| **E2E: `mint` success → `pay_fee`** | Bridge → `FeeJuice.claim` → `mint` → sponsored transaction succeeds; FPC FJ balance decreases; user wFJ balance decreases by max gas cost. | Planned |
+| **E2E: `mint` success → `pay_fee`** | Bridge → `FeeJuice.claim` → `mint` → sponsored transaction succeeds; FPC FJ balance decreases; user FJ balance decreases by max gas cost. | Planned |
 | **E2E: double-spend revert** | Second `mint` with same `leaf_index` reverts (FPC nullifier already exists). | Planned |
 | **E2E: wrong claimer revert** | Bob tries `mint` using Alice's deposit — reconstructed nullifier doesn't match; existence check fails. | Planned |
-| **`BridgedMintAndPayFeePaymentMethod`** | `FeePaymentMethod` implementation that bundles `FeeJuice.claim` + `mint_and_pay_fee` in the setup phase. Cold-start flow: no prior `mint` needed. Constructor takes `(fpcAddress, amount, secret, salt, leafIndex)`. | Planned |
-| **E2E: `mint_and_pay_fee` cold-start** | Bridge → `FeeJuice.claim` + `mint_and_pay_fee` in one tx → sponsored tx succeeds; user wFJ balance = `amount - max_gas_cost`. | Planned |
+| **`PrivateMintAndPayFeePaymentMethod`** | `FeePaymentMethod` implementation that bundles `FeeJuice.claim` + `mint_and_pay_fee` in the setup phase. Cold-start flow: no prior `mint` needed. Constructor takes `(fpcAddress, amount, secret, salt, leafIndex)`. | Planned |
+| **E2E: `mint_and_pay_fee` cold-start** | Bridge → `FeeJuice.claim` + `mint_and_pay_fee` in one tx → sponsored tx succeeds; user FJ balance = `amount - max_gas_cost`. | Planned |
 
 ---
 
@@ -98,7 +98,7 @@ Users bridging FeeJuice (FJ) from L1 into Aztec must deposit via `FeeJuicePortal
 | --- | --- | --- |
 | **FJP** | L1 | `FeeJuicePortal` — Solidity bridge; produces L1→L2 messages |
 | **FJ** | L2 | `FeeJuice` — Noir protocol contract; public FJ balances |
-| **BridgedFPC** | L2 | `BridgedFPC` — private wFJ, fee sponsorship |
+| **PrivateFPC** | L2 | `PrivateFPC` — private FJ, fee sponsorship |
 | **Claimer** | — | `msg_sender` of `mint` |
 
 ### End-to-End Flow
@@ -110,7 +110,7 @@ L1:  FeeJuicePortal.depositToAztecPublic(_to=FPC, _amount, _secretHash)
 L2:  FeeJuice.claim(FPC, amount, secret, leaf_index)
      -> consume_l1_to_l2_message; emit nullifier; _increase_public_balance(FPC, amount)
 
-     BridgedFPC.mint(amount, salt, leaf_index)  [msg_sender = claimer]
+     PrivateFPC.mint(amount, salt, leaf_index)  [msg_sender = claimer]
      -> assert_nullifier_exists(FeeJuice nullifier); push FPC nullifier; mint to claimer
 ```
 
@@ -156,7 +156,7 @@ Protocol invariant: FeeJuice portal Eth address = `EthAddress::from_field(FEE_JU
 
 ```rust
 #[aztec]
-pub contract BridgedFPC {
+pub contract PrivateFPC {
     #[storage]
     struct Storage<Context> {
         balances: Owned<BalanceSet<Context>, Context>,
@@ -208,15 +208,15 @@ pub contract BridgedFPC {
 
 ### Shared Library (`fpc_lib`)
 
-`get_max_gas_cost` is not defined inline in BridgedFPC. It is imported from the shared `fpc_lib` Nargo library (`src/nr/fpc_lib/`), the same package used by MeteredFPC. This keeps the gas cost formula consistent across both FPCs and avoids duplication.
+`get_max_gas_cost` is not defined inline in PrivateFPC. It is imported from the shared `fpc_lib` Nargo library (`src/nr/fpc_lib/`), the same package used by MeteredFPC. This keeps the gas cost formula consistent across both FPCs and avoids duplication.
 
 ```toml
-# BridgedFPC Nargo.toml
+# PrivateFPC Nargo.toml
 [dependencies]
 fpc_lib = { path = "../fpc_lib" }
 ```
 
-The method is annotated `#[contract_library_method]` and re-exported from BridgedFPC so callers can reference it via `BridgedFPC::get_max_gas_cost(context)`.
+The method is annotated `#[contract_library_method]` and re-exported from PrivateFPC so callers can reference it via `PrivateFPC::get_max_gas_cost(context)`.
 
 ### Security Properties
 
@@ -230,7 +230,7 @@ The method is annotated `#[contract_library_method]` and re-exported from Bridge
 
 ### Deployment
 
-No traditional deployment required. The `BridgedFPC` contract has no public functions, so its class does not need to be published to the class registry. The FPC address is computed deterministically from its class hash and initialization hash. Users interact with it privately by address.
+No traditional deployment required. The `PrivateFPC` contract has no public functions, so its class does not need to be published to the class registry. The FPC address is computed deterministically from its class hash and initialization hash. Users interact with it privately by address.
 
 The FPC's public FeeJuice balance (used to pay sequencers) is funded separately via `FeeJuicePortal.depositToAztecPublic` targeting the FPC address directly, followed by `FeeJuice.claim` — the same flow used by the Metered FPC.
 
@@ -242,20 +242,20 @@ The FPC's public FeeJuice balance (used to pay sequencers) is funded separately 
 
 | Test Case | Method | Expected Result | Status |
 | --- | --- | --- | --- |
-| `mint SUCCESS → pay_fee` | `mint()` + `pay_fee()` | Bridge claim credited as wFJ; subsequent sponsored tx succeeds; FPC FJ balance decreases; user wFJ balance decreases by max gas cost | Planned |
+| `mint SUCCESS → pay_fee` | `mint()` + `pay_fee()` | Bridge claim credited as FJ; subsequent sponsored tx succeeds; FPC FJ balance decreases; user FJ balance decreases by max gas cost | Planned |
 | `mint double-spend REVERT` | `mint()` (second call) | Second call reverts — FPC-scoped nullifier already exists | Planned |
 | `mint wrong claimer REVERT` | `mint()` (wrong sender) | Reverts — reconstructed FeeJuice nullifier doesn't exist in tree | Planned |
-| `mint_and_pay_fee SUCCESS` | `mint_and_pay_fee()` | Bridge claim credited as wFJ minus max gas cost; FPC sponsors the tx; user wFJ balance = `amount - max_gas_cost` | Planned |
+| `mint_and_pay_fee SUCCESS` | `mint_and_pay_fee()` | Bridge claim credited as FJ minus max gas cost; FPC sponsors the tx; user FJ balance = `amount - max_gas_cost` | Planned |
 | `mint_and_pay_fee amount < max_gas_cost REVERT` | `mint_and_pay_fee()` | Reverts with "Amount too low to cover gas cost" when `amount < max_gas_cost` | Planned |
-| `mint_and_pay_fee amount == max_gas_cost` | `mint_and_pay_fee()` | Succeeds; user receives zero wFJ credit (all consumed as fee) | Planned |
+| `mint_and_pay_fee amount == max_gas_cost` | `mint_and_pay_fee()` | Succeeds; user receives zero FJ credit (all consumed as fee) | Planned |
 
 ### Balance Invariants
 
 | Invariant | Assertion |
 | --- | --- |
-| Post-`mint` balance | `user.wFJ_balance == old_balance + amount` |
-| Post-`pay_fee` balance | `user.wFJ_balance == old_balance - max_gas_cost` |
-| Post-`mint_and_pay_fee` balance | `user.wFJ_balance == old_balance + amount - max_gas_cost` |
+| Post-`mint` balance | `user.fj_balance == old_balance + amount` |
+| Post-`pay_fee` balance | `user.fj_balance == old_balance - max_gas_cost` |
+| Post-`mint_and_pay_fee` balance | `user.fj_balance == old_balance + amount - max_gas_cost` |
 | FPC FJ after `pay_fee` | `fpc.fj_balance < fpc.fj_balance_before` (decreased by actual fee) |
 
 ### Test Infrastructure
@@ -266,7 +266,7 @@ The FPC's public FeeJuice balance (used to pay sequencers) is funded separately 
 - No `warpL1Time` needed — no owner delay (`DelayedPublicMutable` not used)
 - `Counter` contract used as the application contract for testing fee sponsorship
 - FPC's public FeeJuice balance funded via `fundL2AddressWithFeeJuiceFromL1()`
-- User's internal wFJ balance funded via `bridgeForMint()` + `FeeJuice.claim` + `mint`
+- User's internal FJ balance funded via `bridgeForMint()` + `FeeJuice.claim` + `mint`
 
 ---
 
@@ -274,10 +274,10 @@ The FPC's public FeeJuice balance (used to pay sequencers) is funded separately 
 
 | Version | Date | Changes |
 | --- | --- | --- |
-| 1.0 | March 2026 | Initial document — Bridged FPC with `mint_bridged`, no owner, no refund flow, fully private contract |
-| 1.0.1 | March 2026 | Changed `mint_bridged` note delivery from `ONCHAIN_CONSTRAINED` to `ONCHAIN_UNCONSTRAINED` for consistency with all other mint paths |
-| 1.1 | March 2026 | Renamed `mint_bridged` → `mint` and `mint_bridged_and_pay_fee` → `mint_and_pay_fee` for consistency with MeteredFPC API; added assertion `amount >= max_gas_cost` in `mint_and_pay_fee` |
-| 1.2 | March 2026 | Documented `mint_and_pay_fee` across all PRD sections: added BR-7 requirement, Noir contract method row, contract interface pseudocode entry, test coverage cases, and `BridgedMintAndPayFeePaymentMethod` TypeScript class |
+| 1.0 | March 2026 | Initial document — Private FPC with `mint_private`, no owner, no refund flow, fully private contract |
+| 1.0.1 | March 2026 | Changed `mint_private` note delivery from `ONCHAIN_CONSTRAINED` to `ONCHAIN_UNCONSTRAINED` for consistency with all other mint paths |
+| 1.1 | March 2026 | Renamed `mint_private` → `mint` and `mint_private_and_pay_fee` → `mint_and_pay_fee` for consistency with MeteredFPC API; added assertion `amount >= max_gas_cost` in `mint_and_pay_fee` |
+| 1.2 | March 2026 | Documented `mint_and_pay_fee` across all PRD sections: added BR-7 requirement, Noir contract method row, contract interface pseudocode entry, test coverage cases, and `PrivateMintAndPayFeePaymentMethod` TypeScript class |
 | 1.2.1 | March 2026 | Corrected domain separator: `0xFEEDF00D` → `poseidon2_hash_bytes("az_dom_sep__fpc_bridge_secret")` = `3952304070` / `0xEB935FC6` |
-| 1.3 | 2026-03-04 | (1) **Teardown double-counting fix**: `get_max_gas_cost` formula corrected — teardown gas limits removed. New formula: `da_gas_limit * max_fee_per_da_gas + l2_gas_limit * max_fee_per_l2_gas`. (2) **Shared `fpc_lib`**: `get_max_gas_cost` is now imported from the shared `fpc_lib` Nargo library (same package used by MeteredFPC); documented in new "Shared Library" section. (3) **SDK**: `FPCFeePaymentMethod` replaces `MeteredFeePaymentMethod` as the primary FPC-agnostic payment method class (works with BridgedFPC and MeteredFPC). |
+| 1.3 | 2026-03-04 | (1) **Teardown double-counting fix**: `get_max_gas_cost` formula corrected — teardown gas limits removed. New formula: `da_gas_limit * max_fee_per_da_gas + l2_gas_limit * max_fee_per_l2_gas`. (2) **Shared `fpc_lib`**: `get_max_gas_cost` is now imported from the shared `fpc_lib` Nargo library (same package used by MeteredFPC); documented in new "Shared Library" section. (3) **SDK**: `FPCFeePaymentMethod` replaces `MeteredFeePaymentMethod` as the primary FPC-agnostic payment method class (works with PrivateFPC and MeteredFPC). |
 | 1.3.1 | 2026-03-24 | Updated Target Aztec Version from `4.0.0-devnet.2-patch.1` to `4.1.0-rc.4` to match package dependencies. |
