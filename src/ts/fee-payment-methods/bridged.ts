@@ -7,7 +7,7 @@ import {
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import type { GasSettings } from "@aztec/stdlib/gas";
 import { ExecutionPayload } from "@aztec/stdlib/tx";
-import { Fr } from "@aztec/foundation/curves/bn254";
+import { Fr } from "@aztec/aztec.js/fields";
 import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 
 /**

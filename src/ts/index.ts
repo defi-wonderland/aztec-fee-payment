@@ -12,7 +12,7 @@
  * } from '@defi-wonderland/aztec-fee-payment';
  *
  * // Register (no deploy needed — fully private contract)
- * const fpc = await registerBridgedContract(wallet);
+ * const fpc = await registerBridgedContract(wallet, salt);
  *
  * // Use FPCFeePaymentMethod after minting internal balance
  * await someContract.methods.doSomething()
@@ -31,7 +31,6 @@ export {
 // Fee payment method implementations
 export {
   FPCFeePaymentMethod,
-  FPCExactFeePaymentMethod,
   BridgedMintAndPayFeePaymentMethod,
 } from "./fee-payment-methods/index.js";
 
@@ -40,7 +39,6 @@ export {
   // Gas calculations
   DEFAULT_FEE_MULTIPLIER,
   REASONABLE_GAS_LIMITS,
-  REASONABLE_TEARDOWN_GAS_LIMITS,
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
   // Deployment

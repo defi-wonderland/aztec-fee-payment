@@ -26,9 +26,11 @@ import {
   BridgedMintAndPayFeePaymentMethod,
   registerBridgedContract,
 } from '@defi-wonderland/aztec-fee-payment';
+import { Fr } from '@aztec/aztec.js/fields';
 
 // Register the BridgedFPC with the PXE — no deployment transaction needed
-const fpc = await registerBridgedContract(wallet);
+const salt = Fr.ZERO; // must match the salt used in `yarn compute`
+const fpc = await registerBridgedContract(wallet, salt);
 
 // L1: deposit FeeJuice to the portal with a claimer-bound secretHash
 // secretHash = computeSecretHash(poseidon2([salt, claimerAddress], DOM_SEP))
@@ -82,7 +84,7 @@ FPCFeePaymentMethod                // pay_fee (no refund)
 BridgedMintAndPayFeePaymentMethod  // FeeJuice.claim + mint_and_pay_fee (BridgedFPC)
 
 // Utilities
-REASONABLE_GAS_LIMITS, REASONABLE_TEARDOWN_GAS_LIMITS
+REASONABLE_GAS_LIMITS
 maxFeesPerGasFromBaseFees, maxGasCostFor
 registerBridgedContract
 ```

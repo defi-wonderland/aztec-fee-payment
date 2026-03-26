@@ -63,10 +63,8 @@ yarn test:js          # JS integration tests
 # Run a single test file
 npx vitest run src/ts/test/bridged.test.ts
 
-# Deployment
-yarn deploy:devnet    # Deploy to devnet
-yarn deploy:testnet   # Deploy to testnet
-yarn deploy:dry-run   # Dry run
+# Compute BridgedFPC address (no on-chain deployment needed)
+yarn compute          # Requires BRIDGED_FPC_SALT in .env
 
 # Formatting
 yarn lint:prettier
@@ -88,19 +86,19 @@ Two Noir packages (workspace defined in root `Nargo.toml`):
 ### TypeScript SDK (`src/ts/`)
 
 Published as `@defi-wonderland/aztec-fee-payment` with export paths:
-- `.` — Main: `BridgedFPCContract`, `FPCFeePaymentMethod`, `FPCExactFeePaymentMethod`, gas utils, registration helper
+- `.` — Main: `BridgedFPCContract`, `FPCFeePaymentMethod`, gas utils, registration helper
 - `./artifacts` — Generated contract bindings
-- `./fee-payment-methods` — `FPCFeePaymentMethod` (no refund), `FPCExactFeePaymentMethod` (with teardown refund), `BridgedMintAndPayFeePaymentMethod`
+- `./fee-payment-methods` — `FPCFeePaymentMethod` (no refund), `BridgedMintAndPayFeePaymentMethod`
 - `./utils` — Gas calculation helpers (`maxGasCostFor`, `maxFeesPerGasFromBaseFees`), `registerBridgedContract`
 
 ### Test Setup
 
 - **Integration tests** (`vitest.config.ts`) — Requires a running Aztec local network (start manually before running). 200s timeouts. Single fork, no parallelism. Must inline `/@aztec/`, `/@noble/`, `/@scure/`, `/viem/` in `server.deps`.
 
-### Deployment (`scripts/`, `config/`)
+### Deployment
 
-- `deploy.ts` — CLI with `--network` flag (devnet/testnet/local-network) and `--dry-run`
-- `config/config.ts` — Deployment config (node URLs, salts, retry options)
+- BridgedFPC is fully private (no public functions, no constructor) — no on-chain deployment needed
+- `scripts/compute.ts` — Computes the deterministic address from artifact + salt (`BRIDGED_FPC_SALT` env var)
 
 ## Key Patterns
 
