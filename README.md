@@ -77,7 +77,12 @@ BridgedFPC is a **fully private** contract — it has no public functions and no
    cp .env.example .env
    ```
 
-2. Run the compute script:
+2. Compile the contracts (required on first run):
+   ```bash
+   yarn ccc
+   ```
+
+3. Run the compute script:
    ```bash
    yarn compute
    ```

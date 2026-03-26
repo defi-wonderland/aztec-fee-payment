@@ -28,6 +28,7 @@ import {
 } from '@defi-wonderland/aztec-fee-payment';
 
 // Register the BridgedFPC with the PXE — no deployment transaction needed
+const salt = Fr.ZERO; // must match the salt used in `yarn compute`
 const fpc = await registerBridgedContract(wallet, salt);
 
 // L1: deposit FeeJuice to the portal with a claimer-bound secretHash
