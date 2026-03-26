@@ -26,6 +26,7 @@ import {
   BridgedMintAndPayFeePaymentMethod,
   registerBridgedContract,
 } from '@defi-wonderland/aztec-fee-payment';
+import { Fr } from '@aztec/aztec.js/fields';
 
 // Register the BridgedFPC with the PXE — no deployment transaction needed
 const salt = Fr.ZERO; // must match the salt used in `yarn compute`
