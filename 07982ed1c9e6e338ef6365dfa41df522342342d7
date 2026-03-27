@@ -1,0 +1,25 @@
+package.json
+  2ca4769631810532 3,62
+.github/workflows/pre-release.yml
+  2ca4769631810532 10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.20",
+  "base_commit_sha": "07982ed1c9e6e338ef6365dfa41df522342342d7",
+  "prompts": {
+    "2ca4769631810532": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "04ab3bf1-c06c-43b7-aab3-b6ab46de6b22",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "xorsal <zorzal@wonderland.xyz>",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 4,
+      "accepted_lines": 3,
+      "overriden_lines": 0
+    }
+  }
+}
