@@ -1,0 +1,25 @@
+src/ts/test/bridged.test.ts
+  2165b2f140f52c50 110,135,189,196,237
+src/ts/test/harness.ts
+  2165b2f140f52c50 10,50-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.20",
+  "base_commit_sha": "665a601aad6e0b7c09aefa9f4361cdfd9399f667",
+  "prompts": {
+    "2165b2f140f52c50": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bab55ee1-f73f-400e-adf6-954ef8e7171f",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "xorsal <zorzal@wonderland.xyz>",
+      "messages": [],
+      "total_additions": 12,
+      "total_deletions": 8,
+      "accepted_lines": 12,
+      "overriden_lines": 0
+    }
+  }
+}
