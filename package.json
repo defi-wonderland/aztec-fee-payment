@@ -1,6 +1,6 @@
 {
   "name": "aztec-fee-payment",
-  "version": "4.1.0-rc.4",
+  "version": "4.2.0-aztecnr-rc.2",
   "private": true,
   "repository": "https://github.com/defi-wonderland/aztec-fee-payment.git",
   "author": "Wonderland",
@@ -59,7 +59,7 @@
     "@aztec/wallets": "4.2.0-aztecnr-rc.2",
     "@commitlint/cli": "20.4.1",
     "@commitlint/config-conventional": "20.4.1",
-    "@defi-wonderland/aztec-benchmark": "https://github.com/defi-wonderland/aztec-benchmark/releases/download/prerelease-e5175de/defi-wonderland-aztec-benchmark-4.2.0-nightly.20260323-prerelease.e5175de.tgz",
+    "@defi-wonderland/aztec-benchmark": "4.2.0-aztecnr-rc.2",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
     "@types/node": "25.2.3",
