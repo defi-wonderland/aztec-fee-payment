@@ -1,6 +1,6 @@
-import { Fr } from "@aztec/foundation/curves/bn254";
+import { Fr } from "@aztec/aztec.js/fields";
 import { Wallet } from "@aztec/aztec.js/wallet";
-import { AztecAddress } from "@aztec/aztec.js/addresses";
+import { AztecAddress } from "@aztec/stdlib/aztec-address";
 
 import { BridgedFPCContract } from "../../artifacts/BridgedFPC.js";
 
@@ -18,12 +18,12 @@ import { BridgedFPCContract } from "../../artifacts/BridgedFPC.js";
  * is setting `deployer` to `AztecAddress.ZERO`.)
  *
  * @param wallet The wallet used to register the contract with the PXE
- * @param salt   Optional address salt (defaults to Fr.ZERO for a canonical address)
+ * @param salt   Salt used to derive the contract address
  * @returns The registered BridgedFPC contract instance
  */
 export async function registerBridgedContract(
   wallet: Wallet,
-  salt: Fr = Fr.ZERO,
+  salt: Fr,
 ): Promise<BridgedFPCContract> {
   return BridgedFPCContract.deploy(wallet).register({
     contractAddressSalt: salt,

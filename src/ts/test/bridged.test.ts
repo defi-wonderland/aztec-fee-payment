@@ -24,7 +24,7 @@ import {
   bridgeForMint,
 } from "./harness.js";
 
-import { TEST_TIMEOUT, deployCounter } from "./utils.js";
+import { TEST_TIMEOUT, TEST_SALT, deployCounter } from "./utils.js";
 
 describe("Bridged FPC", () => {
   let wallet: EmbeddedWallet;
@@ -45,7 +45,7 @@ describe("Bridged FPC", () => {
     bob = ctx.accounts[1]!;
 
     // Register the BridgedFPC — no deployment transaction needed (fully private contract).
-    fpc = await registerBridgedContract(wallet);
+    fpc = await registerBridgedContract(wallet, TEST_SALT);
 
     // Fund the FPC's public FeeJuice balance so it can pay sequencers.
     // This uses a random internal secret (not the claimer-bound bridge flow).

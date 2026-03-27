@@ -12,7 +12,7 @@ import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { L1FeeJuicePortalManager } from "@aztec/aztec.js/ethereum";
 import { FeeJuiceContract } from "@aztec/noir-contracts.js/FeeJuice";
 import { ProtocolContractAddress } from "@aztec/protocol-contracts";
-import { Fr } from "@aztec/foundation/curves/bn254";
+import { Fr } from "@aztec/aztec.js/fields";
 import {
   poseidon2HashBytes,
   poseidon2HashWithSeparator,
