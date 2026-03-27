@@ -7,6 +7,7 @@ import type { Wallet } from "@aztec/aztec.js/wallet";
 import { isL1ToL2MessageReady } from "@aztec/aztec.js/messaging";
 import { EmbeddedWallet } from "@aztec/wallets/embedded";
 import { registerInitialLocalNetworkAccountsInWallet } from "@aztec/wallets/testing";
+import { getPXEConfig } from "@aztec/pxe/config";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { L1FeeJuicePortalManager } from "@aztec/aztec.js/ethereum";
 import { FeeJuiceContract } from "@aztec/noir-contracts.js/FeeJuice";
@@ -46,12 +47,12 @@ export async function createLocalNetworkContext(opts?: {
     await waitForNode(aztecNode);
   }
 
-  const wallet = await EmbeddedWallet.create(aztecNode, {
-    pxeConfig: {
-      dataDirectory: opts?.wallet?.dataDirectory ?? "pxe-test",
-      proverEnabled: opts?.wallet?.proverEnabled ?? false,
-    },
-  });
+  const pxeConfig = {
+    ...getPXEConfig(),
+    dataDirectory: opts?.wallet?.dataDirectory ?? "pxe-test",
+    proverEnabled: opts?.wallet?.proverEnabled ?? false,
+  };
+  const wallet = await EmbeddedWallet.create(aztecNode, { pxeConfig });
 
   const accounts = await registerInitialLocalNetworkAccountsInWallet(wallet);
   const [deployer] = accounts;
