@@ -1,0 +1,23 @@
+.github/workflows/release.yml
+  3e450ebac5cefa07 1-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.17",
+  "base_commit_sha": "4c55f09d234d6cc68c405f2becb4ebad53ba8729",
+  "prompts": {
+    "3e450ebac5cefa07": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f449698f-e541-4e53-bbfa-3f2cc6e322b0",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "xorsal <zorzal@wonderland.xyz>",
+      "messages": [],
+      "total_additions": 82,
+      "total_deletions": 0,
+      "accepted_lines": 82,
+      "overriden_lines": 0
+    }
+  }
+}
