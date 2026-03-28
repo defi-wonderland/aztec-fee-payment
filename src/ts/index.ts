@@ -1,18 +1,18 @@
 /**
  * @defi-wonderland/aztec-fee-payment
  *
- * Fee Payment Contracts (FPCs) for Aztec - enables bridged fee payment strategies.
+ * Fee Payment Contracts (FPCs) for Aztec - enables private fee payment strategies.
  *
  * @example
  * ```typescript
  * import {
- *   BridgedFPCContract,
+ *   PrivateFPCContract,
  *   FPCFeePaymentMethod,
- *   registerBridgedContract,
+ *   registerPrivateContract,
  * } from '@defi-wonderland/aztec-fee-payment';
  *
  * // Register (no deploy needed — fully private contract)
- * const fpc = await registerBridgedContract(wallet, salt);
+ * const fpc = await registerPrivateContract(wallet, salt);
  *
  * // Use FPCFeePaymentMethod after minting internal balance
  * await someContract.methods.doSomething()
@@ -24,14 +24,14 @@
 
 // Contract artifacts and type-safe wrappers
 export {
-  BridgedFPCContract,
-  BridgedFPCContractArtifact,
-} from "../artifacts/BridgedFPC.js";
+  PrivateFPCContract,
+  PrivateFPCContractArtifact,
+} from "../artifacts/PrivateFPC.js";
 
 // Fee payment method implementations
 export {
   FPCFeePaymentMethod,
-  BridgedMintAndPayFeePaymentMethod,
+  PrivateMintAndPayFeePaymentMethod,
 } from "./fee-payment-methods/index.js";
 
 // Utilities for integrators
@@ -42,5 +42,5 @@ export {
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
   // Deployment
-  registerBridgedContract,
+  registerPrivateContract,
 } from "./utils/index.js";

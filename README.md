@@ -1,12 +1,12 @@
 # Aztec Fee Payment Contracts
 
-A Fee Payment Contract (FPC) for Aztec that enables transaction fee sponsorship via bridged FeeJuice.
+A Fee Payment Contract (FPC) for Aztec that enables private transaction fee sponsorship via FeeJuice.
 
 ## Overview
 
 | Contract | Description | Auth model |
 |----------|-------------|-----------|
-| **BridgedFPC** | Fully private. Users bridge FeeJuice from L1; the bridge claim converts to internal wFJ balance for fee sponsorship. | Cryptographic bridge proof (no owner, no agent) |
+| **PrivateFPC** | Fully private. Users bridge FeeJuice from L1; the bridge claim converts to internal FJ balance for fee sponsorship. | Cryptographic bridge proof (no owner, no agent) |
 
 ## Project Structure
 
@@ -15,7 +15,7 @@ A Fee Payment Contract (FPC) for Aztec that enables transaction fee sponsorship 
 │   ├── artifacts/                   # Generated contract bindings
 │   ├── nr/                          # Noir smart contracts
 │   │   ├── counter_contract/        # Test utility contract
-│   │   └── bridged_contract/        # BridgedFPC
+│   │   └── private_contract/        # PrivateFPC
 │   └── ts/                          # TypeScript package
 │       ├── fee-payment-methods/     # Fee payment method classes
 │       ├── utils/                   # Utilities (gas, deploy)
@@ -68,11 +68,11 @@ yarn test:js     # JS integration tests only
 
 ## Deployment
 
-BridgedFPC is a **fully private** contract — it has no public functions and no constructor. This means **no on-chain deployment transaction is required**. The contract address is computed deterministically from its class hash and a salt, and users interact with it privately by address.
+PrivateFPC is a **fully private** contract — it has no public functions and no constructor. This means **no on-chain deployment transaction is required**. The contract address is computed deterministically from its class hash and a salt, and users interact with it privately by address.
 
 ### Compute the address
 
-1. Copy `.env.example` to `.env` and set `BRIDGED_FPC_SALT`:
+1. Copy `.env.example` to `.env` and set `PRIVATE_FPC_SALT`:
    ```bash
    cp .env.example .env
    ```
@@ -104,14 +104,14 @@ See [src/ts/README.md](src/ts/README.md) for detailed SDK documentation.
 
 ```typescript
 import {
-  BridgedFPCContract,
+  PrivateFPCContract,
   FPCFeePaymentMethod,
-  BridgedMintAndPayFeePaymentMethod,
-  registerBridgedContract,
+  PrivateMintAndPayFeePaymentMethod,
+  registerPrivateContract,
 } from '@defi-wonderland/aztec-fee-payment';
 
-// Register the BridgedFPC — no deployment transaction needed (fully private contract)
-const fpc = await registerBridgedContract(wallet, salt);
+// Register the PrivateFPC — no deployment transaction needed (fully private contract)
+const fpc = await registerPrivateContract(wallet, salt);
 
 // --- L1: deposit to FeeJuicePortal with a claimer-bound secretHash ---
 // secretHash = computeSecretHash(poseidon2([salt, claimerAddress], DOM_SEP))
@@ -121,7 +121,7 @@ const fpc = await registerBridgedContract(wallet, salt);
 // Step 1: claim FeeJuice on L2 (emits FeeJuice nullifier)
 await feeJuice.methods.claim(fpc.address, amount, secret, leafIndex).send();
 
-// Step 2: mint internal wFJ balance by proving the bridge claim
+// Step 2: mint internal FJ balance by proving the bridge claim
 await fpc.methods.mint(amount, salt, leafIndex).send();
 
 // User sponsors a transaction from their internal balance
@@ -132,7 +132,7 @@ await myContract.methods.doSomething()
 await myContract.methods.doSomething()
   .send({
     fee: {
-      paymentMethod: new BridgedMintAndPayFeePaymentMethod(
+      paymentMethod: new PrivateMintAndPayFeePaymentMethod(
         fpc.address, amount, secret, salt, leafIndex,
       ),
     },

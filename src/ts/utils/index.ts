@@ -7,4 +7,4 @@ export {
 } from "./gas.js";
 
 // Deployment utilities
-export { registerBridgedContract } from "./deploy.js";
+export { registerPrivateContract } from "./deploy.js";

@@ -1,14 +1,14 @@
 use aztec::macros::aztec;
 pub mod test;
 
-/// Bridged Fee Payment Contract
+/// Private Fee Payment Contract
 ///
 /// Fully private FPC (no public functions, no owner, no off-chain agent).
 /// Users bridge FeeJuice from L1 via FeeJuicePortal to this contract address,
-/// then call `mint` to convert the bridge claim into private wFJ balance.
-/// The wFJ balance can then be used to sponsor transactions via `pay_fee`.
+/// then call `mint` to convert the bridge claim into private FJ balance.
+/// The FJ balance can then be used to sponsor transactions via `pay_fee`.
 #[aztec]
-pub contract BridgedFPC {
+pub contract PrivateFPC {
     use aztec::{
         hash::{
             compute_l1_to_l2_message_hash, compute_l1_to_l2_message_nullifier, compute_secret_hash,
@@ -57,7 +57,7 @@ pub contract BridgedFPC {
         self.context.end_setup();
     }
 
-    /// @notice Mints internal wFJ balance and pays fee in one transaction (cold-start flow).
+    /// @notice Mints internal FJ balance and pays fee in one transaction (cold-start flow).
     ///
     /// Combines the bridge claim proof with fee payment: proves the L1->L2 bridge claim,
     /// credits (amount - max_gas_cost) to the claimer, and sets the FPC as fee payer.
@@ -107,7 +107,7 @@ pub contract BridgedFPC {
         self.context.end_setup();
     }
 
-    /// @notice Mints internal wFJ balance by proving a prior L1->L2 FeeJuice bridge claim.
+    /// @notice Mints internal FJ balance by proving a prior L1->L2 FeeJuice bridge claim.
     ///
     /// Prerequisites (must happen before or in the same tx as this call):
     ///   1. On L1: FeeJuicePortal.depositToAztecPublic(
