@@ -8,9 +8,9 @@ import { getFeeJuiceBalance } from "@aztec/aztec.js/utils";
 import { FeeJuiceContract } from "@aztec/noir-contracts.js/FeeJuice";
 import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 
-import { BridgedFPCContract } from "../../artifacts/BridgedFPC.js";
+import { PrivateFPCContract } from "../../artifacts/PrivateFPC.js";
 import { FPCFeePaymentMethod } from "../fee-payment-methods/index.js";
-import { registerBridgedContract } from "../utils/deploy.js";
+import { registerPrivateContract } from "../utils/deploy.js";
 import {
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
@@ -26,26 +26,26 @@ import {
 
 import { TEST_TIMEOUT, TEST_SALT, deployCounter } from "./utils.js";
 
-describe("Bridged FPC", () => {
+describe("Private FPC", () => {
   let wallet: EmbeddedWallet;
   let alice: AztecAddress;
   let bob: AztecAddress;
   let aztecNode: AztecNode;
-  let fpc: BridgedFPCContract;
+  let fpc: PrivateFPCContract;
   let paymentMethod: FPCFeePaymentMethod;
 
   beforeAll(async () => {
     const ctx = await createLocalNetworkContext({
       nodeUrl: LOCAL_AZTEC_NODE_URL,
-      wallet: { dataDirectory: "pxe-test-bridged", proverEnabled: false },
+      wallet: { dataDirectory: "pxe-test-private", proverEnabled: false },
     });
     aztecNode = ctx.aztecNode;
     wallet = ctx.wallet;
     alice = ctx.deployer;
     bob = ctx.accounts[1]!;
 
-    // Register the BridgedFPC — no deployment transaction needed (fully private contract).
-    fpc = await registerBridgedContract(wallet, TEST_SALT);
+    // Register the PrivateFPC — no deployment transaction needed (fully private contract).
+    fpc = await registerPrivateContract(wallet, TEST_SALT);
 
     // Fund the FPC's public FeeJuice balance so it can pay sequencers.
     // This uses a random internal secret (not the claimer-bound bridge flow).
@@ -58,7 +58,7 @@ describe("Bridged FPC", () => {
         produceL2Block: async () => {
           await deployCounter(wallet);
         },
-        loggerName: "test:bridged-fpc-fund",
+        loggerName: "test:private-fpc-fund",
       },
     );
     expect(balance).toBeGreaterThan(0n);
@@ -68,12 +68,12 @@ describe("Bridged FPC", () => {
 
   // --- mint success → pay_fee ---
   // Both behaviors are tested in sequence within a single test: mint credits
-  // a wFJ balance that pay_fee immediately consumes. Splitting would require a second
+  // a FJ balance that pay_fee immediately consumes. Splitting would require a second
   // L1→L2 bridge round-trip purely for setup, making the suite significantly slower
   // without adding meaningful isolation.
 
   it(
-    "mint SUCCESS → pay_fee: bridge claim credited as wFJ, sponsors tx",
+    "mint SUCCESS → pay_fee: bridge claim credited as FJ, sponsors tx",
     async () => {
       const counter = await deployCounter(wallet);
       const salt = Fr.random();
@@ -87,7 +87,7 @@ describe("Bridged FPC", () => {
         async () => {
           await deployCounter(wallet);
         },
-        { loggerName: "test:bridged-mint-success" },
+        { loggerName: "test:private-mint-success" },
       );
 
       // Step 2: Claim FeeJuice on L2 — credits FPC's public FeeJuice balance
@@ -100,7 +100,7 @@ describe("Bridged FPC", () => {
         .claim(fpc.address, claimAmount, secret, leafIndex)
         .send({ from: alice });
 
-      // Step 3: Mint internal wFJ balance by proving the FeeJuice nullifier exists.
+      // Step 3: Mint internal FJ balance by proving the FeeJuice nullifier exists.
       const { result: balanceBefore } = await fpc.methods
         .balance_of(alice)
         .simulate({ from: alice });
@@ -115,7 +115,7 @@ describe("Bridged FPC", () => {
 
       expect(balanceAfter).toBe(balanceBefore + BigInt(claimAmount));
 
-      // Step 4: Sponsor a counter increment using the wFJ balance.
+      // Step 4: Sponsor a counter increment using the FJ balance.
       const fpcFeeJuiceBefore = await getFeeJuiceBalance(
         fpc.address,
         aztecNode,
@@ -149,7 +149,7 @@ describe("Bridged FPC", () => {
 
       // FPC paid sequencer from its public FeeJuice balance.
       expect(fpcFeeJuiceAfter).toBeLessThan(fpcFeeJuiceBefore);
-      // Alice's internal wFJ balance decreased by max gas cost (no refund).
+      // Alice's internal FJ balance decreased by max gas cost (no refund).
       expect(internalBalanceAfter).toBe(internalBalanceBefore - maxGasCost);
     },
     TEST_TIMEOUT,
@@ -171,7 +171,7 @@ describe("Bridged FPC", () => {
         async () => {
           await deployCounter(wallet);
         },
-        { loggerName: "test:bridged-double-spend" },
+        { loggerName: "test:private-double-spend" },
       );
 
       // Claim FeeJuice on L2.
@@ -216,7 +216,7 @@ describe("Bridged FPC", () => {
         async () => {
           await deployCounter(wallet);
         },
-        { loggerName: "test:bridged-wrong-claimer" },
+        { loggerName: "test:private-wrong-claimer" },
       );
 
       // Claim FeeJuice on L2 (claim itself works — it credits FPC's public balance).

@@ -7,7 +7,7 @@ import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
-import { BridgedFPCContractArtifact } from "../src/artifacts/BridgedFPC.js";
+import { PrivateFPCContractArtifact } from "../src/artifacts/PrivateFPC.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -23,9 +23,9 @@ if (!AZTEC_VERSION) {
   process.exit(1);
 }
 
-async function computeBridgedAddress(salt: Fr): Promise<AztecAddress> {
+async function computePrivateAddress(salt: Fr): Promise<AztecAddress> {
   const instance = await getContractInstanceFromInstantiationParams(
-    BridgedFPCContractArtifact,
+    PrivateFPCContractArtifact,
     {
       constructorArgs: [],
       salt,
@@ -37,19 +37,19 @@ async function computeBridgedAddress(salt: Fr): Promise<AztecAddress> {
 }
 
 async function main() {
-  const saltEnv = process.env.BRIDGED_FPC_SALT;
+  const saltEnv = process.env.PRIVATE_FPC_SALT;
   if (!saltEnv) {
     console.error(
-      "Error: BRIDGED_FPC_SALT is required. Set it in your .env file.",
+      "Error: PRIVATE_FPC_SALT is required. Set it in your .env file.",
     );
     process.exit(1);
   }
   const salt = Fr.fromString(saltEnv);
-  const address = await computeBridgedAddress(salt);
+  const address = await computePrivateAddress(salt);
 
   console.log(`
 ========================================
-  BridgedFPC
+  PrivateFPC
 ========================================
   Address:            ${address.toString()}
   Salt:               ${salt.toString()}
@@ -79,7 +79,7 @@ async function main() {
   Next steps to start using the FPC:
 
   1. Register the contract in your app's PXE:
-     const fpc = await registerBridgedContract(wallet, salt);
+     const fpc = await registerPrivateContract(wallet, salt);
 
   2. Fund the FPC's public FeeJuice balance so it can
      pay sequencer fees. On L1, call:
@@ -88,7 +88,7 @@ async function main() {
      )
      Then on L2: FeeJuice.claim(fpcAddress, amount, secret, leafIndex)
 
-  3. Users bridge FJ and mint wFJ for fee sponsorship.
+  3. Users bridge FJ and mint FJ for fee sponsorship.
      See the README or SDK docs for the full flow.
 ========================================
 `);

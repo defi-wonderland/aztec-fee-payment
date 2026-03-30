@@ -2,8 +2,8 @@
 members = [
     "src/nr/fpc_lib",
     "src/nr/counter_contract",
-    "src/nr/bridged_contract",
+    "src/nr/private_contract",
 ]
 
 [benchmark]
-bridged = "benchmarks/bridged.benchmark.ts"
+private = "benchmarks/private.benchmark.ts"
