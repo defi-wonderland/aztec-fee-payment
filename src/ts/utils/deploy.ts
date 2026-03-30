@@ -1,13 +1,13 @@
-import { Fr } from "@aztec/foundation/curves/bn254";
+import { Fr } from "@aztec/aztec.js/fields";
 import { Wallet } from "@aztec/aztec.js/wallet";
-import { AztecAddress } from "@aztec/aztec.js/addresses";
+import { AztecAddress } from "@aztec/stdlib/aztec-address";
 
-import { BridgedFPCContract } from "../../artifacts/BridgedFPC.js";
+import { PrivateFPCContract } from "../../artifacts/PrivateFPC.js";
 
 /**
- * Registers the BridgedFPC contract with the PXE without sending any deployment transaction.
+ * Registers the PrivateFPC contract with the PXE without sending any deployment transaction.
  *
- * BridgedFPC is a fully private contract (no public functions, no constructor, no initializer).
+ * PrivateFPC is a fully private contract (no public functions, no constructor, no initializer).
  * The Aztec protocol allows interacting with such contracts immediately once registered —
  * no on-chain deployment transaction is required.
  *
@@ -18,14 +18,14 @@ import { BridgedFPCContract } from "../../artifacts/BridgedFPC.js";
  * is setting `deployer` to `AztecAddress.ZERO`.)
  *
  * @param wallet The wallet used to register the contract with the PXE
- * @param salt   Optional address salt (defaults to Fr.ZERO for a canonical address)
- * @returns The registered BridgedFPC contract instance
+ * @param salt   Salt used to derive the contract address
+ * @returns The registered PrivateFPC contract instance
  */
-export async function registerBridgedContract(
+export async function registerPrivateContract(
   wallet: Wallet,
-  salt: Fr = Fr.ZERO,
-): Promise<BridgedFPCContract> {
-  return BridgedFPCContract.deploy(wallet).register({
+  salt: Fr,
+): Promise<PrivateFPCContract> {
+  return PrivateFPCContract.deploy(wallet).register({
     contractAddressSalt: salt,
     skipInitialization: true,
     deployer: AztecAddress.ZERO,

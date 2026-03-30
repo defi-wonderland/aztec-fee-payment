@@ -1,6 +1,6 @@
 {
   "name": "aztec-fee-payment",
-  "version": "4.1.0-rc.4",
+  "version": "4.2.0-aztecnr-rc.2",
   "private": true,
   "repository": "https://github.com/defi-wonderland/aztec-fee-payment.git",
   "author": "Wonderland",
@@ -11,9 +11,9 @@
       "import": "./dist/src/ts/index.js",
       "types": "./dist/src/ts/index.d.ts"
     },
-    "./artifacts/bridged": {
-      "import": "./dist/src/artifacts/BridgedFPC.js",
-      "types": "./dist/src/artifacts/BridgedFPC.d.ts"
+    "./artifacts/private": {
+      "import": "./dist/src/artifacts/PrivateFPC.js",
+      "types": "./dist/src/artifacts/PrivateFPC.d.ts"
     },
     "./fee-payment-methods": {
       "import": "./dist/src/ts/fee-payment-methods/index.js",
@@ -39,35 +39,30 @@
     "ccc": "yarn clean && yarn compile && yarn codegen",
     "benchmark": "aztec-benchmark --suffix _base",
     "prepare": "husky",
-    "deploy": "NODE_NO_WARNINGS=1 tsx scripts/deploy.ts",
-    "deploy:devnet": "NODE_NO_WARNINGS=1 tsx scripts/deploy.ts --network devnet",
-    "deploy:testnet": "NODE_NO_WARNINGS=1 tsx scripts/deploy.ts --network testnet",
-    "deploy:local-network": "NODE_NO_WARNINGS=1 tsx scripts/deploy.ts --network local-network",
-    "deploy:dry-run": "NODE_NO_WARNINGS=1 tsx scripts/deploy.ts --dry-run",
+    "compute": "NODE_NO_WARNINGS=1 tsx scripts/compute.ts",
     "upload:artifacts": "tsx scripts/upload-artifact.ts"
   },
   "lint-staged": {
     "*.{js,ts}": "prettier --write -u"
   },
   "devDependencies": {
-    "@aztec/accounts": "4.1.0-rc.4",
-    "@aztec/aztec.js": "4.1.0-rc.4",
-    "@aztec/constants": "4.1.0-rc.4",
-    "@aztec/entrypoints": "4.1.0-rc.4",
-    "@aztec/ethereum": "4.1.0-rc.4",
-    "@aztec/foundation": "4.1.0-rc.4",
-    "@aztec/noir-contracts.js": "4.1.0-rc.4",
-    "@aztec/protocol-contracts": "4.1.0-rc.4",
-    "@aztec/pxe": "4.1.0-rc.4",
-    "@aztec/stdlib": "4.1.0-rc.4",
-    "@aztec/wallets": "4.1.0-rc.4",
+    "@aztec/accounts": "4.2.0-aztecnr-rc.2",
+    "@aztec/aztec.js": "4.2.0-aztecnr-rc.2",
+    "@aztec/constants": "4.2.0-aztecnr-rc.2",
+    "@aztec/entrypoints": "4.2.0-aztecnr-rc.2",
+    "@aztec/ethereum": "4.2.0-aztecnr-rc.2",
+    "@aztec/foundation": "4.2.0-aztecnr-rc.2",
+    "@aztec/noir-contracts.js": "4.2.0-aztecnr-rc.2",
+    "@aztec/protocol-contracts": "4.2.0-aztecnr-rc.2",
+    "@aztec/pxe": "4.2.0-aztecnr-rc.2",
+    "@aztec/stdlib": "4.2.0-aztecnr-rc.2",
+    "@aztec/wallets": "4.2.0-aztecnr-rc.2",
     "@commitlint/cli": "20.4.1",
     "@commitlint/config-conventional": "20.4.1",
-    "@defi-wonderland/aztec-benchmark": "4.1.0-rc.4",
+    "@defi-wonderland/aztec-benchmark": "4.2.0-aztecnr-rc.2",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
     "@types/node": "25.2.3",
-    "commander": "14.0.1",
     "dotenv": "17.3.1",
     "husky": "9.1.7",
     "lint-staged": "16.2.7",
@@ -77,7 +72,7 @@
     "vitest": "4.0.18"
   },
   "config": {
-    "aztecVersion": "4.1.0-rc.4"
+    "aztecVersion": "4.2.0-aztecnr-rc.2"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
   "engines": {

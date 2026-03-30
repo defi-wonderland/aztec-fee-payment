@@ -1,9 +1,13 @@
 import { Wallet } from "@aztec/aztec.js/wallet";
+import { Fr } from "@aztec/aztec.js/fields";
 
 import { CounterContract } from "../../artifacts/Counter.js";
 
 /** Global test timeout constant for individual test cases. */
 export const TEST_TIMEOUT = 300_000;
+
+/** Fixed salt used for PrivateFPC in tests and benchmarks. */
+export const TEST_SALT = Fr.ZERO;
 
 /** Deploys the Counter contract. */
 export async function deployCounter(

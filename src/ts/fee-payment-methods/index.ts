@@ -1,2 +1,2 @@
-export { FPCFeePaymentMethod, FPCExactFeePaymentMethod } from "./shared.js";
-export { BridgedMintAndPayFeePaymentMethod } from "./bridged.js";
+export { FPCFeePaymentMethod } from "./shared.js";
+export { PrivateMintAndPayFeePaymentMethod } from "./private.js";

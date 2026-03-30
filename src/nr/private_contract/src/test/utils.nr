@@ -1,11 +1,11 @@
 // =============================================================================
-// Bridged Contract -- Test Utilities
+// Private Contract -- Test Utilities
 //
 // Shared setup helpers and convenience functions used across all test files.
 //
 // Implementation notes:
 //
-//   - BridgedFPC has no owner and no constructor. It is a fully private
+//   - PrivateFPC has no owner and no constructor. It is a fully private
 //     contract that does not need a public initializer. TXE deploys it
 //     without any public call.
 //
@@ -20,7 +20,7 @@
 //     belong in the TypeScript integration tests.
 // =============================================================================
 
-use crate::BridgedFPC;
+use crate::PrivateFPC;
 use aztec::{
     oracle::random::random, protocol::address::AztecAddress,
     test::helpers::test_environment::TestEnvironment,
@@ -28,7 +28,7 @@ use aztec::{
 
 pub global MINT_AMOUNT: u128 = 1_000_000;
 
-/// Deploys the BridgedFPC contract and creates two light accounts.
+/// Deploys the PrivateFPC contract and creates two light accounts.
 /// No owner or public initializer needed. The contract is fully private.
 pub unconstrained fn setup() -> (TestEnvironment, AztecAddress, AztecAddress, AztecAddress) {
     let mut env = TestEnvironment::new();
@@ -39,9 +39,9 @@ pub unconstrained fn setup() -> (TestEnvironment, AztecAddress, AztecAddress, Az
     (env, contract_address, user, other)
 }
 
-/// Deploys the BridgedFPC contract without any public initializer.
+/// Deploys the PrivateFPC contract without any public initializer.
 pub unconstrained fn deploy_contract(env: &mut TestEnvironment) -> AztecAddress {
-    env.deploy("BridgedFPC").without_initializer()
+    env.deploy("PrivateFPC").without_initializer()
 }
 
 /// Returns the internal balance of an account via the utility function.
@@ -50,7 +50,7 @@ pub unconstrained fn get_balance(
     contract_address: AztecAddress,
     account: AztecAddress,
 ) -> u128 {
-    env.execute_utility(BridgedFPC::at(contract_address).balance_of(account))
+    env.execute_utility(PrivateFPC::at(contract_address).balance_of(account))
 }
 
 /// Returns a random salt for use in bridge secret derivation.

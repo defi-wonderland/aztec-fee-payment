@@ -12,23 +12,25 @@ yarn add @defi-wonderland/aztec-fee-payment
 
 | Contract | Description | Auth model |
 |----------|-------------|-----------|
-| **BridgedFPC** | Fully private. Bridge FeeJuice from L1; the claim converts to internal wFJ for fee sponsorship. | Cryptographic bridge proof (no owner, no agent) |
+| **PrivateFPC** | Fully private. Bridge FeeJuice from L1; the claim converts to internal FJ for fee sponsorship. | Cryptographic bridge proof (no owner, no agent) |
 
 ## Quick Start
 
-### BridgedFPC
+### PrivateFPC
 
-Fully private; no owner and no off-chain agent. Users bridge FeeJuice from L1 to the FPC address, then prove the bridge claim on L2 to credit private wFJ balance.
+Fully private; no owner and no off-chain agent. Users bridge FeeJuice from L1 to the FPC address, then prove the bridge claim on L2 to credit private FJ balance.
 
 ```typescript
 import {
   FPCFeePaymentMethod,
-  BridgedMintAndPayFeePaymentMethod,
-  registerBridgedContract,
+  PrivateMintAndPayFeePaymentMethod,
+  registerPrivateContract,
 } from '@defi-wonderland/aztec-fee-payment';
+import { Fr } from '@aztec/aztec.js/fields';
 
-// Register the BridgedFPC with the PXE — no deployment transaction needed
-const fpc = await registerBridgedContract(wallet);
+// Register the PrivateFPC with the PXE — no deployment transaction needed
+const salt = Fr.ZERO; // must match the salt used in `yarn compute`
+const fpc = await registerPrivateContract(wallet, salt);
 
 // L1: deposit FeeJuice to the portal with a claimer-bound secretHash
 // secretHash = computeSecretHash(poseidon2([salt, claimerAddress], DOM_SEP))
@@ -38,7 +40,7 @@ const fpc = await registerBridgedContract(wallet);
 await feeJuice.methods.claim(fpc.address, amount, secret, leafIndex).send();
 await fpc.methods.mint(amount, salt, leafIndex).send();
 
-// Use internal wFJ balance to sponsor transactions
+// Use internal FJ balance to sponsor transactions
 await someContract.methods.doSomething()
   .send({
     from: userAddress,
@@ -50,7 +52,7 @@ await someContract.methods.doSomething()
   .send({
     from: userAddress,
     fee: {
-      paymentMethod: new BridgedMintAndPayFeePaymentMethod(
+      paymentMethod: new PrivateMintAndPayFeePaymentMethod(
         fpc.address, amount, secret, salt, leafIndex,
       ),
     },
@@ -75,21 +77,21 @@ If private logic fails, the transaction is never included — no fees are charge
 
 ```typescript
 // Contracts
-BridgedFPCContract, BridgedFPCContractArtifact
+PrivateFPCContract, PrivateFPCContractArtifact
 
 // Fee Payment Methods
-FPCFeePaymentMethod                // pay_fee (no refund)
-BridgedMintAndPayFeePaymentMethod  // FeeJuice.claim + mint_and_pay_fee (BridgedFPC)
+FPCFeePaymentMethod                 // pay_fee (no refund)
+PrivateMintAndPayFeePaymentMethod   // FeeJuice.claim + mint_and_pay_fee (PrivateFPC)
 
 // Utilities
-REASONABLE_GAS_LIMITS, REASONABLE_TEARDOWN_GAS_LIMITS
+REASONABLE_GAS_LIMITS
 maxFeesPerGasFromBaseFees, maxGasCostFor
-registerBridgedContract
+registerPrivateContract
 ```
 
 ### Sub-path Exports
 
-- `@defi-wonderland/aztec-fee-payment/artifacts/bridged` - BridgedFPC contract and artifact
+- `@defi-wonderland/aztec-fee-payment/artifacts/private` - PrivateFPC contract and artifact
 - `@defi-wonderland/aztec-fee-payment/fee-payment-methods` - Fee payment methods only
 - `@defi-wonderland/aztec-fee-payment/utils` - Utility functions only
 

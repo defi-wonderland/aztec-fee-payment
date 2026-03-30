@@ -9,7 +9,7 @@
 //                the amount < max_gas_cost assertion can never trigger.
 //   BLOCKED_C -- end_setup() breaks TXE kernel simulation.
 //
-// Full coverage lives in the TypeScript integration tests (bridged.test.ts).
+// Full coverage lives in the TypeScript integration tests (private.test.ts).
 
 // BLOCKED_A + BLOCKED_C -- requires FeeJuice nullifier in tree and end_setup support.
 // Successful cold-start: credits (amount - max_gas_cost) to claimer.
@@ -24,7 +24,7 @@
 //     // Prerequisite: FeeJuice.claim must have pushed the FeeJuice nullifier. TXE cannot seed it.
 //
 //     let balance_before = utils::get_balance(env, contract_address, user);
-//     env.call_private(user, BridgedFPC::at(contract_address).mint_and_pay_fee(amount, salt, leaf_index));
+//     env.call_private(user, PrivateFPC::at(contract_address).mint_and_pay_fee(amount, salt, leaf_index));
 //     let balance_after = utils::get_balance(env, contract_address, user);
 //
 //     // Credited amount minus gas cost (exact gas cost depends on settings).
@@ -45,5 +45,5 @@
 //
 //     // Prerequisite: FeeJuice.claim must have run first. TXE cannot seed it.
 //
-//     env.call_private(user, BridgedFPC::at(contract_address).mint_and_pay_fee(amount, salt, leaf_index));
+//     env.call_private(user, PrivateFPC::at(contract_address).mint_and_pay_fee(amount, salt, leaf_index));
 // }
