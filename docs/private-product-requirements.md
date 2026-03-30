@@ -1,8 +1,8 @@
 # Private FPC — Product Requirements Document
 
-**Version**: 1.3.1
+**Version**: 1.3.2
 **Status**: Active
-**Target Aztec Version**: 4.1.0-rc.4
+**Target Aztec Version**: 4.2.0-aztecnr-rc.2
 **Audience**: Implementation Engineers
 **Date**: March 2026
 
@@ -281,3 +281,4 @@ The FPC's public FeeJuice balance (used to pay sequencers) is funded separately 
 | 1.2.1 | March 2026 | Corrected domain separator: `0xFEEDF00D` → `poseidon2_hash_bytes("az_dom_sep__fpc_bridge_secret")` = `3952304070` / `0xEB935FC6` |
 | 1.3 | 2026-03-04 | (1) **Teardown double-counting fix**: `get_max_gas_cost` formula corrected — teardown gas limits removed. New formula: `da_gas_limit * max_fee_per_da_gas + l2_gas_limit * max_fee_per_l2_gas`. (2) **Shared `fpc_lib`**: `get_max_gas_cost` is now imported from the shared `fpc_lib` Nargo library (same package used by MeteredFPC); documented in new "Shared Library" section. (3) **SDK**: `FPCFeePaymentMethod` replaces `MeteredFeePaymentMethod` as the primary FPC-agnostic payment method class (works with PrivateFPC and MeteredFPC). |
 | 1.3.1 | 2026-03-24 | Updated Target Aztec Version from `4.0.0-devnet.2-patch.1` to `4.1.0-rc.4` to match package dependencies. |
+| 1.3.2 | 2026-03-30 | Updated Target Aztec Version from `4.1.0-rc.4` to `4.2.0-aztecnr-rc.2` to match package dependencies. |

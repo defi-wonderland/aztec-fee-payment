@@ -107,7 +107,7 @@ describe("Private FPC", () => {
 
       await fpc.methods
         .mint(claimAmount, salt, leafIndex)
-        .send({ from: alice });
+        .send({ from: alice, additionalScopes: [fpc.address] });
 
       const { result: balanceAfter } = await fpc.methods
         .balance_of(alice)
@@ -132,6 +132,7 @@ describe("Private FPC", () => {
 
       const { receipt } = await counter.methods.increment().send({
         from: alice,
+        additionalScopes: [fpc.address],
         fee: {
           paymentMethod,
           gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
@@ -185,13 +186,14 @@ describe("Private FPC", () => {
       // First mint succeeds.
       await fpc.methods
         .mint(claimAmount, salt, leafIndex)
-        .send({ from: alice });
+        .send({ from: alice, additionalScopes: [fpc.address] });
 
       // Second mint with the same parameters must fail —
       // the FPC-scoped nullifier is already emitted.
       await expect(
         fpc.methods.mint(claimAmount, salt, leafIndex).send({
           from: alice,
+          additionalScopes: [fpc.address],
         }),
       ).rejects.toThrow();
     },
@@ -232,6 +234,7 @@ describe("Private FPC", () => {
       await expect(
         fpc.methods.mint(claimAmount, salt, leafIndex).send({
           from: bob,
+          additionalScopes: [fpc.address],
         }),
       ).rejects.toThrow();
     },
