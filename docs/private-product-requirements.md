@@ -1,10 +1,10 @@
 # Private FPC — Product Requirements Document
 
-**Version**: 1.3.2
+**Version**: 1.4
 **Status**: Active
 **Target Aztec Version**: 4.2.0-aztecnr-rc.2
 **Audience**: Implementation Engineers
-**Date**: March 2026
+**Date**: April 2026
 
 ---
 
@@ -82,6 +82,7 @@ Users bridging FeeJuice (FJ) from L1 into Aztec must deposit via `FeeJuicePortal
 | Requirement | Acceptance Criteria | Status |
 | --- | --- | --- |
 | **`bridgeForMint` harness helper** | Computes bridge secret from `(salt, claimer)`, calls `depositToAztecPublic` with correct `secretHash`, polls for message ingestion, returns `{ secret, leafIndex, claimAmount }`. | Planned |
+| **SDK gas-setting helper (`estimateGasSettings`)** | Sponsored transactions use `estimateGasSettings(interaction, { aztecNode, from, paymentMethod, … })`: final gas limits come from `simulate({ includeMetadata: true })` (with padded usage), not fixed limits alone. Fee caps come from `aztecNode.getCurrentMinFees()` scaled by `1.2×` (exact `6/5`, ceiling), and `maxPriorityFeesPerGas` is set equal to `maxFeesPerGas`. | Planned |
 | **E2E: `mint` success → `pay_fee`** | Bridge → `FeeJuice.claim` → `mint` → sponsored transaction succeeds; FPC FJ balance decreases; user FJ balance decreases by max gas cost. | Planned |
 | **E2E: double-spend revert** | Second `mint` with same `leaf_index` reverts (FPC nullifier already exists). | Planned |
 | **E2E: wrong claimer revert** | Bob tries `mint` using Alice's deposit — reconstructed nullifier doesn't match; existence check fails. | Planned |
@@ -267,6 +268,7 @@ The FPC's public FeeJuice balance (used to pay sequencers) is funded separately 
 - `Counter` contract used as the application contract for testing fee sponsorship
 - FPC's public FeeJuice balance funded via `fundL2AddressWithFeeJuiceFromL1()`
 - User's internal FJ balance funded via `bridgeForMint()` + `FeeJuice.claim` + `mint`
+- Sponsored application transactions (tests and benchmarks) build `fee.gasSettings` with `estimateGasSettings()` before `send`, matching the SDK flow above
 
 ---
 
@@ -282,3 +284,4 @@ The FPC's public FeeJuice balance (used to pay sequencers) is funded separately 
 | 1.3 | 2026-03-04 | (1) **Teardown double-counting fix**: `get_max_gas_cost` formula corrected — teardown gas limits removed. New formula: `da_gas_limit * max_fee_per_da_gas + l2_gas_limit * max_fee_per_l2_gas`. (2) **Shared `fpc_lib`**: `get_max_gas_cost` is now imported from the shared `fpc_lib` Nargo library (same package used by MeteredFPC); documented in new "Shared Library" section. (3) **SDK**: `FPCFeePaymentMethod` replaces `MeteredFeePaymentMethod` as the primary FPC-agnostic payment method class (works with PrivateFPC and MeteredFPC). |
 | 1.3.1 | 2026-03-24 | Updated Target Aztec Version from `4.0.0-devnet.2-patch.1` to `4.1.0-rc.4` to match package dependencies. |
 | 1.3.2 | 2026-03-30 | Updated Target Aztec Version from `4.1.0-rc.4` to `4.2.0-aztecnr-rc.2` to match package dependencies. |
+| 1.4 | 2026-04-01 | **SDK gas for sponsored txs**: Added `estimateGasSettings()` — simulate with `includeMetadata: true` and default gas padding to derive final `gasLimits` / `teardownGasLimits`; cap fees with `aztecNode.getCurrentMinFees()` scaled by `1.2×` (exact `6/5`, ceiling); set `maxPriorityFeesPerGas` equal to `maxFeesPerGas`. Tests/benchmarks use this helper when sending sponsored `Counter` txs. |
