@@ -1,6 +1,6 @@
 {
   "name": "aztec-fee-payment",
-  "version": "4.2.0-aztecnr-rc.2",
+  "version": "4.2.0-nightly.20260408-1",
   "private": true,
   "repository": "https://github.com/defi-wonderland/aztec-fee-payment.git",
   "author": "Wonderland",
@@ -46,20 +46,20 @@
     "*.{js,ts}": "prettier --write -u"
   },
   "devDependencies": {
-    "@aztec/accounts": "4.2.0-aztecnr-rc.2",
-    "@aztec/aztec.js": "4.2.0-aztecnr-rc.2",
-    "@aztec/constants": "4.2.0-aztecnr-rc.2",
-    "@aztec/entrypoints": "4.2.0-aztecnr-rc.2",
-    "@aztec/ethereum": "4.2.0-aztecnr-rc.2",
-    "@aztec/foundation": "4.2.0-aztecnr-rc.2",
-    "@aztec/noir-contracts.js": "4.2.0-aztecnr-rc.2",
-    "@aztec/protocol-contracts": "4.2.0-aztecnr-rc.2",
-    "@aztec/pxe": "4.2.0-aztecnr-rc.2",
-    "@aztec/stdlib": "4.2.0-aztecnr-rc.2",
-    "@aztec/wallets": "4.2.0-aztecnr-rc.2",
+    "@aztec/accounts": "4.2.0-nightly.20260408-1",
+    "@aztec/aztec.js": "4.2.0-nightly.20260408-1",
+    "@aztec/constants": "4.2.0-nightly.20260408-1",
+    "@aztec/entrypoints": "4.2.0-nightly.20260408-1",
+    "@aztec/ethereum": "4.2.0-nightly.20260408-1",
+    "@aztec/foundation": "4.2.0-nightly.20260408-1",
+    "@aztec/noir-contracts.js": "4.2.0-nightly.20260408-1",
+    "@aztec/protocol-contracts": "4.2.0-nightly.20260408-1",
+    "@aztec/pxe": "4.2.0-nightly.20260408-1",
+    "@aztec/stdlib": "4.2.0-nightly.20260408-1",
+    "@aztec/wallets": "4.2.0-nightly.20260408-1",
     "@commitlint/cli": "20.4.1",
     "@commitlint/config-conventional": "20.4.1",
-    "@defi-wonderland/aztec-benchmark": "4.2.0-aztecnr-rc.2",
+    "@defi-wonderland/aztec-benchmark": "https://github.com/defi-wonderland/aztec-benchmark/releases/download/prerelease-4a93aea/defi-wonderland-aztec-benchmark-4.2.0-nightly.20260408-1-prerelease.4a93aea.tgz",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
     "@types/node": "25.2.3",
@@ -72,7 +72,7 @@
     "vitest": "4.0.18"
   },
   "config": {
-    "aztecVersion": "4.2.0-aztecnr-rc.2"
+    "aztecVersion": "4.2.0-nightly.20260408-1"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
   "engines": {
