@@ -1,0 +1,25 @@
+package.json
+  4023a308184cf733 3,49-59,62,75
+src/ts/utils/gas.ts
+  4023a308184cf733 1,11,13-15,20-21,26-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.6",
+  "base_commit_sha": "46fbd30a33597a897821497d17d9da3156c7a1d5",
+  "prompts": {
+    "4023a308184cf733": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e78580ad-8134-4b9a-b394-8f7f6a7b5cdf",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "xorsal",
+      "messages": [],
+      "total_additions": 25,
+      "total_deletions": 39,
+      "accepted_lines": 24,
+      "overriden_lines": 0
+    }
+  }
+}
