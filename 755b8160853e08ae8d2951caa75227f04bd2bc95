@@ -1,0 +1,23 @@
+package.json
+  5d59d9fff6a4edda 69,72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "755b8160853e08ae8d2951caa75227f04bd2bc95",
+  "prompts": {
+    "5d59d9fff6a4edda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5bd4907f-b2f3-48dd-9a5d-052bcd3761dc",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "xorsal",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 0,
+      "accepted_lines": 1399,
+      "overriden_lines": 1
+    }
+  }
+}
