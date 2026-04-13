@@ -6,14 +6,14 @@ import { resolve as pathResolve } from "node:path";
 
 /**
  * Usage:
- *   AZTEC_ARTIFACT_REGISTRY_URL=https://devnet.aztec-registry.xyz/ tsx scripts/upload-artifact.ts target/metered_contract-MeteredFPC.json
+ *   AZTEC_ARTIFACT_REGISTRY_URL=https://devnet.aztec-registry.xyz/ tsx scripts/upload-artifact.ts target/private_contract-PrivateFPC.json
  *
  * Notes:
  * - The registry typically verifies the artifact's classId exists on the target network.
  */
 async function main() {
   const artifactPathArg =
-    process.argv[2] ?? "target/metered_contract-MeteredFPC.json";
+    process.argv[2] ?? "target/private_contract-PrivateFPC.json";
   const artifactPath = pathResolve(process.cwd(), artifactPathArg);
   const registryBaseUrl = getArtifactRegistryBaseUrl();
 

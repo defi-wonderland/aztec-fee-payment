@@ -1,66 +1,46 @@
 /**
  * @defi-wonderland/aztec-fee-payment
  *
- * Fee Payment Contracts (FPCs) for Aztec - enables metered fee payment strategies.
+ * Fee Payment Contracts (FPCs) for Aztec - enables private fee payment strategies.
  *
  * @example
  * ```typescript
  * import {
- *   MeteredFPCContract,
- *   MeteredFeePaymentMethod,
- *   MeteredMintAndPayFeePaymentMethod,
- *   deployMeteredFPCContract,
+ *   PrivateFPCContract,
+ *   FPCFeePaymentMethod,
+ *   registerPrivateContract,
  * } from '@defi-wonderland/aztec-fee-payment';
  *
- * // Deploy FPC with owner address
- * const fpc = await deployMeteredFPCContract(wallet, ownerAddress);
+ * // Register (no deploy needed — fully private contract)
+ * const fpc = await registerPrivateContract(wallet, salt);
  *
- * // Option 1: Pre-mint balance and use MeteredFeePaymentMethod
- * // (requires authwit from the owner's account contract)
- * await fpc.methods.mint(userAddress, amount, secret)
- *   .with({ authWitnesses: [authWitness] })
- *   .send();
- *
+ * // Use FPCFeePaymentMethod after minting internal balance
  * await someContract.methods.doSomething()
  *   .send({
- *     fee: { paymentMethod: new MeteredFeePaymentMethod(fpc.address) }
+ *     fee: { paymentMethod: new FPCFeePaymentMethod(fpc.address) }
  *   });
- * // Option 2: Mint and pay fee in one transaction
- * const paymentMethod = new MeteredMintAndPayFeePaymentMethod(
- *   fpc.address, userAddress, amount, secret, authWitness
- * );
- * await someContract.methods.doSomething()
- *   .send({ fee: { paymentMethod } });
  * ```
  */
 
 // Contract artifacts and type-safe wrappers
 export {
-  MeteredFPCContract,
-  MeteredFPCContractArtifact,
-} from "../artifacts/MeteredFPC.js";
-export {
-  BridgedFPCContract,
-  BridgedFPCContractArtifact,
-} from "../artifacts/BridgedFPC.js";
+  PrivateFPCContract,
+  PrivateFPCContractArtifact,
+} from "../artifacts/PrivateFPC.js";
 
 // Fee payment method implementations
 export {
-  MeteredFeePaymentMethod,
-  MeteredExactFeePaymentMethod,
-  MeteredMintAndPayFeePaymentMethod,
-  MeteredMintThenPayFeePaymentMethod,
-  BridgedMintAndPayFeePaymentMethod,
+  FPCFeePaymentMethod,
+  PrivateMintAndPayFeePaymentMethod,
 } from "./fee-payment-methods/index.js";
 
 // Utilities for integrators
 export {
   // Gas calculations
+  DEFAULT_FEE_MULTIPLIER,
   REASONABLE_GAS_LIMITS,
-  REASONABLE_TEARDOWN_GAS_LIMITS,
   maxFeesPerGasFromBaseFees,
   maxGasCostFor,
   // Deployment
-  deployMeteredFPCContract,
-  registerBridgedContract,
+  registerPrivateContract,
 } from "./utils/index.js";

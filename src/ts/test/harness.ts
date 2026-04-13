@@ -4,13 +4,15 @@ import {
   waitForNode,
 } from "@aztec/aztec.js/node";
 import type { Wallet } from "@aztec/aztec.js/wallet";
+import { isL1ToL2MessageReady } from "@aztec/aztec.js/messaging";
 import { EmbeddedWallet } from "@aztec/wallets/embedded";
 import { registerInitialLocalNetworkAccountsInWallet } from "@aztec/wallets/testing";
+import { getPXEConfig } from "@aztec/pxe/config";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
 import { L1FeeJuicePortalManager } from "@aztec/aztec.js/ethereum";
 import { FeeJuiceContract } from "@aztec/noir-contracts.js/FeeJuice";
 import { ProtocolContractAddress } from "@aztec/protocol-contracts";
-import { Fr } from "@aztec/foundation/curves/bn254";
+import { Fr } from "@aztec/aztec.js/fields";
 import {
   poseidon2HashBytes,
   poseidon2HashWithSeparator,
@@ -45,12 +47,12 @@ export async function createLocalNetworkContext(opts?: {
     await waitForNode(aztecNode);
   }
 
-  const wallet = await EmbeddedWallet.create(aztecNode, {
-    pxeConfig: {
-      dataDirectory: opts?.wallet?.dataDirectory ?? "pxe-test",
-      proverEnabled: opts?.wallet?.proverEnabled ?? false,
-    },
-  });
+  const pxeConfig = {
+    ...getPXEConfig(),
+    dataDirectory: opts?.wallet?.dataDirectory ?? "pxe-test",
+    proverEnabled: opts?.wallet?.proverEnabled ?? false,
+  };
+  const wallet = await EmbeddedWallet.create(aztecNode, { pxeConfig });
 
   const accounts = await registerInitialLocalNetworkAccountsInWallet(wallet);
   const [deployer] = accounts;
@@ -77,11 +79,11 @@ export type FundFeeJuiceFromL1Options = {
  * This is the standard way to fund FPCs with the native fee token.
  */
 export async function fundL2AddressWithFeeJuiceFromL1(
-  aztecNode: Pick<AztecNode, "getL1ToL2MessageBlock" | "getBlockNumber">,
+  aztecNode: Pick<AztecNode, "getL1ToL2MessageCheckpoint" | "getBlock">,
   wallet: Wallet,
   recipient: AztecAddress,
   opts: FundFeeJuiceFromL1Options,
-): Promise<{ balance: bigint; messageBlock: number }> {
+): Promise<{ balance: bigint }> {
   const logger = createLogger(opts.loggerName ?? "fee-juice");
   const l1Client = createExtendedL1Client(
     opts.l1RpcUrls ?? ["http://127.0.0.1:8545"],
@@ -104,20 +106,17 @@ export async function fundL2AddressWithFeeJuiceFromL1(
   const pollTries = opts.messagePollTries ?? 400;
   const pollIntervalMs = opts.messagePollIntervalMs ?? 10;
 
-  let messageBlock: number | undefined;
+  let ready = false;
   for (let i = 0; i < pollTries; i++) {
-    messageBlock = await aztecNode.getL1ToL2MessageBlock(messageHash);
-    if (messageBlock !== undefined) break;
+    ready = await isL1ToL2MessageReady(aztecNode, messageHash);
+    if (ready) break;
+    await opts.produceL2Block();
     await new Promise((r) => setTimeout(r, pollIntervalMs));
   }
-  if (messageBlock === undefined) {
+  if (!ready) {
     throw new Error(
       `L1->L2 message not yet ingested by node for FeeJuice deposit: ${claim.messageHash}`,
     );
-  }
-
-  while ((await aztecNode.getBlockNumber()) < messageBlock) {
-    await opts.produceL2Block();
   }
 
   const feeJuice = FeeJuiceContract.at(
@@ -135,12 +134,12 @@ export async function fundL2AddressWithFeeJuiceFromL1(
 
   const { getFeeJuiceBalance } = await import("@aztec/aztec.js/utils");
   const balance = await getFeeJuiceBalance(recipient, aztecNode as any);
-  return { balance, messageBlock };
+  return { balance };
 }
 
 /**
  * Domain separator for FPC bridge secret derivation — must match the Noir constant
- * `DOM_SEP__FPC_BRIDGE_SECRET` in bridged_contract/src/main.nr.
+ * `DOM_SEP__FPC_BRIDGE_SECRET` in private_contract/src/main.nr.
  * Computed as: poseidon2_hash_bytes("az_dom_sep__fpc_bridge_secret") as u32
  */
 const DOM_SEP__FPC_BRIDGE_SECRET = Number(
@@ -159,7 +158,7 @@ export type BridgeForMintResult = {
 };
 
 /**
- * Bridges FeeJuice from L1 to the BridgedFPC with a claimer-bound secret,
+ * Bridges FeeJuice from L1 to the PrivateFPC with a claimer-bound secret,
  * enabling the claimer to later call `mint` on L2.
  *
  * Flow:
@@ -171,7 +170,7 @@ export type BridgeForMintResult = {
  *   6. Returns `{ secret, claimAmount, leafIndex }` for use in `FeeJuice.claim` + `mint`
  *
  * @param aztecNode     Aztec node client (for L1 contract addresses and message polling)
- * @param fpcAddress    The BridgedFPC contract address (the L1 deposit recipient)
+ * @param fpcAddress    The PrivateFPC contract address (the L1 deposit recipient)
  * @param claimer       The Aztec address of the user who will claim on L2
  * @param salt          A random value chosen by the claimer (used in secret derivation)
  * @param produceL2Block Callback to mine an L2 block (needed to advance past the message block)
@@ -180,7 +179,7 @@ export type BridgeForMintResult = {
 export async function bridgeForMint(
   aztecNode: Pick<
     AztecNode,
-    "getL1ToL2MessageBlock" | "getBlockNumber" | "getNodeInfo"
+    "getL1ToL2MessageCheckpoint" | "getBlock" | "getNodeInfo"
   >,
   fpcAddress: AztecAddress,
   claimer: AztecAddress,
@@ -276,29 +275,24 @@ export async function bridgeForMint(
   const messageHash = Fr.fromString(log.args.key as string);
   const leafIndex = new Fr(log.args.index as bigint);
 
-  // Poll until the L1→L2 message is visible to the Aztec node.
+  // Poll until the L1→L2 message is ready to be consumed.
   const pollTries = opts?.messagePollTries ?? 400;
   const pollIntervalMs = opts?.messagePollIntervalMs ?? 10;
 
-  let messageBlock: number | undefined;
+  let ready = false;
   for (let i = 0; i < pollTries; i++) {
-    messageBlock = await aztecNode.getL1ToL2MessageBlock(messageHash);
-    if (messageBlock !== undefined) break;
+    ready = await isL1ToL2MessageReady(aztecNode, messageHash);
+    if (ready) break;
+    await produceL2Block();
     await new Promise((r) => setTimeout(r, pollIntervalMs));
   }
-  if (messageBlock === undefined) {
+  if (!ready) {
     throw new Error(
-      `L1→L2 message not yet ingested by node for BridgedFPC deposit: ${messageHash.toString()}`,
+      `L1→L2 message not yet ingested by node for PrivateFPC deposit: ${messageHash.toString()}`,
     );
   }
 
-  while ((await aztecNode.getBlockNumber()) < messageBlock) {
-    await produceL2Block();
-  }
-
-  logger.info(
-    `BridgedFPC deposit ingested at block ${messageBlock}, leafIndex=${leafIndex.toString()}`,
-  );
+  logger.info(`PrivateFPC deposit ready, leafIndex=${leafIndex.toString()}`);
   return { secret, claimAmount, leafIndex };
 }
 
