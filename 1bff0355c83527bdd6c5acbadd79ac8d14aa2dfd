@@ -1,0 +1,23 @@
+src/ts/utils/gas.ts
+  3524771f02ec6f57 2-8,20-21,41-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "1bff0355c83527bdd6c5acbadd79ac8d14aa2dfd",
+  "prompts": {
+    "3524771f02ec6f57": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6d0b1871-4cee-469c-b2c0-f011c728b68a",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "xorsal",
+      "messages": [],
+      "total_additions": 11,
+      "total_deletions": 10,
+      "accepted_lines": 11,
+      "overriden_lines": 0
+    }
+  }
+}
