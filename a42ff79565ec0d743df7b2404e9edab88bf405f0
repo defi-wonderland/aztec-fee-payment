@@ -1,0 +1,35 @@
+src/nr/counter_contract/Nargo.toml
+  3524771f02ec6f57 8
+.github/workflows/pr-checks.yml
+  3524771f02ec6f57 16
+src/nr/fpc_lib/Nargo.toml
+  3524771f02ec6f57 8
+.github/workflows/update-baseline.yml
+  3524771f02ec6f57 18
+package.json
+  3524771f02ec6f57 3,49-59,62,75
+src/nr/private_contract/Nargo.toml
+  3524771f02ec6f57 8-9
+README.md
+  3524771f02ec6f57 32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "a42ff79565ec0d743df7b2404e9edab88bf405f0",
+  "prompts": {
+    "3524771f02ec6f57": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6d0b1871-4cee-469c-b2c0-f011c728b68a",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "xorsal",
+      "messages": [],
+      "total_additions": 22,
+      "total_deletions": 22,
+      "accepted_lines": 21,
+      "overriden_lines": 0
+    }
+  }
+}
