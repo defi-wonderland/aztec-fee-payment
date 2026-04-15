@@ -1,0 +1,31 @@
+README.md
+  d0de254a135655dc 32
+src/nr/counter_contract/Nargo.toml
+  d0de254a135655dc 8
+src/nr/private_contract/Nargo.toml
+  d0de254a135655dc 8-9
+package.json
+  d0de254a135655dc 3,49-59,62,75
+src/nr/fpc_lib/Nargo.toml
+  d0de254a135655dc 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "2119ba92a9301bc9c7d34586a8058c92d1e9433a",
+  "prompts": {
+    "d0de254a135655dc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c04117d6-4d92-4c10-bb98-410d7042d766",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "xorsal",
+      "messages": [],
+      "total_additions": 20,
+      "total_deletions": 20,
+      "accepted_lines": 19,
+      "overriden_lines": 0
+    }
+  }
+}
