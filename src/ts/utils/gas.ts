@@ -1,12 +1,14 @@
 import type { FeePaymentMethod } from "@aztec/aztec.js/fee";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
-import { Gas, GasFees, GasSettings } from "@aztec/stdlib/gas";
 import {
-  DEFAULT_DA_GAS_LIMIT,
-  DEFAULT_L2_GAS_LIMIT,
-  DEFAULT_TEARDOWN_DA_GAS_LIMIT,
-  DEFAULT_TEARDOWN_L2_GAS_LIMIT,
-} from "@aztec/constants";
+  Gas,
+  GasFees,
+  GasSettings,
+  APPROXIMATE_MAX_DA_GAS_PER_BLOCK,
+  FALLBACK_TEARDOWN_DA_GAS_LIMIT,
+  FALLBACK_TEARDOWN_L2_GAS_LIMIT,
+} from "@aztec/stdlib/gas";
+import { MAX_PROCESSABLE_L2_GAS } from "@aztec/constants";
 
 type BaseFeesProvider = {
   getCurrentMinFees(): Promise<GasFees>;
@@ -95,8 +97,8 @@ export const DEFAULT_GAS_ESTIMATE_PADDING = 0.1;
  * Reasonable default gas limits for most transactions.
  */
 export const REASONABLE_GAS_LIMITS = Gas.from({
-  daGas: DEFAULT_DA_GAS_LIMIT,
-  l2Gas: DEFAULT_L2_GAS_LIMIT,
+  daGas: APPROXIMATE_MAX_DA_GAS_PER_BLOCK,
+  l2Gas: MAX_PROCESSABLE_L2_GAS,
 });
 
 /**
@@ -116,8 +118,8 @@ export const REASONABLE_GAS_LIMITS = Gas.from({
  * so this must NOT be passed to maxGasCostFor (that would double-count teardown cost).
  */
 export const REASONABLE_TEARDOWN_GAS_LIMITS = Gas.from({
-  daGas: DEFAULT_TEARDOWN_DA_GAS_LIMIT,
-  l2Gas: DEFAULT_TEARDOWN_L2_GAS_LIMIT,
+  daGas: FALLBACK_TEARDOWN_DA_GAS_LIMIT,
+  l2Gas: FALLBACK_TEARDOWN_L2_GAS_LIMIT,
 });
 
 /**

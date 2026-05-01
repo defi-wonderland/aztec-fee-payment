@@ -44,15 +44,15 @@ describe("gas utilities", () => {
   });
 
   it("estimates gas settings from simulation metadata", async () => {
-    const from = AztecAddress.random();
+    const from = await AztecAddress.random();
     const paymentMethod = {
       getAsset: vi.fn(),
       getFeePayer: vi.fn(),
       getExecutionPayload: vi.fn(),
       getGasSettings: vi.fn(),
     };
-    const simulatedGasLimits = Gas.from({ daGas: 123n, l2Gas: 456n });
-    const simulatedTeardownGasLimits = Gas.from({ daGas: 7n, l2Gas: 8n });
+    const simulatedGasLimits = Gas.from({ daGas: 123, l2Gas: 456 });
+    const simulatedTeardownGasLimits = Gas.from({ daGas: 7, l2Gas: 8 });
     const interaction = {
       simulate: vi.fn().mockResolvedValue({
         estimatedGas: {
@@ -69,7 +69,7 @@ describe("gas utilities", () => {
       aztecNode,
       from,
       paymentMethod,
-      additionalScopes: [AztecAddress.random()],
+      additionalScopes: [await AztecAddress.random()],
     });
 
     expect(aztecNode.getCurrentMinFees).toHaveBeenCalledOnce();
