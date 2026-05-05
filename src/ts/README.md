@@ -112,7 +112,6 @@ FPCFeePaymentMethod                 // pay_fee (no refund)
 PrivateMintAndPayFeePaymentMethod   // FeeJuice.claim + mint_and_pay_fee (PrivateFPC)
 
 // Utilities
-REASONABLE_GAS_LIMITS
 estimateGasSettings
 maxFeesPerGasFromBaseFees, maxPriorityFeesPerGasFromMaxFees, maxGasCostFor
 registerPrivateContract

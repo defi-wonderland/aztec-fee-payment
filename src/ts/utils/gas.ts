@@ -94,30 +94,23 @@ export const DEFAULT_FEE_MULTIPLIER = {
 export const DEFAULT_GAS_ESTIMATE_PADDING = 0.1;
 
 /**
- * Reasonable default gas limits for most transactions.
+ * Protocol-maximum gas limits, used as the initial ceiling for
+ * estimateGasSettings — the simulation replaces them with tighter values.
  */
-export const REASONABLE_GAS_LIMITS = Gas.from({
+const MAX_GAS_LIMITS = Gas.from({
   daGas: APPROXIMATE_MAX_DA_GAS_PER_BLOCK,
   l2Gas: MAX_PROCESSABLE_L2_GAS,
 });
 
 /**
- * Teardown gas limits for transactions that use pay_fee_exact().
+ * Protocol-default teardown gas limits. The protocol bills teardown gas at the
+ * limit (not actual usage), so these overestimate. estimateGasSettings replaces
+ * them with simulation output.
  *
- * These are Aztec's protocol-wide defaults (DEFAULT_TEARDOWN_DA_GAS_LIMIT = 393,216;
- * DEFAULT_TEARDOWN_L2_GAS_LIMIT = 1,000,000). They are NOT calibrated to the _refund
- * teardown function, which only emits one note hash and costs roughly 40-50k L2 gas
- * in practice (~20x cheaper than this limit).
- *
- * The protocol bills teardown gas at the limit (rather than actual usage), this
- * overestimate inflates the cost of every pay_fee_exact transaction. Consider
- * benchmarking _refund's actual gas consumption and replacing this with a tighter
- * constant.
- *
- * NOTE: teardown gas is already included in the gas_limits fee calculation by the protocol,
- * so this must NOT be passed to maxGasCostFor (that would double-count teardown cost).
+ * Teardown gas is already included in gasLimits by the protocol, so these must
+ * NOT be passed to maxGasCostFor (that would double-count teardown cost).
  */
-export const REASONABLE_TEARDOWN_GAS_LIMITS = Gas.from({
+const FALLBACK_TEARDOWN_GAS_LIMITS = Gas.from({
   daGas: FALLBACK_TEARDOWN_DA_GAS_LIMIT,
   l2Gas: FALLBACK_TEARDOWN_L2_GAS_LIMIT,
 });
@@ -191,8 +184,8 @@ export async function estimateGasSettings(
     additionalScopes,
     maxFeeMultiplier = DEFAULT_FEE_MULTIPLIER,
     estimatedGasPadding = DEFAULT_GAS_ESTIMATE_PADDING,
-    gasLimits = REASONABLE_GAS_LIMITS,
-    teardownGasLimits = REASONABLE_TEARDOWN_GAS_LIMITS,
+    gasLimits = MAX_GAS_LIMITS,
+    teardownGasLimits = FALLBACK_TEARDOWN_GAS_LIMITS,
   }: {
     aztecNode: BaseFeesProvider;
     from: AztecAddress;
