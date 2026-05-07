@@ -57,7 +57,7 @@
     "@aztec/pxe": "4.2.0",
     "@aztec/stdlib": "4.2.0",
     "@aztec/wallets": "4.2.0",
-    "@commitlint/cli": "20.5.0",
+    "@commitlint/cli": "20.5.3",
     "@commitlint/config-conventional": "20.5.0",
     "@defi-wonderland/aztec-benchmark": "4.2.0",
     "@types/jest": "30.0.0",
