@@ -1,8 +1,12 @@
+export type { FeeMultiplier } from "./gas.js";
+
 // Gas calculation utilities
 export {
   DEFAULT_FEE_MULTIPLIER,
-  REASONABLE_GAS_LIMITS,
+  DEFAULT_GAS_ESTIMATE_PADDING,
+  estimateGasSettings,
   maxFeesPerGasFromBaseFees,
+  maxPriorityFeesPerGasFromMaxFees,
   maxGasCostFor,
 } from "./gas.js";
 
