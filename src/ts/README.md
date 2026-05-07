@@ -22,6 +22,7 @@ Fully private; no owner and no off-chain agent. Users bridge FeeJuice from L1 to
 
 ```typescript
 import {
+  estimateGasSettings,
   FPCFeePaymentMethod,
   PrivateMintAndPayFeePaymentMethod,
   registerPrivateContract,
@@ -40,23 +41,50 @@ const fpc = await registerPrivateContract(wallet, salt);
 await feeJuice.methods.claim(fpc.address, amount, secret, leafIndex).send();
 await fpc.methods.mint(amount, salt, leafIndex).send();
 
-// Use internal FJ balance to sponsor transactions
-await someContract.methods.doSomething()
-  .send({
+const paymentMethod = new FPCFeePaymentMethod(fpc.address);
+const gasSettings = await estimateGasSettings(
+  someContract.methods.doSomething(),
+  {
+    aztecNode,
     from: userAddress,
-    fee: { paymentMethod: new FPCFeePaymentMethod(fpc.address) },
-  });
+    paymentMethod,
+    additionalScopes: [fpc.address],
+  },
+);
+
+// Use internal FJ balance to sponsor transactions
+await someContract.methods.doSomething().send({
+  from: userAddress,
+  additionalScopes: [fpc.address],
+  fee: { paymentMethod, gasSettings },
+});
 
 // Or cold-start: FeeJuice.claim + mint_and_pay_fee in one transaction (no prior mint needed)
-await someContract.methods.doSomething()
-  .send({
+const coldStartPaymentMethod = new PrivateMintAndPayFeePaymentMethod(
+  fpc.address,
+  amount,
+  secret,
+  salt,
+  leafIndex,
+);
+const coldStartGasSettings = await estimateGasSettings(
+  someContract.methods.doSomething(),
+  {
+    aztecNode,
     from: userAddress,
-    fee: {
-      paymentMethod: new PrivateMintAndPayFeePaymentMethod(
-        fpc.address, amount, secret, salt, leafIndex,
-      ),
-    },
-  });
+    paymentMethod: coldStartPaymentMethod,
+    additionalScopes: [fpc.address],
+  },
+);
+
+await someContract.methods.doSomething().send({
+  from: userAddress,
+  additionalScopes: [fpc.address],
+  fee: {
+    paymentMethod: coldStartPaymentMethod,
+    gasSettings: coldStartGasSettings,
+  },
+});
 ```
 
 ## Transaction Behavior
@@ -84,8 +112,8 @@ FPCFeePaymentMethod                 // pay_fee (no refund)
 PrivateMintAndPayFeePaymentMethod   // FeeJuice.claim + mint_and_pay_fee (PrivateFPC)
 
 // Utilities
-REASONABLE_GAS_LIMITS
-maxFeesPerGasFromBaseFees, maxGasCostFor
+estimateGasSettings
+maxFeesPerGasFromBaseFees, maxPriorityFeesPerGasFromMaxFees, maxGasCostFor
 registerPrivateContract
 ```
 
