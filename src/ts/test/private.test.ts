@@ -102,7 +102,7 @@ describe("Private FPC", () => {
 
       await fpc.methods
         .mint(claimAmount, salt, leafIndex)
-        .send({ from: alice, additionalScopes: [fpc.address] });
+        .send({ from: alice });
 
       const { result: balanceAfter } = await fpc.methods
         .balance_of(alice)
@@ -125,7 +125,6 @@ describe("Private FPC", () => {
           aztecNode,
           from: alice,
           paymentMethod,
-          additionalScopes: [fpc.address],
         },
       );
       const maxGasCost = maxGasCostFor(
@@ -135,7 +134,6 @@ describe("Private FPC", () => {
 
       const { receipt } = await counter.methods.increment().send({
         from: alice,
-        additionalScopes: [fpc.address],
         fee: {
           paymentMethod,
           gasSettings,
@@ -189,14 +187,13 @@ describe("Private FPC", () => {
       // First mint succeeds.
       await fpc.methods
         .mint(claimAmount, salt, leafIndex)
-        .send({ from: alice, additionalScopes: [fpc.address] });
+        .send({ from: alice });
 
       // Second mint with the same parameters must fail —
       // the FPC-scoped nullifier is already emitted.
       await expect(
         fpc.methods.mint(claimAmount, salt, leafIndex).send({
           from: alice,
-          additionalScopes: [fpc.address],
         }),
       ).rejects.toThrow();
     },
@@ -237,7 +234,6 @@ describe("Private FPC", () => {
       await expect(
         fpc.methods.mint(claimAmount, salt, leafIndex).send({
           from: bob,
-          additionalScopes: [fpc.address],
         }),
       ).rejects.toThrow();
     },
