@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Check out github repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -39,7 +39,7 @@ jobs:
           run-codegen: 'true'
 
       - name: Setup Node.js for NPM publish
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
