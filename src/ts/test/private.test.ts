@@ -2,7 +2,6 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { EmbeddedWallet } from "@aztec/wallets/embedded";
 import type { AztecNode } from "@aztec/aztec.js/node";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
-import { Gas } from "@aztec/stdlib/gas";
 import { Fr } from "@aztec/aztec.js/fields";
 import { getFeeJuiceBalance } from "@aztec/aztec.js/utils";
 import { FeeJuiceContract } from "@aztec/noir-contracts.js/FeeJuice";
@@ -11,11 +10,7 @@ import { ProtocolContractAddress } from "@aztec/protocol-contracts";
 import { PrivateFPCContract } from "../../artifacts/PrivateFPC.js";
 import { FPCFeePaymentMethod } from "../fee-payment-methods/index.js";
 import { registerPrivateContract } from "../utils/deploy.js";
-import {
-  maxFeesPerGasFromBaseFees,
-  maxGasCostFor,
-  REASONABLE_GAS_LIMITS,
-} from "../utils/gas.js";
+import { estimateGasSettings, maxGasCostFor } from "../utils/gas.js";
 
 import {
   LOCAL_AZTEC_NODE_URL,
@@ -107,7 +102,7 @@ describe("Private FPC", () => {
 
       await fpc.methods
         .mint(claimAmount, salt, leafIndex)
-        .send({ from: alice, additionalScopes: [fpc.address] });
+        .send({ from: alice });
 
       const { result: balanceAfter } = await fpc.methods
         .balance_of(alice)
@@ -124,18 +119,24 @@ describe("Private FPC", () => {
         .balance_of(alice)
         .simulate({ from: alice });
 
-      const baseFees = await aztecNode.getCurrentMinFees();
-      const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
-      const gasLimits = REASONABLE_GAS_LIMITS;
-      const teardownGasLimits = Gas.from({ l2Gas: 0, daGas: 0 });
-      const maxGasCost = maxGasCostFor(maxFeesPerGas, gasLimits);
+      const gasSettings = await estimateGasSettings(
+        counter.methods.increment(),
+        {
+          aztecNode,
+          from: alice,
+          paymentMethod,
+        },
+      );
+      const maxGasCost = maxGasCostFor(
+        gasSettings.maxFeesPerGas,
+        gasSettings.gasLimits,
+      );
 
       const { receipt } = await counter.methods.increment().send({
         from: alice,
-        additionalScopes: [fpc.address],
         fee: {
           paymentMethod,
-          gasSettings: { gasLimits, teardownGasLimits, maxFeesPerGas },
+          gasSettings,
         },
       });
 
@@ -186,14 +187,13 @@ describe("Private FPC", () => {
       // First mint succeeds.
       await fpc.methods
         .mint(claimAmount, salt, leafIndex)
-        .send({ from: alice, additionalScopes: [fpc.address] });
+        .send({ from: alice });
 
       // Second mint with the same parameters must fail —
       // the FPC-scoped nullifier is already emitted.
       await expect(
         fpc.methods.mint(claimAmount, salt, leafIndex).send({
           from: alice,
-          additionalScopes: [fpc.address],
         }),
       ).rejects.toThrow();
     },
@@ -234,7 +234,6 @@ describe("Private FPC", () => {
       await expect(
         fpc.methods.mint(claimAmount, salt, leafIndex).send({
           from: bob,
-          additionalScopes: [fpc.address],
         }),
       ).rejects.toThrow();
     },

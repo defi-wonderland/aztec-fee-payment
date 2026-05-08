@@ -32,11 +32,7 @@ import {
 } from "../src/ts/test/harness.js";
 import { registerPrivateContract } from "../src/ts/utils/deploy.js";
 import { TEST_SALT } from "../src/ts/test/utils.js";
-import {
-  maxFeesPerGasFromBaseFees,
-  REASONABLE_GAS_LIMITS,
-  REASONABLE_TEARDOWN_GAS_LIMITS,
-} from "../src/ts/utils/gas.js";
+import { estimateGasSettings } from "../src/ts/utils/gas.js";
 
 const { NODE_URL } = z
   .object({ NODE_URL: z.string().url().default("http://localhost:8080") })
@@ -70,7 +66,8 @@ interface PrivateBenchmarkContext extends BenchmarkContext {
     leafIndex: Fr;
     amount: bigint;
   };
-  gasSettings: FeeGasSettings;
+  incrementPrivateGasSettings: FeeGasSettings;
+  incrementPrivateMintAndPayFeeGasSettings: FeeGasSettings;
 }
 
 export default class PrivateFPCBenchmark extends Benchmark {
@@ -116,15 +113,6 @@ export default class PrivateFPCBenchmark extends Benchmark {
       },
       loggerName: "benchmark:private-fund",
     });
-
-    const baseFees = await node.getCurrentMinFees();
-    const maxFeesPerGas = maxFeesPerGasFromBaseFees(baseFees);
-
-    const gasSettings = {
-      gasLimits: REASONABLE_GAS_LIMITS,
-      teardownGasLimits: REASONABLE_TEARDOWN_GAS_LIMITS,
-      maxFeesPerGas,
-    };
 
     // Bridge 1: fund internal FJ balance for the pay_fee benchmark methods.
     // FeeJuice.claim + mint happen here so the balance is ready at benchmark time.
@@ -190,6 +178,24 @@ export default class PrivateFPCBenchmark extends Benchmark {
       leafIndexForMintAndPay,
     );
 
+    const incrementPrivateGasSettings = await estimateGasSettings(
+      counterContract.withWallet(wallet).methods.increment(),
+      {
+        aztecNode: node,
+        from: deployer,
+        paymentMethod: privatePaymentMethod,
+      },
+    );
+
+    const incrementPrivateMintAndPayFeeGasSettings = await estimateGasSettings(
+      counterContract.withWallet(wallet).methods.increment(),
+      {
+        aztecNode: node,
+        from: deployer,
+        paymentMethod: mintAndPayFeeMethod,
+      },
+    );
+
     // Bridge 3: for the standalone mint benchmark.
     // FeeJuice.claim is settled here so the nullifier exists on-chain before
     // the benchmark runs. Only mint itself is exercised in the benchmark.
@@ -238,7 +244,8 @@ export default class PrivateFPCBenchmark extends Benchmark {
         leafIndex: leafIndexForMintPrivate,
         amount: claimAmountForMintPrivate,
       },
-      gasSettings,
+      incrementPrivateGasSettings,
+      incrementPrivateMintAndPayFeeGasSettings,
     };
   }
 
@@ -251,7 +258,8 @@ export default class PrivateFPCBenchmark extends Benchmark {
       privatePaymentMethod,
       mintAndPayFeeMethod,
       mintPrivateDeposit,
-      gasSettings,
+      incrementPrivateGasSettings,
+      incrementPrivateMintAndPayFeeGasSettings,
     } = context;
 
     // Methods ordered so note state flows correctly:
@@ -286,13 +294,19 @@ export default class PrivateFPCBenchmark extends Benchmark {
         "increment_private",
         deployer,
         counterContract.withWallet(wallet).methods.increment(),
-        { paymentMethod: privatePaymentMethod, gasSettings },
+        {
+          paymentMethod: privatePaymentMethod,
+          gasSettings: incrementPrivateGasSettings,
+        },
       ),
       namedMethod(
         "increment_private_mint_and_pay_fee",
         deployer,
         counterContract.withWallet(wallet).methods.increment(),
-        { paymentMethod: mintAndPayFeeMethod, gasSettings },
+        {
+          paymentMethod: mintAndPayFeeMethod,
+          gasSettings: incrementPrivateMintAndPayFeeGasSettings,
+        },
       ),
     ];
   }

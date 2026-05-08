@@ -22,6 +22,8 @@
  * ```
  */
 
+export type { FeeMultiplier } from "./utils/index.js";
+
 // Contract artifacts and type-safe wrappers
 export {
   PrivateFPCContract,
@@ -38,8 +40,10 @@ export {
 export {
   // Gas calculations
   DEFAULT_FEE_MULTIPLIER,
-  REASONABLE_GAS_LIMITS,
+  DEFAULT_GAS_ESTIMATE_PADDING,
+  estimateGasSettings,
   maxFeesPerGasFromBaseFees,
+  maxPriorityFeesPerGasFromMaxFees,
   maxGasCostFor,
   // Deployment
   registerPrivateContract,
