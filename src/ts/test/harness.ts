@@ -327,7 +327,7 @@ export async function warpL1Time(
 
   // Warp with all block production paused to prevent races.
   await cc.execWithPausedAnvil(async () => {
-    const before = await cc.timestamp();
+    const before = await cc.lastBlockTimestamp();
     await cc.setNextBlockTimestamp(before + seconds);
     await cc.evmMine();
   });
