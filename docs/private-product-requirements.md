@@ -1,8 +1,8 @@
 # Private FPC — Product Requirements Document
 
-**Version**: 1.4
+**Version**: 1.4.2
 **Status**: Active
-**Target Aztec Version**: 4.3.0-rc.1
+**Target Aztec Version**: 4.3.0
 **Audience**: Implementation Engineers
 **Date**: May 2026
 
@@ -292,3 +292,4 @@ The FPC's public FeeJuice balance (used to pay sequencers) is funded separately 
 | 1.3.2   | 2026-03-30 | Updated Target Aztec Version from `4.1.0-rc.4` to `4.2.0-aztecnr-rc.2` to match package dependencies.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 1.4     | 2026-04-01 | **SDK gas for sponsored txs**: Added `estimateGasSettings()` — simulate with `includeMetadata: true` and default gas padding to derive final `gasLimits` / `teardownGasLimits`; cap fees with `aztecNode.getCurrentMinFees()` scaled by `1.2×` (exact `6/5`, ceiling); set `maxPriorityFeesPerGas` equal to `maxFeesPerGas`. Tests/benchmarks use this helper when sending sponsored `Counter` txs.                                                                                                                                                                                                                                                 |
 | 1.4.1   | 2026-05-15 | Updated Target Aztec Version from `4.2.0-aztecnr-rc.2` to `4.3.0-rc.1` to match package dependencies. Mechanical SDK migration in `registerPrivateContract` to the new `DeployMethod` API (address-affecting params — `salt`, `universalDeploy` — moved into the construction-time `instantiation` argument; `register()` no longer accepts options). `universalDeploy: true` replaces the prior `deployer: AztecAddress.ZERO` — same deterministic address, no behavior change. Test-only helper `warpL1Time` updated for the `EthCheatCodes.timestamp()` → `lastBlockTimestamp()` rename. No spec-level / public-API / security-property changes. |
+| 1.4.2   | 2026-05-20 | Updated Target Aztec Version from `4.3.0-rc.1` to `4.3.0` (final release) to match package dependencies. No code or spec changes — version bump only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
