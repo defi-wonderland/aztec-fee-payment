@@ -59,7 +59,7 @@
     "@aztec/wallets": "4.2.0",
     "@commitlint/cli": "20.5.0",
     "@commitlint/config-conventional": "20.5.0",
-    "@defi-wonderland/aztec-benchmark": "4.2.0",
+    "@defi-wonderland/aztec-benchmark": "4.3.0",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
     "@types/node": "25.6.0",
