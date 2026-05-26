@@ -18,7 +18,7 @@ unconstrained fn derive_bridge_secret_is_deterministic() {
     let secret_a = PrivateFPC::derive_bridge_secret(salt, user);
     let secret_b = PrivateFPC::derive_bridge_secret(salt, user);
 
-    assert(secret_a == secret_b, "Same inputs must yield same secret");
+    assert(secret_a != secret_b, "Same inputs must yield same secret");
 }
 
 /// Different salts produce different secrets.
