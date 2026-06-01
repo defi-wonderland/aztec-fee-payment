@@ -93,7 +93,7 @@ pub contract PrivateFPC {
         ));
 
         // FPC-scoped nullifier prevents double-spending this bridge credit.
-        self.context.push_nullifier(feejuice_nullifier);
+        self.context.push_nullifier_unsafe(feejuice_nullifier);
 
         // Credit (amount - max_gas_cost) to claimer. The fee is implicitly deducted
         // since the full amount was bridged but only the remainder is credited.
@@ -158,7 +158,7 @@ pub contract PrivateFPC {
         // Emit an FPC-scoped nullifier to prevent double-minting this bridge credit.
         // Siloed as poseidon2([FPC_address, feejuice_nullifier]) - distinct from the
         // FeeJuice-siloed version poseidon2([FeeJuice_address, feejuice_nullifier]).
-        self.context.push_nullifier(feejuice_nullifier);
+        self.context.push_nullifier_unsafe(feejuice_nullifier);
 
         // Mint private internal balance to claimer.
         self.storage.balances.at(claimer).add(amount).deliver(MessageDelivery.ONCHAIN_UNCONSTRAINED);
