@@ -161,7 +161,9 @@ pub contract PrivateFPC {
         self.context.push_nullifier_unsafe(feejuice_nullifier);
 
         // Mint private internal balance to claimer.
-        self.storage.balances.at(claimer).add(amount).deliver(MessageDelivery::onchain_unconstrained());
+        self.storage.balances.at(claimer).add(amount).deliver(
+            MessageDelivery::onchain_unconstrained(),
+        );
     }
 
     /// @notice Computes the max gas cost and deducts it from the account's balance.
@@ -173,7 +175,9 @@ pub contract PrivateFPC {
 
         let change =
             self.internal._subtract_balance(account, max_gas_cost, INITIAL_TRANSFER_CALL_MAX_NOTES);
-        self.storage.balances.at(account).add(change).deliver(MessageDelivery::onchain_unconstrained());
+        self.storage.balances.at(account).add(change).deliver(
+            MessageDelivery::onchain_unconstrained(),
+        );
 
         max_gas_cost
     }
