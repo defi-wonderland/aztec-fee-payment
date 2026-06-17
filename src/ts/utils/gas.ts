@@ -1,23 +1,22 @@
 import type { FeePaymentMethod } from "@aztec/aztec.js/fee";
 import { AztecAddress } from "@aztec/stdlib/aztec-address";
-import {
-  Gas,
-  GasFees,
-  GasSettings,
-  APPROXIMATE_MAX_DA_GAS_PER_BLOCK,
-  FALLBACK_TEARDOWN_DA_GAS_LIMIT,
-  FALLBACK_TEARDOWN_L2_GAS_LIMIT,
-} from "@aztec/stdlib/gas";
-import { MAX_PROCESSABLE_L2_GAS } from "@aztec/constants";
+import { Gas, GasFees, GasSettings } from "@aztec/stdlib/gas";
 
-type BaseFeesProvider = {
+type GasEstimationNode = {
   getCurrentMinFees(): Promise<GasFees>;
+  getNodeInfo(): Promise<{
+    txsLimits: { gas: { daGas: number; l2Gas: number } };
+  }>;
 };
 
-type SimulatedGasEstimate = Pick<
-  GasSettings,
-  "gasLimits" | "teardownGasLimits"
->;
+/**
+ * Raw gas consumed during simulation, returned by `simulate` when called with
+ * `includeMetadata: true`. Replaces the removed `estimatedGas` result field.
+ */
+type SimulatedGasUsage = {
+  totalGas: Gas;
+  teardownGas: Gas;
+};
 
 type SimulatableInteraction = {
   simulate(options: {
@@ -26,7 +25,6 @@ type SimulatableInteraction = {
     includeMetadata?: boolean;
     fee?: {
       paymentMethod?: FeePaymentMethod;
-      estimatedGasPadding?: number;
       gasSettings?: {
         gasLimits?: Gas;
         teardownGasLimits?: Gas;
@@ -34,7 +32,7 @@ type SimulatableInteraction = {
         maxPriorityFeesPerGas?: GasFees;
       };
     };
-  }): Promise<{ estimatedGas?: SimulatedGasEstimate }>;
+  }): Promise<{ gasUsed?: SimulatedGasUsage }>;
 };
 
 const FEE_MULTIPLIER_SCALE = 10_000n;
@@ -94,26 +92,17 @@ export const DEFAULT_FEE_MULTIPLIER = {
 export const DEFAULT_GAS_ESTIMATE_PADDING = 0.1;
 
 /**
- * Protocol-maximum gas limits, used as the initial ceiling for
- * estimateGasSettings — the simulation replaces them with tighter values.
+ * Pads each gas dimension by `pad` (e.g. 0.1 = +10%) and caps it at the
+ * network's per-tx admission limit, mirroring the framework's getGasLimits.
+ * The cap keeps the declared limits within what inbound validation accepts.
  */
-const MAX_GAS_LIMITS = Gas.from({
-  daGas: APPROXIMATE_MAX_DA_GAS_PER_BLOCK,
-  l2Gas: MAX_PROCESSABLE_L2_GAS,
-});
-
-/**
- * Protocol-default teardown gas limits. The protocol bills teardown gas at the
- * limit (not actual usage), so these overestimate. estimateGasSettings replaces
- * them with simulation output.
- *
- * Teardown gas is already included in gasLimits by the protocol, so these must
- * NOT be passed to maxGasCostFor (that would double-count teardown cost).
- */
-const FALLBACK_TEARDOWN_GAS_LIMITS = Gas.from({
-  daGas: FALLBACK_TEARDOWN_DA_GAS_LIMIT,
-  l2Gas: FALLBACK_TEARDOWN_L2_GAS_LIMIT,
-});
+function padAndClampGas(gas: Gas, pad: number, max: Gas): Gas {
+  const padded = gas.mul(1 + pad);
+  return Gas.from({
+    daGas: Math.min(padded.daGas, max.daGas),
+    l2Gas: Math.min(padded.l2Gas, max.l2Gas),
+  });
+}
 
 /**
  * Calculate max fees per gas from the node's minimum fees with a multiplier.
@@ -174,6 +163,12 @@ export function maxGasCostFor(maxFeesPerGas: GasFees, gasLimits: Gas): bigint {
 /**
  * Simulate an interaction to derive tighter gas limits, then combine them with
  * fee caps based on the node's current minimum fees.
+ *
+ * The network advertises the maximum gas a single tx may declare via
+ * `NodeInfo.txsLimits.gas` (the smaller of the per-tx maximum and the per-block
+ * allocation). The simulation runs within that ceiling and the simulated usage
+ * is padded and clamped back to it, so the wallet's gas-limit validation never
+ * rejects the resulting transaction for over-declaring gas.
  */
 export async function estimateGasSettings(
   interaction: SimulatableInteraction,
@@ -184,17 +179,13 @@ export async function estimateGasSettings(
     additionalScopes,
     maxFeeMultiplier = DEFAULT_FEE_MULTIPLIER,
     estimatedGasPadding = DEFAULT_GAS_ESTIMATE_PADDING,
-    gasLimits = MAX_GAS_LIMITS,
-    teardownGasLimits = FALLBACK_TEARDOWN_GAS_LIMITS,
   }: {
-    aztecNode: BaseFeesProvider;
+    aztecNode: GasEstimationNode;
     from: AztecAddress;
     paymentMethod?: FeePaymentMethod;
     additionalScopes?: AztecAddress[];
     maxFeeMultiplier?: FeeMultiplier;
     estimatedGasPadding?: number;
-    gasLimits?: Gas;
-    teardownGasLimits?: Gas;
   },
 ): Promise<GasSettings> {
   const maxFeesPerGas = maxFeesPerGasFromBaseFees(
@@ -203,29 +194,48 @@ export async function estimateGasSettings(
   );
   const maxPriorityFeesPerGas = maxPriorityFeesPerGasFromMaxFees(maxFeesPerGas);
 
+  const {
+    txsLimits: { gas },
+  } = await aztecNode.getNodeInfo();
+  const maxGasLimits = Gas.from({ daGas: gas.daGas, l2Gas: gas.l2Gas });
+
   const simulation = await interaction.simulate({
     from,
     additionalScopes,
     includeMetadata: true,
     fee: {
       paymentMethod,
-      estimatedGasPadding,
       gasSettings: {
-        gasLimits,
-        teardownGasLimits,
+        gasLimits: maxGasLimits,
+        teardownGasLimits: maxGasLimits,
         maxFeesPerGas,
         maxPriorityFeesPerGas,
       },
     },
   });
 
-  if (!simulation.estimatedGas) {
-    throw new Error("Gas estimation metadata was not returned by simulation.");
+  if (!simulation.gasUsed) {
+    throw new Error("Gas usage metadata was not returned by simulation.");
   }
 
+  const { totalGas, teardownGas } = simulation.gasUsed;
+
+  // If simulated usage already exceeds the admission limit the tx can never be
+  // included, so fail fast rather than declaring a limit the node would reject.
+  if (
+    totalGas.daGas > maxGasLimits.daGas ||
+    totalGas.l2Gas > maxGasLimits.l2Gas
+  ) {
+    throw new Error(
+      `Transaction consumes more gas (DA ${totalGas.daGas}, L2 ${totalGas.l2Gas}) than the network admits per tx (DA ${maxGasLimits.daGas}, L2 ${maxGasLimits.l2Gas}).`,
+    );
+  }
+
+  // gasLimits is the padded total gas (teardown is part of the total); the
+  // teardown sub-limit is padded separately. Mirrors the framework's getGasLimits.
   return new GasSettings(
-    simulation.estimatedGas.gasLimits,
-    simulation.estimatedGas.teardownGasLimits,
+    padAndClampGas(totalGas, estimatedGasPadding, maxGasLimits),
+    padAndClampGas(teardownGas, estimatedGasPadding, maxGasLimits),
     maxFeesPerGas,
     maxPriorityFeesPerGas,
   );

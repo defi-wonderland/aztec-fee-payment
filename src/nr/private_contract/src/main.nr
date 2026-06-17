@@ -14,7 +14,7 @@ pub contract PrivateFPC {
             compute_l1_to_l2_message_hash, compute_l1_to_l2_message_nullifier, compute_secret_hash,
         },
         macros::{functions::{allow_phase_change, external, internal, only_self}, storage::storage},
-        messages::message_delivery::MessageDelivery,
+        messages::delivery::MessageDelivery,
         nullifier::utils::compute_nullifier_existence_request,
         protocol::{
             address::{AztecAddress, EthAddress},
@@ -100,7 +100,7 @@ pub contract PrivateFPC {
         let max_gas_cost = get_max_gas_cost(self.context);
         assert(amount >= max_gas_cost, "Amount too low to cover gas cost");
         self.storage.balances.at(claimer).add(amount - max_gas_cost).deliver(
-            MessageDelivery.ONCHAIN_UNCONSTRAINED,
+            MessageDelivery::onchain_unconstrained(),
         );
 
         self.context.set_as_fee_payer();
@@ -161,7 +161,7 @@ pub contract PrivateFPC {
         self.context.push_nullifier_unsafe(feejuice_nullifier);
 
         // Mint private internal balance to claimer.
-        self.storage.balances.at(claimer).add(amount).deliver(MessageDelivery.ONCHAIN_UNCONSTRAINED);
+        self.storage.balances.at(claimer).add(amount).deliver(MessageDelivery::onchain_unconstrained());
     }
 
     /// @notice Computes the max gas cost and deducts it from the account's balance.
@@ -173,7 +173,7 @@ pub contract PrivateFPC {
 
         let change =
             self.internal._subtract_balance(account, max_gas_cost, INITIAL_TRANSFER_CALL_MAX_NOTES);
-        self.storage.balances.at(account).add(change).deliver(MessageDelivery.ONCHAIN_UNCONSTRAINED);
+        self.storage.balances.at(account).add(change).deliver(MessageDelivery::onchain_unconstrained());
 
         max_gas_cost
     }

@@ -43,7 +43,7 @@ describe("gas utilities", () => {
     expect(priorityFees.feePerL2Gas).toBe(13n);
   });
 
-  it("estimates gas settings from simulation metadata", async () => {
+  it("pads simulated gas usage into limits and combines with fee caps", async () => {
     const from = await AztecAddress.random();
     const paymentMethod = {
       getAsset: vi.fn(),
@@ -51,18 +51,20 @@ describe("gas utilities", () => {
       getExecutionPayload: vi.fn(),
       getGasSettings: vi.fn(),
     };
-    const simulatedGasLimits = Gas.from({ daGas: 123, l2Gas: 456 });
-    const simulatedTeardownGasLimits = Gas.from({ daGas: 7, l2Gas: 8 });
+    // Raw gas consumed by the simulation (the new `gasUsed` metadata field).
+    const totalGas = Gas.from({ daGas: 100, l2Gas: 200 });
+    const teardownGas = Gas.from({ daGas: 10, l2Gas: 20 });
     const interaction = {
       simulate: vi.fn().mockResolvedValue({
-        estimatedGas: {
-          gasLimits: simulatedGasLimits,
-          teardownGasLimits: simulatedTeardownGasLimits,
-        },
+        gasUsed: { totalGas, teardownGas },
       }),
     };
+    // Network admission limit set high enough that padding never clamps.
     const aztecNode = {
       getCurrentMinFees: vi.fn().mockResolvedValue(new GasFees(10n, 20n)),
+      getNodeInfo: vi.fn().mockResolvedValue({
+        txsLimits: { gas: { daGas: 1_000_000, l2Gas: 2_000_000 } },
+      }),
     };
 
     const gasSettings = await estimateGasSettings(interaction, {
@@ -73,6 +75,7 @@ describe("gas utilities", () => {
     });
 
     expect(aztecNode.getCurrentMinFees).toHaveBeenCalledOnce();
+    expect(aztecNode.getNodeInfo).toHaveBeenCalledOnce();
     expect(interaction.simulate).toHaveBeenCalledOnce();
     expect(interaction.simulate).toHaveBeenCalledWith({
       from,
@@ -80,7 +83,6 @@ describe("gas utilities", () => {
       includeMetadata: true,
       fee: {
         paymentMethod,
-        estimatedGasPadding: 0.1,
         gasSettings: {
           gasLimits: expect.any(Gas),
           teardownGasLimits: expect.any(Gas),
@@ -95,11 +97,69 @@ describe("gas utilities", () => {
         },
       },
     });
-    expect(gasSettings.gasLimits).toBe(simulatedGasLimits);
-    expect(gasSettings.teardownGasLimits).toBe(simulatedTeardownGasLimits);
+
+    // gasLimits is the padded total gas; teardownGasLimits the padded teardown.
+    const expectedGasLimits = totalGas.mul(1 + 0.1);
+    const expectedTeardownGasLimits = teardownGas.mul(1 + 0.1);
+    expect(gasSettings.gasLimits.daGas).toBe(expectedGasLimits.daGas);
+    expect(gasSettings.gasLimits.l2Gas).toBe(expectedGasLimits.l2Gas);
+    expect(gasSettings.teardownGasLimits.daGas).toBe(
+      expectedTeardownGasLimits.daGas,
+    );
+    expect(gasSettings.teardownGasLimits.l2Gas).toBe(
+      expectedTeardownGasLimits.l2Gas,
+    );
     expect(gasSettings.maxFeesPerGas.feePerDaGas).toBe(12n);
     expect(gasSettings.maxFeesPerGas.feePerL2Gas).toBe(24n);
     expect(gasSettings.maxPriorityFeesPerGas.feePerDaGas).toBe(12n);
     expect(gasSettings.maxPriorityFeesPerGas.feePerL2Gas).toBe(24n);
+  });
+
+  it("clamps padded gas limits to the network admission limit", async () => {
+    const from = await AztecAddress.random();
+    const totalGas = Gas.from({ daGas: 100, l2Gas: 200 });
+    const teardownGas = Gas.from({ daGas: 10, l2Gas: 20 });
+    const interaction = {
+      simulate: vi.fn().mockResolvedValue({
+        gasUsed: { totalGas, teardownGas },
+      }),
+    };
+    // Admission limit sits between the raw usage and its padded value, so the
+    // padded limits are capped at the admission limit per dimension.
+    const aztecNode = {
+      getCurrentMinFees: vi.fn().mockResolvedValue(new GasFees(10n, 20n)),
+      getNodeInfo: vi.fn().mockResolvedValue({
+        txsLimits: { gas: { daGas: 105, l2Gas: 205 } },
+      }),
+    };
+
+    const gasSettings = await estimateGasSettings(interaction, {
+      aztecNode,
+      from,
+    });
+
+    expect(gasSettings.gasLimits.daGas).toBe(105);
+    expect(gasSettings.gasLimits.l2Gas).toBe(205);
+  });
+
+  it("throws when simulated usage exceeds the network admission limit", async () => {
+    const from = await AztecAddress.random();
+    const totalGas = Gas.from({ daGas: 100, l2Gas: 200 });
+    const teardownGas = Gas.from({ daGas: 10, l2Gas: 20 });
+    const interaction = {
+      simulate: vi.fn().mockResolvedValue({
+        gasUsed: { totalGas, teardownGas },
+      }),
+    };
+    const aztecNode = {
+      getCurrentMinFees: vi.fn().mockResolvedValue(new GasFees(10n, 20n)),
+      getNodeInfo: vi.fn().mockResolvedValue({
+        txsLimits: { gas: { daGas: 50, l2Gas: 2_000_000 } },
+      }),
+    };
+
+    await expect(
+      estimateGasSettings(interaction, { aztecNode, from }),
+    ).rejects.toThrow(/consumes more gas/);
   });
 });

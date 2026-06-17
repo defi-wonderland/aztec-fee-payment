@@ -1,6 +1,6 @@
 {
   "name": "aztec-fee-payment",
-  "version": "5.0.0-nightly.20260529",
+  "version": "5.0.0-rc.1",
   "private": true,
   "repository": "https://github.com/defi-wonderland/aztec-fee-payment.git",
   "author": "Wonderland",
@@ -26,7 +26,10 @@
   },
   "main": "./dist/src/ts/index.js",
   "types": "./dist/src/ts/index.d.ts",
-  "files": ["dist", "target"],
+  "files": [
+    "dist",
+    "target"
+  ],
   "scripts": {
     "clean": "rm -rf ./src/artifacts/* ./target codegenCache.json",
     "codegen": "aztec codegen target --outdir src/artifacts -f",
@@ -46,20 +49,20 @@
     "*.{js,ts}": "prettier --write -u"
   },
   "devDependencies": {
-    "@aztec/accounts": "5.0.0-nightly.20260529",
-    "@aztec/aztec.js": "5.0.0-nightly.20260529",
-    "@aztec/constants": "5.0.0-nightly.20260529",
-    "@aztec/entrypoints": "5.0.0-nightly.20260529",
-    "@aztec/ethereum": "5.0.0-nightly.20260529",
-    "@aztec/foundation": "5.0.0-nightly.20260529",
-    "@aztec/noir-contracts.js": "5.0.0-nightly.20260529",
-    "@aztec/protocol-contracts": "5.0.0-nightly.20260529",
-    "@aztec/pxe": "5.0.0-nightly.20260529",
-    "@aztec/stdlib": "5.0.0-nightly.20260529",
-    "@aztec/wallets": "5.0.0-nightly.20260529",
+    "@aztec/accounts": "5.0.0-rc.1",
+    "@aztec/aztec.js": "5.0.0-rc.1",
+    "@aztec/constants": "5.0.0-rc.1",
+    "@aztec/entrypoints": "5.0.0-rc.1",
+    "@aztec/ethereum": "5.0.0-rc.1",
+    "@aztec/foundation": "5.0.0-rc.1",
+    "@aztec/noir-contracts.js": "5.0.0-rc.1",
+    "@aztec/protocol-contracts": "5.0.0-rc.1",
+    "@aztec/pxe": "5.0.0-rc.1",
+    "@aztec/stdlib": "5.0.0-rc.1",
+    "@aztec/wallets": "5.0.0-rc.1",
     "@commitlint/cli": "20.5.0",
     "@commitlint/config-conventional": "20.5.0",
-    "@defi-wonderland/aztec-benchmark": "https://github.com/defi-wonderland/aztec-benchmark/releases/download/prerelease-0932ac3/defi-wonderland-aztec-benchmark-5.0.0-nightly.20260529-prerelease.0932ac3.tgz",
+    "@defi-wonderland/aztec-benchmark": "https://github.com/defi-wonderland/aztec-benchmark/releases/download/prerelease-98d719b/defi-wonderland-aztec-benchmark-5.0.0-rc.1-prerelease.98d719b.tgz",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
     "@types/node": "25.6.0",
@@ -72,7 +75,7 @@
     "vitest": "4.1.4"
   },
   "config": {
-    "aztecVersion": "5.0.0-nightly.20260529"
+    "aztecVersion": "5.0.0-rc.1"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
   "engines": {
