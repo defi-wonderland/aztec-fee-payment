@@ -162,4 +162,56 @@ describe("gas utilities", () => {
       estimateGasSettings(interaction, { aztecNode, from }),
     ).rejects.toThrow(/consumes more gas/);
   });
+
+  it("rejects non-finite or negative gas padding before simulating", async () => {
+    const from = await AztecAddress.random();
+    const interaction = { simulate: vi.fn() };
+    const aztecNode = {
+      getCurrentMinFees: vi.fn(),
+      getNodeInfo: vi.fn(),
+    };
+
+    for (const estimatedGasPadding of [NaN, Infinity, -Infinity, -0.1]) {
+      await expect(
+        estimateGasSettings(interaction, {
+          aztecNode,
+          from,
+          estimatedGasPadding,
+        }),
+      ).rejects.toThrow(/padding must be a non-negative finite number/);
+    }
+
+    // Fail fast: invalid padding is rejected before any node/simulation calls.
+    expect(aztecNode.getCurrentMinFees).not.toHaveBeenCalled();
+    expect(aztecNode.getNodeInfo).not.toHaveBeenCalled();
+    expect(interaction.simulate).not.toHaveBeenCalled();
+  });
+
+  it("accepts zero padding, yielding limits equal to simulated usage", async () => {
+    const from = await AztecAddress.random();
+    const totalGas = Gas.from({ daGas: 100, l2Gas: 200 });
+    const teardownGas = Gas.from({ daGas: 10, l2Gas: 20 });
+    const interaction = {
+      simulate: vi.fn().mockResolvedValue({
+        gasUsed: { totalGas, teardownGas },
+      }),
+    };
+    const aztecNode = {
+      getCurrentMinFees: vi.fn().mockResolvedValue(new GasFees(10n, 20n)),
+      getNodeInfo: vi.fn().mockResolvedValue({
+        txsLimits: { gas: { daGas: 1_000_000, l2Gas: 2_000_000 } },
+      }),
+    };
+
+    const gasSettings = await estimateGasSettings(interaction, {
+      aztecNode,
+      from,
+      estimatedGasPadding: 0,
+    });
+
+    expect(gasSettings.gasLimits.daGas).toBe(100);
+    expect(gasSettings.gasLimits.l2Gas).toBe(200);
+    expect(gasSettings.teardownGasLimits.daGas).toBe(10);
+    expect(gasSettings.teardownGasLimits.l2Gas).toBe(20);
+  });
 });

@@ -188,6 +188,16 @@ export async function estimateGasSettings(
     estimatedGasPadding?: number;
   },
 ): Promise<GasSettings> {
+  // Validate the padding knob at the public boundary so we fail fast before the
+  // simulation round-trip, mirroring the maxFeeMultiplier validation in
+  // normalizeMultiplier. Zero is allowed (no margin); negatives would
+  // under-declare gas and NaN/Infinity would yield invalid limits the node rejects.
+  if (!Number.isFinite(estimatedGasPadding) || estimatedGasPadding < 0) {
+    throw new Error(
+      `Gas estimate padding must be a non-negative finite number, got ${estimatedGasPadding}`,
+    );
+  }
+
   const maxFeesPerGas = maxFeesPerGasFromBaseFees(
     await aztecNode.getCurrentMinFees(),
     maxFeeMultiplier,
