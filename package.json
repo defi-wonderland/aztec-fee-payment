@@ -60,7 +60,7 @@
     "@aztec/pxe": "5.0.0-rc.2",
     "@aztec/stdlib": "5.0.0-rc.2",
     "@aztec/wallets": "5.0.0-rc.2",
-    "@commitlint/cli": "20.5.0",
+    "@commitlint/cli": "21.2.0",
     "@commitlint/config-conventional": "20.5.0",
     "@defi-wonderland/aztec-benchmark": "https://github.com/defi-wonderland/aztec-benchmark/releases/download/prerelease-a2add93/defi-wonderland-aztec-benchmark-5.0.0-rc.2-prerelease.a2add93.tgz",
     "@types/jest": "30.0.0",
