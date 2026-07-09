@@ -79,7 +79,7 @@ export type FundFeeJuiceFromL1Options = {
  * This is the standard way to fund FPCs with the native fee token.
  */
 export async function fundL2AddressWithFeeJuiceFromL1(
-  aztecNode: Pick<AztecNode, "getL1ToL2MessageCheckpoint" | "getBlock">,
+  aztecNode: Pick<AztecNode, "getL1ToL2MessageCheckpoint" | "getBlockData">,
   wallet: Wallet,
   recipient: AztecAddress,
   opts: FundFeeJuiceFromL1Options,
@@ -179,7 +179,7 @@ export type BridgeForMintResult = {
 export async function bridgeForMint(
   aztecNode: Pick<
     AztecNode,
-    "getL1ToL2MessageCheckpoint" | "getBlock" | "getNodeInfo"
+    "getL1ToL2MessageCheckpoint" | "getBlockData" | "getNodeInfo"
   >,
   fpcAddress: AztecAddress,
   claimer: AztecAddress,
@@ -327,7 +327,7 @@ export async function warpL1Time(
 
   // Warp with all block production paused to prevent races.
   await cc.execWithPausedAnvil(async () => {
-    const before = await cc.timestamp();
+    const before = await cc.lastBlockTimestamp();
     await cc.setNextBlockTimestamp(before + seconds);
     await cc.evmMine();
   });

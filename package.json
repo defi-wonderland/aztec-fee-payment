@@ -1,6 +1,6 @@
 {
   "name": "aztec-fee-payment",
-  "version": "4.2.0",
+  "version": "5.0.0-rc.2",
   "private": true,
   "repository": "https://github.com/defi-wonderland/aztec-fee-payment.git",
   "author": "Wonderland",
@@ -26,7 +26,10 @@
   },
   "main": "./dist/src/ts/index.js",
   "types": "./dist/src/ts/index.d.ts",
-  "files": ["dist", "target"],
+  "files": [
+    "dist",
+    "target"
+  ],
   "scripts": {
     "clean": "rm -rf ./src/artifacts/* ./target codegenCache.json",
     "codegen": "aztec codegen target --outdir src/artifacts -f",
@@ -46,20 +49,20 @@
     "*.{js,ts}": "prettier --write -u"
   },
   "devDependencies": {
-    "@aztec/accounts": "4.2.0",
-    "@aztec/aztec.js": "4.2.0",
-    "@aztec/constants": "4.2.0",
-    "@aztec/entrypoints": "4.2.0",
-    "@aztec/ethereum": "4.2.0",
-    "@aztec/foundation": "4.2.0",
-    "@aztec/noir-contracts.js": "4.2.0",
-    "@aztec/protocol-contracts": "4.2.0",
-    "@aztec/pxe": "4.2.0",
-    "@aztec/stdlib": "4.2.0",
-    "@aztec/wallets": "4.2.0",
+    "@aztec/accounts": "5.0.0-rc.2",
+    "@aztec/aztec.js": "5.0.0-rc.2",
+    "@aztec/constants": "5.0.0-rc.2",
+    "@aztec/entrypoints": "5.0.0-rc.2",
+    "@aztec/ethereum": "5.0.0-rc.2",
+    "@aztec/foundation": "5.0.0-rc.2",
+    "@aztec/noir-contracts.js": "5.0.0-rc.2",
+    "@aztec/protocol-contracts": "5.0.0-rc.2",
+    "@aztec/pxe": "5.0.0-rc.2",
+    "@aztec/stdlib": "5.0.0-rc.2",
+    "@aztec/wallets": "5.0.0-rc.2",
     "@commitlint/cli": "20.5.0",
     "@commitlint/config-conventional": "20.5.0",
-    "@defi-wonderland/aztec-benchmark": "4.2.0",
+    "@defi-wonderland/aztec-benchmark": "https://github.com/defi-wonderland/aztec-benchmark/releases/download/prerelease-a2add93/defi-wonderland-aztec-benchmark-5.0.0-rc.2-prerelease.a2add93.tgz",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
     "@types/node": "25.6.0",
@@ -72,7 +75,7 @@
     "vitest": "4.1.4"
   },
   "config": {
-    "aztecVersion": "4.2.0"
+    "aztecVersion": "5.0.0-rc.2"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
   "engines": {

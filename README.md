@@ -29,7 +29,7 @@ A Fee Payment Contract (FPC) for Aztec that enables private transaction fee spon
 
 ### Prerequisites
 
-- [Aztec CLI](https://docs.aztec.network/getting_started) v4.2.0
+- [Aztec CLI](https://docs.aztec.network/getting_started) v5.0.0-rc.2
 - Node.js 22+
 - Yarn 1.22+
 
