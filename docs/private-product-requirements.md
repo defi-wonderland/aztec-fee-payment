@@ -1,10 +1,10 @@
 # Private FPC — Product Requirements Document
 
-**Version**: 1.5
+**Version**: 1.5.2
 **Status**: Active
 **Target Aztec Version**: 5.0.0-rc.2
 **Audience**: Implementation Engineers
-**Date**: May 2026
+**Date**: July 2026
 
 ---
 
